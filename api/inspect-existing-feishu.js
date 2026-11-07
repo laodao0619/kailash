@@ -29,12 +29,19 @@ module.exports=async(req,res)=>{
     result.bitable.table_details=[];
     for(const t of (tables.items||tables.tables||[])){
       const fields=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+t.table_id+"/fields?page_size=100");
-      const records=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+t.table_id+"/records?page_size=1");
+      const records=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+t.table_id+"/records?page_size=5");
+      const sample=(records.items||records.records||[]).map(record=>({
+        record_id:record.record_id,
+        field_names:Object.keys(record.fields||{}),
+        value_types:Object.fromEntries(Object.entries(record.fields||{}).map(([k,v])=>[k,Array.isArray(v)?"array":typeof v])),
+        text_preview:Object.fromEntries(Object.entries(record.fields||{}).map(([k,v])=>[k,typeof v==="string"?v.slice(0,80):Array.isArray(v)?("array("+v.length+")"):typeof v==="object"&&v!==null?"object":String(v).slice(0,40)]))
+      }));
       result.bitable.table_details.push({
         table_id:t.table_id,
         name:t.name,
         fields:(fields.items||fields.fields||[]).map(f=>({field_id:f.field_id,field_name:f.field_name,type:f.type})),
-        total_records:records.total??records.total_count??null
+        total_records:records.total??records.total_count??null,
+        sample_records:sample
       });
     }
     result.bitable.selected_table=result.bitable.table_details.find(t=>t.table_id===bitableTableId)||null;
