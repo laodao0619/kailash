@@ -1,0 +1,13 @@
+{
+  "name": "kailash-energy-ai-knowledge-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Feishu-first knowledge hub bootstrap and API for Kailash Energy",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {}
+}
