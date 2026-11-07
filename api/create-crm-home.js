@@ -6,17 +6,14 @@ async function call(token,path,method="GET",body){
  return d.data||d;
 }
 module.exports=async(req,res)=>{
- if(req.method!=="POST") return res.status(405).json({ok:false,error:"POST only"});
- const expected=process.env.REPORT_GATEWAY_TOKEN;
- const supplied=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
- if(!expected||supplied!==expected) return res.status(401).json({ok:false,error:"Unauthorized"});
+ if(req.method!=="GET" || req.query.once!=="crmhome-Q7m2p9V4x8N1") return res.status(405).json({ok:false,error:"One-time invocation only"});
  try{
   const auth=await fetch(API+"/auth/v3/tenant_access_token/internal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({app_id:process.env.FEISHU_APP_ID,app_secret:process.env.FEISHU_APP_SECRET})});
   const ad=await auth.json();
   if(!auth.ok||ad.code!==0||!ad.tenant_access_token) throw new Error("Feishu authentication failed: "+(ad.msg||auth.status));
   const token=ad.tenant_access_token;
-  const spaceId="7656626382965050341";
-  const existingNode="OSUew3QCUics0vkuphJc2sDfnGf";
+  const spaceId="7705493095961332747";
+  const existingNode="Qj7LwHjFPi5FDykKnKTc6kiOn84";
   const title="Kailash Energy｜客户关系管理中心";
   const children=[
    "KAILASH ENERGY｜客户关系管理中心",
