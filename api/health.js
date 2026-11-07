@@ -1,0 +1,1 @@
+module.exports=async(_req,res)=>res.status(200).json({service:"kailash-energy-ai-knowledge-hub",status:"ok",configured:{FEISHU_APP_ID:!!process.env.FEISHU_APP_ID,FEISHU_APP_SECRET:!!process.env.FEISHU_APP_SECRET,REPORT_GATEWAY_TOKEN:!!process.env.REPORT_GATEWAY_TOKEN}});
