@@ -72,8 +72,9 @@ module.exports = async (req, res) => {
     const results = [];
     for (const spec of TABLES) {
       const basePath = "/bitable/v1/apps/" + APP_TOKEN + "/tables/" + spec.id;
-      const tableData = await call(token, basePath);
-      const table = tableData.table || tableData;
+      const tableListing = await call(token, "/bitable/v1/apps/" + APP_TOKEN + "/tables?page_size=50");
+      const table = (tableListing.items || tableListing.tables || []).find(item => item.table_id === spec.id);
+      if (!table) throw new Error("Approved CRM table not found: " + spec.id);
       if (table.name !== spec.name) {
         if (table.name !== spec.expectedName) {
           throw new Error("Unexpected table name " + table.name + " for " + spec.id + "; refusing to overwrite");
