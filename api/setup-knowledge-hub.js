@@ -41,7 +41,7 @@ async function tenantToken() {
   return d.tenant_access_token;
 }
 function auth(req,res) {
-  const supplied=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
+  const supplied=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
   const expected=process.env.REPORT_GATEWAY_TOKEN||"";
   const a=Buffer.from(supplied), b=Buffer.from(expected);
   if(!expected || a.length!==b.length || !crypto.timingSafeEqual(a,b)){res.status(401).json({ok:false,error:"Unauthorized"});return false;}
