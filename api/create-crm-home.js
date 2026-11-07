@@ -43,7 +43,7 @@ module.exports=async(req,res)=>{
   const docId=n.obj_token;
   if(!docId) throw new Error("Wiki node created but document token was not returned");
   const blocks=children.map(s=>({block_type:2,paragraph:{elements:[{text_run:{content:s}}]}}));
-  const inserted=await call(token,"/docx/v1/documents/"+docId+"/blocks/"+docId+"/children","POST",{children, index:0});
+  const inserted=await call(token,"/docx/v1/documents/"+docId+"/blocks/"+docId+"/children","POST",{children:blocks, index:0});
   return res.status(200).json({ok:true,created:true,title,node_token:n.node_token||n.token||null,document_id:docId,space_id:spaceId,paragraph_count:children.length,inserted});
  }catch(e){return res.status(502).json({ok:false,error:e.message});}
 };
