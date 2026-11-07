@@ -1,6 +1,6 @@
 const { put, get } = require("@vercel/blob");
 const PATH="crm-execution/tasks.json";
-function auth(req){const expected=process.env.REPORT_GATEWAY_TOKEN;const got=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");return !!expected&&got===expected;}
+function auth(req){const expected=process.env.REPORT_GATEWAY_TOKEN;const got=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");return !!expected&&got===expected;}
 const seed={project:"Kailash Energy CRM 2.0",updated_at:null,principles:["自动化优先","只保留两张业务表","异常驱动人工维护","产品资产独立保护"],tasks:[
 {id:"T01",title:"建立执行状态与日志",status:"in_progress",depends_on:[],scope:"Vercel Blob 私有存储"},
 {id:"T02",title:"完成客户档案表字段配置",status:"queued",depends_on:["T01"],target:"tblbk7Ju6fcM1BXF"},
@@ -15,7 +15,8 @@ const seed={project:"Kailash Energy CRM 2.0",updated_at:null,principles:["自动
 async function readState(){const r=await get(PATH,{access:"private"});if(!r||r.statusCode!==200)return null;const chunks=[];for await(const c of r.stream)chunks.push(c);return JSON.parse(Buffer.concat(chunks).toString("utf8"));}
 async function writeState(s){s.updated_at=new Date().toISOString();await put(PATH,JSON.stringify(s),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});}
 module.exports=async(req,res)=>{
- const bootstrap=req.method==="GET" && req.query.bootstrap==="queue-init-9d7K2mP4x6R8";\n if(!auth(req)&&!bootstrap)return res.status(401).json({ok:false,error:"Unauthorized"});
+ const bootstrap=req.method==="GET" && req.query.bootstrap==="queue-init-9d7K2mP4x6R8";
+ if(!auth(req)&&!bootstrap)return res.status(401).json({ok:false,error:"Unauthorized"});
  try{
   let state=await readState();
   if((req.method==="POST"&&req.query.action==="initialize")||bootstrap){
