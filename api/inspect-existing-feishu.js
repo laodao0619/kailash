@@ -26,11 +26,18 @@ module.exports=async(req,res)=>{
   if(n.obj_type==="bitable"&&n.obj_token){
     const tables=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables?page_size=50");
     result.bitable.tables=(tables.items||tables.tables||[]).map(t=>({table_id:t.table_id,name:t.name}));
-    const selected=(tables.items||tables.tables||[]).find(t=>t.table_id===bitableTableId);
-    if(selected){
-      const fields=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+bitableTableId+"/fields?page_size=100");
-      result.bitable.selected_table={name:selected.name,fields:(fields.items||fields.fields||[]).map(f=>({field_id:f.field_id,field_name:f.field_name,type:f.type}))};
+    result.bitable.table_details=[];
+    for(const t of (tables.items||tables.tables||[])){
+      const fields=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+t.table_id+"/fields?page_size=100");
+      const records=await api(token,"/bitable/v1/apps/"+n.obj_token+"/tables/"+t.table_id+"/records?page_size=1");
+      result.bitable.table_details.push({
+        table_id:t.table_id,
+        name:t.name,
+        fields:(fields.items||fields.fields||[]).map(f=>({field_id:f.field_id,field_name:f.field_name,type:f.type})),
+        total_records:records.total??records.total_count??null
+      });
     }
+    result.bitable.selected_table=result.bitable.table_details.find(t=>t.table_id===bitableTableId)||null;
   }
   return res.status(200).json(result);
  }catch(e){return res.status(502).json({ok:false,error:e.message,code:e.code||null});}
