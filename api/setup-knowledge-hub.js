@@ -55,13 +55,13 @@ module.exports = async (req,res) => {
     const token=await tenantToken();
     const created={documents:[],bitable:null,tables:[],warnings:[]};
 
-    const spaces=await api(token,"/wiki/v2/spaces?page_size=100");
+    const spaces=await api(token,"/wiki/v2/spaces?page_size=50");
     const existing=(spaces.items||spaces.spaces||[]).find(s=>s.name==="Kailash Energy AI 知识中心");
     const space=existing || await api(token,"/wiki/v2/spaces","POST",{name:"Kailash Energy AI 知识中心"});
     const spaceId=space.space_id || space.space?.space_id;
     if(!spaceId) throw new Error("Wiki space created/listed but space_id missing: "+JSON.stringify(space));
 
-    let nodesPage=await api(token,"/wiki/v2/spaces/"+spaceId+"/nodes?page_size=100");
+    let nodesPage=await api(token,"/wiki/v2/spaces/"+spaceId+"/nodes?page_size=50");
     let nodes=nodesPage.items||nodesPage.nodes||[];
     for(const [title,summary] of DOCS){
       let node=nodes.find(n=>n.title===title);
@@ -77,7 +77,7 @@ module.exports = async (req,res) => {
         try {
           const doc=await api(token,"/docx/v1/documents/"+objToken);
           const root=doc.document?.document_id||objToken;
-          const blocks=await api(token,"/docx/v1/documents/"+root+"/blocks?page_size=100");
+          const blocks=await api(token,"/docx/v1/documents/"+root+"/blocks?page_size=50");
           const children=blocks.items||blocks.blocks||[];
           if(children.length===0){
             const parent=doc.document?.document_id||objToken;
@@ -91,13 +91,13 @@ module.exports = async (req,res) => {
     }
 
     try {
-      const bases=await api(token,"/bitable/v1/apps?page_size=100");
+      const bases=await api(token,"/bitable/v1/apps?page_size=50");
       const existingBase=(bases.apps||bases.items||[]).find(a=>a.name==="Kailash Energy AI 运营数据库");
       const base=existingBase || await api(token,"/bitable/v1/apps","POST",{name:"Kailash Energy AI 运营数据库"});
       const appToken=base.app?.app_token||base.app_token;
       created.bitable={app_token:appToken||null,url:base.app?.url||base.url||null};
       if(appToken){
-        const listed=await api(token,"/bitable/v1/apps/"+appToken+"/tables?page_size=100");
+        const listed=await api(token,"/bitable/v1/apps/"+appToken+"/tables?page_size=50");
         const tables=listed.items||listed.tables||[];
         for(const spec of BASE_TABLES){
           if(tables.some(t=>t.name===spec.name)){created.tables.push({name:spec.name,status:"exists"});continue;}
