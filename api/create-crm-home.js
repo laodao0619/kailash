@@ -38,12 +38,21 @@ module.exports=async(req,res)=>{
    "数据保护：产品资产库独立管理。本CRM项目未经明确批准，不修改产品表格字段、记录或文件。",
    "实施状态：本页面为导航框架。客户表字段、视图、仪表盘和自动化将在逐项审核批准后配置。"
   ];
-  const node=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes","POST",{obj_type:"docx",node_type:"origin",title});
-  const n=node.node||node;
+  const listed=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes?page_size=100");
+  const found=(listed.items||[]).find(x=>x.title===title);
+  let n=found||null, created=false;
+  if(!n){
+   const node=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes","POST",{obj_type:"docx",node_type:"origin",title});
+   n=node.node||node; created=true;
+  }
   const docId=n.obj_token;
-  if(!docId) throw new Error("Wiki node created but document token was not returned");
-  const blocks=children.map(s=>({block_type:2,paragraph:{elements:[{text_run:{content:s}}]}}));
-  const inserted=await call(token,"/docx/v1/documents/"+docId+"/blocks/"+docId+"/children","POST",{children:blocks, index:0});
-  return res.status(200).json({ok:true,created:true,title,node_token:n.node_token||n.token||null,document_id:docId,space_id:spaceId,paragraph_count:children.length,inserted});
+  if(!docId) throw new Error("Wiki node exists but document token was not returned");
+  const current=await call(token,"/docx/v1/documents/"+docId+"/blocks/"+docId+"/children?page_size=100");
+  let inserted=null;
+  if(!(current.items||[]).length){
+   const blocks=children.map(s=>({block_type:2,text:{elements:[{text_run:{content:s}}]}}));
+   inserted=await call(token,"/docx/v1/documents/"+docId+"/blocks/"+docId+"/children","POST",{children:blocks,index:0});
+  }
+  return res.status(200).json({ok:true,created,title,node_token:n.node_token,document_id:docId,space_id:spaceId,paragraph_count:children.length,content_written:!!inserted||((current.items||[]).length>0),inserted});
  }catch(e){return res.status(502).json({ok:false,error:e.message});}
 };
