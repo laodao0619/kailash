@@ -38,7 +38,7 @@ module.exports=async(req,res)=>{
    "数据保护：产品资产库独立管理。本CRM项目未经明确批准，不修改产品表格字段、记录或文件。",
    "实施状态：本页面为导航框架。客户表字段、视图、仪表盘和自动化将在逐项审核批准后配置。"
   ];
-  const node=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes","POST",{obj_type:"docx",node_type:"origin",title});
+  const node=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes","POST",{obj_type:"docx",node_type:"origin",parent_node_token:"Qj7LwHjFPi5FDykKnKTc6kiOn84",title});
   const n=node.node||node;
   const docId=n.obj_token;
   if(!docId) throw new Error("Wiki node created but document token was not returned");
