@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { put, get } = require("@vercel/blob");
 const configure = require("./configure-crm-tables");
+const configureViews = require("./configure-crm-views");
 const PATH = "crm-execution/tasks.json";
 
 function authorized(req) {
@@ -40,29 +41,36 @@ module.exports = async (req, res) => {
   try {
     state = await readLedger();
     if (!state) return res.status(503).json({ ok: false, error: "Task ledger not initialized" });
-    const t02 = state.tasks.find(t => t.id === "T02");
-    const t03 = state.tasks.find(t => t.id === "T03");
-    if (t02?.status === "done" && t03?.status === "done") {
-      return res.status(200).json({ ok: true, status: "already_completed", tasks: ["T02","T03"] });
-    }
-    const fake = {
-      code: 200, payload: null,
-      status(code) { this.code = code; return this; },
-      json(payload) { this.payload = payload; return payload; }
+    const done = id => state.tasks.find(t=>t.id===id)?.status === "done";
+    const invoke = async (handler) => {
+      const result = {code:200,payload:null,status(code){this.code=code;return this;},json(data){this.payload=data;return data;}};
+      await handler({method:"POST",headers:{authorization:"Bearer "+process.env.REPORT_GATEWAY_TOKEN}},result);
+      if(result.code!==200||!result.payload?.ok)throw new Error(result.payload?.error||"Handler returned "+result.code);
+      return result.payload;
     };
-    await configure({
-      method: "POST",
-      headers: { authorization: "Bearer " + process.env.REPORT_GATEWAY_TOKEN }
-    }, fake);
-    if (fake.code !== 200 || !fake.payload?.ok) {
-      throw new Error(fake.payload?.error || ("Schema setup failed: HTTP " + fake.code));
+    let fields=null,views=null;
+    if(!done("T02")||!done("T03")){
+      fields=await invoke(configure);
+      update(state,"T01","done","Protected cron worker and private Blob ledger operational");
+      update(state,"T02","done","Existing customer profile schema configured");
+      update(state,"T03","done","Existing follow-up schema configured");
+      state.log.push({at:new Date().toISOString(),event:"CRM base fields configured",tables:fields.results?.map(x=>x.table_id)||[]});
+      await saveLedger(state);
     }
-    update(state, "T01", "done", "Blob ledger and protected cron worker verified");
-    update(state, "T02", "done", "Customer profile schema configured");
-    update(state, "T03", "done", "Customer follow-up schema configured");
-    state.log.push({ at: new Date().toISOString(), event: "CRM field schema configured", result: fake.payload.results });
-    await saveLedger(state);
-    return res.status(200).json({ ok: true, status: "completed", results: fake.payload.results });
+    if(state.tasks.find(t=>t.id==="T04")?.status==="queued"||
+       state.tasks.find(t=>t.id==="T04")?.status==="retry"){
+      try{
+        views=await invoke(configureViews);
+        update(state,"T04","in_progress","Four base views created; filters and grouping pending");
+        state.log.push({at:new Date().toISOString(),event:"CRM view scaffolding created"});
+      }catch(viewError){
+        update(state,"T04","retry",String(viewError.message).slice(0,500));
+        state.log.push({at:new Date().toISOString(),event:"CRM view setup retry required",error:String(viewError.message).slice(0,500)});
+      }
+      await saveLedger(state);
+    }
+    return res.status(200).json({ok:true,status:"processed",fieldsConfigured:done("T02")&&done("T03"),
+      viewStatus:state.tasks.find(t=>t.id==="T04")?.status,fields:fields?.results||null,views:views?.views||null});
   } catch (err) {
     if (state) {
       update(state, "T02", "retry", String(err.message).slice(0,500));
