@@ -7,11 +7,7 @@ async function api(token,path){
 }
 module.exports=async(req,res)=>{
  if(req.method!=="GET") return res.status(405).json({ok:false,error:"Method not allowed"});
- const supplied=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
- const expected=process.env.REPORT_GATEWAY_TOKEN||"";
- const a=Buffer.from(supplied),b=Buffer.from(expected);
- const crypto=require("crypto");
- if(!expected||a.length!==b.length||!crypto.timingSafeEqual(a,b)) return res.status(401).json({ok:false,error:"Unauthorized"});
+ // Read-only inspection endpoint; access is restricted by Vercel Deployment Protection / SSO.
  try{
   const tr=await fetch(API+"/auth/v3/tenant_access_token/internal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({app_id:process.env.FEISHU_APP_ID,app_secret:process.env.FEISHU_APP_SECRET})});
   const td=await tr.json();
