@@ -38,7 +38,7 @@ module.exports=async(req,res)=>{
    "数据保护：产品资产库独立管理。本CRM项目未经明确批准，不修改产品表格字段、记录或文件。",
    "实施状态：本页面为导航框架。客户表字段、视图、仪表盘和自动化将在逐项审核批准后配置。"
   ];
-  const listed=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes?page_size=100");
+  const listed=await call(token,"/wiki/v2/spaces/"+spaceId+"/nodes?page_size=50");
   const found=(listed.items||[]).find(x=>x.title===title);
   let n=found||null, created=false;
   if(!n){
