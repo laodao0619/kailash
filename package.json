@@ -9,5 +9,7 @@
   "scripts": {
     "dev": "vercel dev"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@vercel/blob": "^2.0.0"
+  }
 }
