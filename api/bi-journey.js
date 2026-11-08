@@ -270,7 +270,7 @@ module.exports=async(req,res)=>{
    event("shopify:"+c.id+":created","customer_created",c.createdAt,"Customer account created","Shopify"),
    ...visits,...orders,...communications
   ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
-  const purchaseInsights=productHistory(orders);
+  const purchaseInsights=productHistory(orders,communications);
   const communicationSummary=mailSummary(communications);
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),
