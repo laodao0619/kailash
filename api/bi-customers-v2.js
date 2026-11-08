@@ -1,6 +1,7 @@
 "use strict";
 const crypto=require("node:crypto");
-const {CURRENT,read}=require("./bi-index-build");
+const {CURRENT,read,normalize}=require("./bi-index-build");
+const {tenantToken}=require("../lib/crm-feishu");
 const SORT_KEYS=new Set(["name","country","tier","spendLifetime","ordersLifetime","m180","f180","rDays","lastOrderAt","aov","syncedAt","firstOrderAt"]);
 let cache=null,inflight=null;
 function auth(req){
@@ -9,12 +10,45 @@ function auth(req){
  if(expected.length<24||!actual)return false;
  return crypto.timingSafeEqual(crypto.createHash("sha256").update(expected).digest(),crypto.createHash("sha256").update(actual).digest());
 }
+async function liveCRMScan(){
+ // Bootstrap only: re-read the already imported Feishu customer master,
+ // never re-run historical Shopify import. Once private Blob index exists,
+ // this slow fallback is no longer called.
+ const token=await tenantToken();
+ const all=[],ids=new Set();
+ let cursor=null,complete=false;
+ for(let n=0;n<100;n++){
+  const q=new URLSearchParams({page_size:"500"});
+  if(cursor)q.set("page_token",cursor);
+  const r=await fetch("https://open.feishu.cn/open-apis/bitable/v1/apps/Y7VvbgreAasoLtsYdhrcmmDUn5d/tables/tblbk7Ju6fcM1BXF/records?"+q,{
+   headers:{Authorization:"Bearer "+token}
+  });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.code!==0||!j.data)throw Error("crm_live_index_fallback_failed");
+  for(const record of j.data.items||[]){
+   const row=normalize(record);
+   if(!row)continue;
+   if(ids.has(row.gid))throw Error("crm_duplicate_customer_identity");
+   ids.add(row.gid);all.push(row);
+  }
+  if(!j.data.has_more){complete=true;break;}
+  cursor=j.data.page_token;
+  if(!cursor)throw Error("crm_pagination_failed");
+ }
+ if(!complete||all.length<1000)throw Error("crm_snapshot_incomplete");
+ return {version:2,source:"Feishu CRM live fallback (index initialization)",
+  sourceGrading:"2026-11-08 historic CRM writeback, not audited full-history ledger",
+  slot:"bootstrap",generatedAt:new Date().toISOString(),total:all.length,customers:all};
+}
 async function snapshot(){
  if(cache&&Date.now()-cache.at<60000)return cache.data;
- if(!inflight)inflight=read(CURRENT).then(data=>{
-  if(data?.version!==2||!Array.isArray(data.customers)||data.customers.length<1000)throw Error("index_not_ready");
+ if(!inflight)inflight=(async()=>{
+  let data;
+  try{data=await read(CURRENT);}catch(_){data=null;}
+  if(!data||data.version!==2||!Array.isArray(data.customers)||data.customers.length<1000)
+   data=await liveCRMScan();
   cache={at:Date.now(),data};return data;
- }).finally(()=>{inflight=null;});
+ })().finally(()=>{inflight=null;});
  return inflight;
 }
 function safeNumber(s){
@@ -102,3 +136,4 @@ module.exports=async(req,res)=>{
 module.exports.queryRows=queryRows;
 module.exports.facets=facets;
 module.exports.snapshot=snapshot;
+module.exports.liveCRMScan=liveCRMScan;
