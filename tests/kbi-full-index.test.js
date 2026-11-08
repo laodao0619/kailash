@@ -46,14 +46,19 @@ test("Feishu snapshot preserves real GID, M/R/F, subscription and unknown metric
  assert.equal(absent.m180,null);assert.equal(absent.f180,null);
  assert.equal(normalize({fields:{"Shopify客户ID":"invalid"}}),null);
 });
-test("index rebuild uses separate Beijing slots and preserves in-progress cycle",()=>{
- const morning=nextCycle(null,new Date("2026-11-08T00:00:00Z"));
+test("index updates after Beijing source windows and keeps unfinished cursor",()=>{
+ const beforeWork=slotAt(new Date("2026-11-08T00:55:00Z"));
+ assert.equal(beforeWork,"2026-11-07-afternoon");
+ const morning=nextCycle(null,new Date("2026-11-08T01:05:00Z"));
  assert.equal(morning.slot,"2026-11-08-morning");
  morning.page=4;morning.cursor="page_4";
  assert.strictEqual(nextCycle(morning,new Date("2026-11-08T08:00:00Z")),morning);
  morning.complete=true;
- const evening=nextCycle(morning,new Date("2026-11-08T08:00:00Z"));
- assert.equal(evening.slot,"2026-11-08-afternoon");
- assert.equal(evening.page,0);
- assert.equal(slotAt(new Date("2026-11-08T05:00:00Z")),"2026-11-08-noon");
+ const afternoon=nextCycle(morning,new Date("2026-11-08T08:00:00Z"));
+ assert.equal(afternoon.slot,"2026-11-08-afternoon");
+ assert.equal(afternoon.page,0);
+ assert.equal(slotAt(new Date("2026-11-08T05:25:00Z")),"2026-11-08-morning");
+ assert.equal(slotAt(new Date("2026-11-08T05:30:00Z")),"2026-11-08-noon");
+ assert.equal(slotAt(new Date("2026-11-08T07:55:00Z")),"2026-11-08-noon");
+ assert.equal(slotAt(new Date("2026-11-08T08:00:00Z")),"2026-11-08-afternoon");
 });
