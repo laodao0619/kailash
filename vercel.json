@@ -19,28 +19,20 @@
       "schedule": "30 8 * * *"
     },
     {
-      "path": "/api/crm-backfill",
-      "schedule": "*/10 * * * *"
+      "path": "/api/crm-daily-customers",
+      "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/crm-gmail-filtered",
-      "schedule": "7-59/10 * * * *"
+      "path": "/api/crm-daily-gmail",
+      "schedule": "20 2 * * *"
     },
     {
-      "path": "/api/crm-gmail-stage",
-      "schedule": "3-59/10 * * * *"
+      "path": "/api/crm-daily-customers",
+      "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/crm-orders-stage",
-      "schedule": "5-59/10 * * * *"
-    },
-    {
-      "path": "/api/crm-orders-reconcile",
-      "schedule": "9-59/10 * * * *"
-    },
-    {
-      "path": "/api/crm-milestones",
-      "schedule": "6-59/10 * * * *"
+      "path": "/api/crm-daily-gmail",
+      "schedule": "20 14 * * *"
     }
   ]
 }
