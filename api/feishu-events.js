@@ -12,6 +12,7 @@
 const crypto = require("crypto");
 const API = "https://open.feishu.cn/open-apis";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
+const crmBot = require("./crm-bot-knowledge");
 
 // In-memory dedupe for Feishu retries (per serverless instance).
 const seen = new Set();
@@ -210,10 +211,11 @@ module.exports = async (req, res) => {
   text = text.replace(/@_user_\d+/g, "").trim();
   if (!text) return res.status(200).json({ ok: true, skipped: "empty_text" });
 
-  console.log("feishu-events: chat_type=" + chatType + " chat_id=" + chatId + " text=" + text.slice(0, 100));
+  console.log("feishu-events: accepted_text_message chat_type=" + chatType + " length=" + text.length);
 
   try {
-    let reply = await askChatGPT(text);
+    let reply = await crmBot.answer(text, { chatId, chatType });
+    if (!reply) reply = await askChatGPT(text);
     if (!reply) {
       reply =
         "我已收到你的消息：“" + text.slice(0, 100) + "”。但 ChatGPT 还没配好，Vercel 里缺少 OPENAI_API_KEY，配好后我就能正常回答了。";
