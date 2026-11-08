@@ -24,7 +24,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authed(req))return res.status(401).json({ok:false});
- const readyShop=!!(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN&&process.env.SHOPIFY_SHOP_DOMAIN);
+ const readyShop=!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));
  const readyGmail=!!(process.env.GMAIL_REFRESH_TOKEN&&process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET);
  if(!readyShop&&!readyGmail)return res.status(200).json({ok:true,skipped:"waiting_for_shopify_and_gmail_backend_authorization",shopify:false,gmail:false});
  const stat={shopify:{processed:0,created:0,updated:0,failed:0},gmail:{processed:0,created:0,updated:0,failed:0,unmatched:0}};
