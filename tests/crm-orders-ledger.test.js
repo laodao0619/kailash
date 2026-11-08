@@ -60,3 +60,23 @@ test("rolling 180-day threshold is strict and invalid dates are flagged",async()
  assert.equal(result.totals.missingOrderDate,1);
  assert.equal(result.totals.withinWindow,2);
 });
+
+test("orders with invalid or future dates are quarantined from both lifetime and 180-day aggregates",async()=>{
+ const rows=[
+  order({id:"good",createdAt:"2026-10-01T00:00:00Z",currentSubtotalPriceSet:usd(100)}),
+  order({id:"invalid",createdAt:"not-a-date",currentSubtotalPriceSet:usd(7000)}),
+  order({id:"future",createdAt:"2027-01-01T00:00:00Z",currentSubtotalPriceSet:usd(9000)})
+ ];
+ const x=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-08T00:00:00Z"
+ });
+ assert.equal(x.totals.orders,3);
+ assert.equal(x.totals.eligible,1);
+ assert.equal(x.totals.missingOrderDate,1);
+ assert.equal(x.totals.futureOrders,1);
+ assert.equal(x.totals.excluded.missing_order_date,1);
+ assert.equal(x.totals.excluded.future_order,1);
+ assert.equal(x.aggregates.lifetimeMerchandiseCents,10000);
+ assert.equal(x.aggregates.windowMerchandiseCents,10000);
+ assert.equal(x.uniqueCustomers,1);
+});
