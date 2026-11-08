@@ -135,11 +135,11 @@ function initialize({$,request,state,esc,n}){
   try{
    const response=await fetch("/api/bi-rfm-snapshots",{method:"POST",
     headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
-    body:JSON.stringify({id,label,scope:current.scope})});
+    body:JSON.stringify({id,label,scope:current.scope,sourceAsOf:current.asOf})});
    const data=await response.json();
    if(!response.ok||!data.ok)throw Error(data.error||"保存失败");
    $("rfm-snapshot-status").textContent="已保存："+label;await savedList();
-  }catch(e){$("rfm-snapshot-status").textContent="保存失败："+e.message}
+  }catch(e){$("rfm-snapshot-status").textContent="保存失败："+(e.message==="stale_source_refresh_required"?"客户数据刚刚更新，请先点击更新模型再保存":e.message)}
  }
  async function compareWithSaved(){
   const id=$("rfm-snapshot-select").value;if(!id||!current)return;
