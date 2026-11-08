@@ -9,6 +9,14 @@
     {
       "path": "/api/crm-worker",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/crm-reminders",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/crm-reminders",
+      "schedule": "30 8 * * *"
     }
   ]
 }
