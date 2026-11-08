@@ -267,9 +267,13 @@ function drawJourneyChart(){
  const orders=customerView.orders.filter(e=>e.validForReview);
  const touch=events.filter(e=>e.kind==="acquisition_visit");
  const emails=events.filter(e=>e.kind==="communication");
+ const paidUSD=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount)))
+  .slice().sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ let spent=0;
+ const aovSeries=paidUSD.map((o,i)=>({at:o.at,value:Math.round((spent+=Number(o.amount))/(i+1)*100)/100}));
  const groups=[
   {key:"quantity",label:"购买件数 / 单次订单",kind:"number",data:orders.map(o=>({at:o.at,value:o.products.reduce((sum,p)=>sum+(Number(p.quantity)||0),0)})),color:chartColors.quantity},
-  {key:"orderValue",label:"单笔订单金额 / USD",kind:"number",data:orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount))).map(o=>({at:o.at,value:Number(o.amount)})),color:chartColors.orderValue},
+  {key:"orderValue",label:"累计平均客单价 / USD",kind:"number",data:aovSeries,color:chartColors.orderValue},
   {key:"channel",label:"已记录的来源触点",kind:"touch",data:touch},
   {key:"email",label:"邮件沟通记录",kind:"email",data:emails}
  ].filter(g=>checked.has(g.key));
@@ -318,7 +322,7 @@ function drawJourneyChart(){
  svg.innerHTML=out;
  $("chart-legend").innerHTML=Object.entries({meta:"Meta广告",google:"Google广告",email:"邮件往来",pinterest:"Pinterest",organic:"自然/直接访问",unknown:"来源未明"}).map(([key,label])=>
   '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("");
- $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。订单金额为单笔订单总金额，并非跨订单平均客单价；未知币种不作美元换算。";
+ $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。客单价为截至该订单的累计平均订单总额；未知币种不进行美元换算。";
 }
 function showProducts(tag=""){
  const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
