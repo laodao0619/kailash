@@ -60,6 +60,20 @@ function initialize(ctx){
    ["ops-repeat-rate"]:pct(m.repeatCustomerRate),["ops-email-gmv"]:cash(m.emailAttributedGmv),
    ["ops-sessions"]:n(m.sessions)};
   for(const [id,value] of Object.entries(map))$(id).textContent=value;
+  $("funnel-sessions").textContent=n(m.sessions);
+  $("funnel-atc").textContent=n(m.addedToCartSessions);
+  $("funnel-checkout").textContent=n(m.reachedCheckoutSessions);
+  $("funnel-paid").textContent=n(m.convertedSessions);
+  $("funnel-atc-rate").textContent=pct(m.addedToCartRate)+" / 会话";
+  $("funnel-checkout-rate").textContent=pct(m.reachedCheckoutRate)+" / 会话";
+  $("funnel-paid-rate").textContent=pct(m.conversionRate)+" / 会话";
+  const checkoutCompletion=m.reachedCheckoutRate>0?m.conversionRate/m.reachedCheckoutRate*100:null;
+  $("ops-funnel-insight").textContent="每100次访问约 "+(m.addedToCartRate??0).toFixed(2)+
+   "次加购、"+(m.reachedCheckoutRate??0).toFixed(2)+"次进入结账、"+
+   (m.conversionRate??0).toFixed(2)+"次完成购买；"+
+   (checkoutCompletion===null?"当前没有足够的结账样本。":
+    "进入结账后的会话购买完成比例约 "+checkoutCompletion.toFixed(1)+"%。")+
+   " 建议先按国家、广告来源与移动设备核查流量质量，再检查移动端商品页、物流承诺和结账支付体验。";
   $("ops-data-state").textContent="Shopify Analytics · "+fmtDate(d.generatedAt);
   const channels=d.channelSales||[],max=Math.max(1,...channels.map(x=>x.gmv));
   $("ops-channel-bars").innerHTML=channels.slice(0,8).map((c,i)=>

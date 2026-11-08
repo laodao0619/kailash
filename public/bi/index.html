@@ -232,6 +232,13 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 #audience-saved-list{max-height:650px;overflow:auto}
 @media(max-width:1180px){.ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-two{grid-template-columns:1fr}}
 @media(max-width:640px){.ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-kpi{padding:12px}.ops-kpi strong{font-size:21px}.ops-fields{grid-template-columns:1fr}}
+
+.ops-funnel .funnel-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.funnel-step{background:#f7faf7;border:1px solid #e7ede7;border-radius:12px;padding:15px;position:relative}
+.funnel-step:not(:last-child):after{content:"›";position:absolute;right:-11px;top:31%;font-size:24px;color:#84a28a;z-index:1}
+.funnel-step small{font-size:12px;color:#668271}.funnel-step strong{display:block;color:#2b583f;font-size:25px;margin:8px 0}.funnel-step span{font-size:11px;color:#7d907f}
+.ops-funnel-insight{font-size:13px;line-height:1.8;background:#f3f7f3;color:#44634d;padding:13px;border-radius:10px;margin:13px 0}
+@media(max-width:620px){.ops-funnel .funnel-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.funnel-step:nth-child(2):after{display:none}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -277,7 +284,17 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
  <div class="body"><div id="ops-attribution">等待渠道归因…</div><h3 style="margin-top:18px">Email归因活动</h3><div id="ops-email-campaigns" class="ops-list"></div></div></div>
  <div class="panel"><div class="head"><div><h2>商品销售贡献</h2><p class="muted">Shopify过去30天净销售额排名，与当前更新顺序无关。</p></div><button id="ops-products-link" type="button">商品目录</button></div>
  <div class="body"><div id="ops-product-winners" class="ops-list"></div><div class="toolbar"><span class="muted">商品类目贡献</span></div><div id="ops-category-winners" class="ops-list"></div></div></div>
-</section><section id="customers" class="panel">
+</section><section id="ops-funnel" class="panel ops-funnel">
+<div class="head"><div><div class="eyebrow">GROWTH DIAGNOSTICS</div><h2>转化漏斗与流量质量</h2>
+<p class="muted">Shopify Sessions原生指标：访问 → 加购 → 进入结账 → 完成购买。不同于订单量，均为会话级计算。</p></div><span class="pill">30天店铺转化分析</span></div>
+<div class="body"><div class="funnel-steps">
+<div class="funnel-step"><small>① 会话访问量</small><strong id="funnel-sessions">—</strong><span>100%访问基线</span></div>
+<div class="funnel-step"><small>② 加购会话</small><strong id="funnel-atc">—</strong><span id="funnel-atc-rate">—</span></div>
+<div class="funnel-step"><small>③ 进入结账</small><strong id="funnel-checkout">—</strong><span id="funnel-checkout-rate">—</span></div>
+<div class="funnel-step"><small>④ 完成购买</small><strong id="funnel-paid">—</strong><span id="funnel-paid-rate">—</span></div></div>
+<div class="ops-funnel-insight" id="ops-funnel-insight">正在读取Shopify会话漏斗。</div>
+<p class="muted">诊断提醒：会话统计与订单数不是同一口径；数据不能单独证明流量中存在机器人，也不能直接证明付款失败原因。</p></div></section>
+<section id="customers" class="panel">
 <div class="head"><div><div class="eyebrow">客户管理 / 全量筛选</div><h2>客户列表与分群</h2></div>
 <div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="export" disabled>导出当前筛选</button><button id="refresh" disabled>刷新客户索引</button></div></div>
 <div class="warn" style="margin:15px 20px 0" id="data-caveat">CRM等级及180天M/F/R来自今天既有历史回写；在完整退款/全历史财务审计完成前，不代表最终已核验账本。</div>
