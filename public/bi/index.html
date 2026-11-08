@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kailash BI · Customer Intelligence</title>
+<title>Kailash BI · 客户智能工作台</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#222d2a;background:#f6f7f5}
 *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}
@@ -23,32 +23,32 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 @media(max-width:850px){.layout{grid-template-columns:1fr}aside{padding:15px 18px;gap:10px}.menu{display:flex;overflow:auto}.menu a{white-space:nowrap}.bottom{display:none}main{padding:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-head{padding:18px}.detail-grid{grid-template-columns:1fr 1fr}.top{flex-wrap:wrap}}
 </style></head>
 <body><div class="layout">
-<aside><div class="brand">KAILASH <span class="sub">ENERGY</span><div class="sub">BUSINESS INTELLIGENCE</div></div>
-<nav class="menu"><a class="selected" href="#customers">▦　Customer Intelligence</a><a aria-disabled="true" title="下一阶段">◷　RFM Analysis</a><a aria-disabled="true" title="下一阶段">◈　Business Overview</a><a aria-disabled="true" title="下一阶段">◎　Operations</a></nav>
-<div class="bottom">KBI V1 · Read-only preview<br>来源：当前云端 CRM 镜像<br>分层：以 2026-11-08 规则为准</div></aside>
+<aside><div class="brand">KAILASH <span class="sub">ENERGY</span><div class="sub">经营智能管理平台</div></div>
+<nav class="menu"><a class="selected" href="#customers">▦　客户智能</a><a aria-disabled="true" title="后续阶段开放">◷　客户分层分析</a><a aria-disabled="true" title="下一阶段">◈　经营数据总览</a><a aria-disabled="true" title="下一阶段">◎　运营协作</a></nav>
+<div class="bottom">KBI V1 · 只读预览<br>数据源：Shopify 优先 / 飞书备用<br>分层：以 2026-11-08 规则为准</div></aside>
 <main>
-<div class="top"><div><div class="eyebrow">Customer Intelligence / 客户分析</div><h1>Understand every customer.</h1><p>统一客户资料、购买历史与沟通证据；所有未核验数据明确标注。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
-<section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" placeholder="KBI access token"><button class="primary" id="connect">连接只读数据</button></div></section>
-<section class="cards" aria-label="Data overview">
-<div class="card"><small>Current CRM customers</small><strong id="kpi-total">—</strong><span>云端有效客户记录</span></div>
-<div class="card"><small>Matched Customers</small><strong id="kpi-match">—</strong><span>当前筛选人数</span></div>
-<div class="card"><small>Data source</small><strong style="font-size:17px">Feishu CRM</strong><span>过渡镜像，非终身订单账本</span></div>
-<div class="card"><small>RFM data readiness</small><strong style="font-size:17px">Pending Audit</strong><span>不使用2026-10-23旧等级覆盖</span></div>
+<div class="top"><div><div class="eyebrow">客户智能 / 客户分析</div><h1>了解每位客户的完整历程</h1><p>统一客户资料、购买历史与沟通证据；所有未核验数据明确标注。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
+<section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" aria-label="内部访问凭证" placeholder="请输入 KBI 内部访问凭证"><button class="primary" id="connect">连接只读数据</button></div></section>
+<section class="cards" aria-label="数据总览">
+<div class="card"><small>客户数据概况</small><strong id="kpi-total">—</strong><span>以当前已核验数据为准</span></div>
+<div class="card"><small>当前查询结果</small><strong id="kpi-match">—</strong><span>当前页面人数，未核算时不推算全量</span></div>
+<div class="card"><small>当前数据来源</small><strong id="kpi-source" style="font-size:17px">尚未连接</strong><span id="kpi-source-note">优先连接 Shopify 实时数据</span></div>
+<div class="card"><small>客户分层数据</small><strong style="font-size:17px">待核验</strong><span>不使用2026-10-23旧等级覆盖</span></div>
 </section>
-<section class="panel" id="customers"><div class="panel-head"><div><div class="eyebrow">01 / CUSTOMERS</div><h2>客户工作台</h2></div>
+<section class="panel" id="customers"><div class="panel-head"><div><div class="eyebrow">01 / 客户管理</div><h2>客户工作台</h2></div>
 <div class="filters"><input id="search" placeholder="搜索姓名 / 邮箱 / Shopify ID" aria-label="搜索客户"><select id="tier" aria-label="客户等级"><option value="">全部客户等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>沉睡</option></select><button id="apply" class="primary">筛选</button><button id="clear">重置</button></div></div>
 <div class="notice" style="margin:16px 22px" id="data-note">当前显示飞书现有数据镜像；客户分层需要等待2026年11月8日标准下的全历史订单财务核验。对未知数据不推断。</div>
-<div class="scroll"><table><thead><tr><th>客户</th><th>Shopify ID</th><th>等级</th><th>历史消费参考</th><th>历史订单</th><th>国家/地区</th><th>数据状态</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="empty">请先连接数据</td></tr></tbody></table></div>
+<div class="scroll"><table><thead><tr><th>客户</th><th>客户编号</th><th>等级</th><th>历史消费参考</th><th>历史订单数</th><th>国家/地区</th><th>数据状态</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="empty">等待后台连接，暂未加载客户数据</td></tr></tbody></table></div>
 <div class="pager"><div id="page-label">暂无数据</div><div><button id="prev" disabled>上一页</button> <button id="next" disabled>下一页</button></div></div></section>
-<footer>Private internal tool · No marketing messages are sent · Customer information is never placed in public static assets.</footer>
+<footer>仅供内部使用 · 本页面不发送营销邮件 · 客户资料不会写入公开网页文件</footer>
 </main></div>
-<dialog id="profile"><div class="detail"><div class="detail-head"><div><div class="eyebrow">CUSTOMER 360°</div><h2 id="profile-name"></h2><p id="profile-email"></p></div><button id="close">关闭</button></div><div class="detail-grid" id="profile-data"></div>
-<h2 style="font:600 17px system-ui;margin-top:29px">Customer Journey · 生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
+<dialog id="profile"><div class="detail"><div class="detail-head"><div><div class="eyebrow">客户全景 · 360°</div><h2 id="profile-name"></h2><p id="profile-email"></p></div><button id="close">关闭</button></div><div class="detail-grid" id="profile-data"></div>
+<h2 style="font:600 17px system-ui;margin-top:29px">客户生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
 <script>
 (()=>{"use strict";
 const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,items=[],cursor=null,cursorStack=[],nextCursor=null,source="shopify";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money=n=>typeof n==="number"?"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+const money=(n,currency="USD")=>typeof n==="number"?(currency==="USD"?"$":(currency||"")+" ")+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const fmt=n=>n?new Date(n).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"}):"—";
 async function api(params){
  const query=new URLSearchParams(params);
@@ -82,7 +82,9 @@ async function load(){
   nextCursor=source==="shopify"?data.nextCursor:null;
   $("kpi-total").textContent=source==="shopify"?"实时":(data.scanned?.toLocaleString()||"—");
   $("kpi-match").textContent=source==="shopify"?items.length+"+":[total?.toLocaleString()||"—"].join("");
-  $("sync").textContent=(source==="shopify"?"Shopify实时查询":"飞书镜像")+" · "+fmt(data.asOf);
+  $("sync").textContent=(source==="shopify"?"Shopify 实时数据":"飞书历史镜像")+" · "+fmt(data.asOf);
+  $("kpi-source").textContent=source==="shopify"?"Shopify 实时":"飞书镜像";
+  $("kpi-source-note").textContent=source==="shopify"?"客户资料实时读取；RFM 待核验":"过渡数据，非独立财务账本";
   $("page-label").textContent="第 "+page+" 页 · "+(source==="shopify"?"每页最多40位；总数未核算":"当前匹配 "+total.toLocaleString()+" 位客户");
   $("prev").disabled=page===1;
   $("next").disabled=source==="shopify"?!nextCursor:page*50>=total;
@@ -106,7 +108,7 @@ async function apiJourney(id){
 }
 async function profile(c){
  $("profile").showModal();$("profile-name").textContent=c.name||"未填写姓名";$("profile-email").textContent=c.email||"无邮箱";
- $("profile-data").innerHTML=[["CRM等级",c.tier||"未验证"],["历史消费参考",money(c.lifetimeSpend)],["历史订单",c.lifetimeOrders??"—"],["国家/地区",c.country||"—"],["最近订单",c.lastOrder||"未回填"],["数据同步",fmt(c.syncedAt)]].map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1])+'</strong></div>').join("");
+ $("profile-data").innerHTML=[["CRM等级",c.tier||"未验证"],["历史消费参考",money(c.lifetimeSpend,c.currency)],["历史订单数",c.lifetimeOrders??"—"],["国家/地区",c.country||"—"],["最近订单",c.lastOrder||"未回填"],["数据更新时间",fmt(c.syncedAt)]].map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1])+'</strong></div>').join("");
  $("coverage").textContent="正在读取客户沟通历史…";$("timeline").innerHTML="";
  try{
   // Live Shopify order events and verified inbound Gmail messages take precedence.
@@ -120,8 +122,8 @@ async function profile(c){
      e.status||"",e.fulfillment||"",
      (e.products||[]).map(x=>x.title+" ×"+x.quantity).join("、")
    ].filter(Boolean).join(" · "):e.kind==="communication"?
-     (e.issueFlag?"客户反馈疑似未收到包裹 · 待人工核实":"客户来信 · 邮件原始证据"):
-     e.kind==="acquisition_visit"?"Shopify记录的广告/自然访问触点":"客户建档";
+     (e.issueFlag?"客户反馈疑似未收到包裹 · 待人工核实":"客户邮件 · 可追溯原始记录"):
+     e.kind==="acquisition_visit"?"店铺访问与广告触点":"客户首次建档";
    const visit=e.kind==="order"?e.attribution?.firstVisit:null;
    const utm=visit?.utm;
    const visitUtm=e.kind==="acquisition_visit"?e.utm:null;
@@ -144,16 +146,16 @@ async function checkReadiness(){
   const data=await response.json();
   if(!response.ok||!data.ok)throw Error("status_unavailable");
   if(!data.accessReady||!data.customerSourceReady){
-   $("auth-title").textContent="预览环境尚未完成后台配置";
+   $("auth-title").textContent="后台尚未完成安全连接";
    $("auth-note").textContent=
-     (!data.accessReady?"访问认证尚未配置。":"")+
-     (!data.customerSourceReady?"客户数据源尚未配置。":"")+
+     (!data.accessReady?"内部访问验证尚未配置。":"")+
+     (!data.customerSourceReady?"Shopify / 飞书数据源尚未配置。":"")+
      "这是服务器配置问题，不需要输入 Shopify/Gmail 密钥。管理员完成安全部署后刷新本页。";
    $("auth-fields").hidden=true;
    $("sync").textContent="后台待配置";
   }else{
    $("auth-title").textContent="管理员访问验证";
-   $("auth-note").textContent="请使用专用KBI访问凭证，不要输入Shopify或Gmail API密钥。";
+   $("auth-note").textContent="请使用 KBI 专用内部凭证。不要输入 Shopify、Gmail 或 Vercel 密钥。";
    $("auth-fields").hidden=false;
    $("sync").textContent="等待身份验证";
   }
@@ -166,8 +168,8 @@ async function checkReadiness(){
 }
 $("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;cursor=null;cursorStack=[];load()};
 checkReadiness();
-$("apply").onclick=()=>{page=1;load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;load()};
-$("search").onkeydown=e=>{if(e.key==="Enter"){page=1;load()}};
+$("apply").onclick=()=>{page=1;cursor=null;cursorStack=[];load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;cursor=null;cursorStack=[];load()};
+$("search").onkeydown=e=>{if(e.key==="Enter"){page=1;cursor=null;cursorStack=[];load()}};
 $("prev").onclick=()=>{if(page>1){page--;if(source==="shopify")cursor=cursorStack.pop()||null;load()}};
 $("next").onclick=()=>{
  if(source==="shopify"&&nextCursor){cursorStack.push(cursor);cursor=nextCursor;page++;load()}
