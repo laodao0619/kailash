@@ -15,6 +15,10 @@
       "schedule": "15,45 * * * *"
     },
     {
+      "path": "/api/crm-cases-feishu",
+      "schedule": "20,50 * * * *"
+    },
+    {
       "path": "/api/crm-reminders",
       "schedule": "30 1 * * *"
     },
