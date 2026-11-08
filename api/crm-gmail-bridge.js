@@ -20,12 +20,14 @@ function authorized(req, now = Date.now()) {
 
 function issue(subject, body) {
   const value = `${subject || ""} ${body || ""}`.toLowerCase();
+  if (/returned to (the )?sender|return(ed)? back to sender|退回寄件人|退回发件人/.test(value)) return {category:"退回寄件人",priority:"P0",summary:"客户反馈包裹被邮局退回，需核实退回轨迹、原因并提出重寄方案。"};
   if (/not received|did not receive|never received|haven't received|hasn't arrived|not arrived|missing package|lost parcel|lost package|order not received|未收到|未送达|丢件/.test(value)) return {category:"未收到货",priority:"P0",summary:"客户反馈未收到订单，需要核实物流轨迹、签收凭据及收货地址。"};
   if (/chargeback|fraud|unauthorized charge|被盗刷|欺诈/.test(value)) return {category:"支付争议",priority:"P0",summary:"客户提出支付或扣款争议，需要优先核对交易。"};
   if (/refund|return|cancel|退款|退货|取消订单/.test(value)) return {category:"退款退货",priority:"P0",summary:"客户提出退款、退货或取消诉求，需要核对订单状态与售后政策。"};
   if (/damaged|broken|defect|wrong item|wrong product|破损|损坏|发错/.test(value)) return {category:"商品售后",priority:"P0",summary:"客户反馈商品损坏、瑕疵或错发，需要核对照片与订单。"};
-  if (/where is|tracking|delivery|shipping|shipped|arriv|post office|parcel|package|物流|快递|发货|多久到/.test(value)) return {category:"物流询单",priority:"P1",summary:"客户询问物流状态或反馈邮局信息，需要查询最新物流。"};
+  if (/too loose|too tight|wrong size|incorrect size|does not fit|doesn't fit|sizing issue|measur(?:es|ed|ing).*inch|寸码不符|尺寸不符|大小不合适|太松|太紧/.test(value)) return {category:"尺寸售后",priority:"P1",summary:"客户反馈实物尺寸与订单要求不符，需核对原始尺寸沟通、实测数据和修改方案。"};
   if (/address|size|exchange|modify|change my order|地址|尺寸|换货|修改订单/.test(value)) return {category:"订单修改",priority:"P1",summary:"客户申请修改地址、尺寸或订单信息，需要核对履约进度。"};
+  if (/where is|tracking|delivery|shipping|shipped|arriv|post office|parcel|package|物流|快递|发货|多久到/.test(value)) return {category:"物流询单",priority:"P1",summary:"客户询问物流状态或反馈邮局信息，需要查询最新物流。"};
   if (/order|purchase|payment|invoice|discount|coupon|付款|发票|优惠码|订单/.test(value)) return {category:"订单咨询",priority:"P1",summary:"客户咨询订单或购买事宜，需要结合订单记录回复。"};
   return {category:"其他客户咨询",priority:"P2",summary:"客户主动来信，需人工阅读正文并确认下一步处理。"};
 }

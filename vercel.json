@@ -11,6 +11,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/crm-cases-sync",
+      "schedule": "15,45 * * * *"
+    },
+    {
       "path": "/api/crm-reminders",
       "schedule": "30 1 * * *"
     },
