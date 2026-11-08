@@ -39,5 +39,6 @@ jobs:
           node --check /tmp/kbi-workbench.js
           node --check public/bi/timeline-range.js
           node --check public/bi/workbench-modules.js
+          node --check public/bi/rfm-3d.js
       - name: Execute all synthetic BI tests
         run: node --test tests/kbi-*.test.js
