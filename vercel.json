@@ -23,32 +23,44 @@
       "schedule": "30 8 * * *"
     },
     {
-      "path": "/api/crm-daily-customers",
-      "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/crm-daily-orders",
-      "schedule": "10 2 * * *"
-    },
-    {
-      "path": "/api/crm-daily-gmail",
-      "schedule": "20 2 * * *"
-    },
-    {
-      "path": "/api/crm-daily-customers",
-      "schedule": "0 14 * * *"
-    },
-    {
-      "path": "/api/crm-daily-gmail",
-      "schedule": "20 14 * * *"
-    },
-    {
-      "path": "/api/crm-daily-orders",
-      "schedule": "10 14 * * *"
-    },
-    {
       "path": "/api/crm-gmail-filtered",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/crm-daily-customers",
+      "schedule": "50 0 * * *"
+    },
+    {
+      "path": "/api/crm-daily-orders",
+      "schedule": "55 0 * * *"
+    },
+    {
+      "path": "/api/crm-daily-gmail",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/crm-daily-customers",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/crm-daily-orders",
+      "schedule": "20 5 * * *"
+    },
+    {
+      "path": "/api/crm-daily-gmail",
+      "schedule": "25 5 * * *"
+    },
+    {
+      "path": "/api/crm-daily-customers",
+      "schedule": "45 7 * * *"
+    },
+    {
+      "path": "/api/crm-daily-orders",
+      "schedule": "50 7 * * *"
+    },
+    {
+      "path": "/api/crm-daily-gmail",
+      "schedule": "55 7 * * *"
     }
   ]
 }
