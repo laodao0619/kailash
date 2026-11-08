@@ -70,7 +70,7 @@ async function mailEvents(email){
   // Gmail search can match quoted threads unexpectedly; verify the actual sender.
   if(address(c.from)!==email)continue;
   const snippet=String(m.snippet||"").slice(0,250);
-  const claim=/\\b(did not receive|not received|haven.t received|never received|package missing|order missing|not arrived|still waiting)\\b/i.test(snippet);
+  const claim=/\b(did not receive|not received|haven.t received|never received|package missing|order missing|not arrived|still waiting)\b/i.test(snippet);
   output.push(event("gmail:"+c.id,"communication",c.date,c.subject||"Customer email","Gmail",{
    threadId:c.threadId,channel:"email",evidenceType:"customer_message",
    preview:snippet,
