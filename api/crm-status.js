@@ -11,7 +11,7 @@ module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
   if(req.method!=="GET") return res.status(405).json({ok:false});
   try{
-    const [state,shopify,gmail,gmailStage,ordersStage,ordersReconcile,dailyCustomers,dailyOrders,dailyGmail]=await Promise.all([
+    const [state,shopify,gmail,gmailStage,ordersStage,ordersReconcile,dailyCustomers,dailyOrders,dailyGmail,caseSync]=await Promise.all([
       readJson("crm-execution/tasks.json"),
       readJson("crm-execution/import-cursor.json"),
       readJson("crm-execution/gmail-filtered-cursor.json"),
@@ -20,11 +20,12 @@ module.exports=async(req,res)=>{
       readJson("crm-execution/orders-reconcile-state.json"),
       readJson("crm-execution/daily-v1/shopify-state.json"),
       readJson("crm-execution/daily-v1/orders-state.json"),
-      readJson("crm-execution/daily-v1/gmail-state.json")
+      readJson("crm-execution/daily-v1/gmail-state.json"),
+      readJson("crm-cases/v1/sync-state.json")
     ]);
     // A missing legacy tasks.json is not evidence that completed source
     // checkpoints were lost. Report all available baselines independently.
-    const anyData=!!(state||shopify||gmail||gmailStage||ordersStage||ordersReconcile||dailyCustomers||dailyOrders||dailyGmail);
+    const anyData=!!(state||shopify||gmail||gmailStage||ordersStage||ordersReconcile||dailyCustomers||dailyOrders||dailyGmail||caseSync);
     return res.status(200).json({
       ok:true,
       project:"Kailash Energy CRM 2.0",
@@ -45,6 +46,15 @@ module.exports=async(req,res)=>{
           updated_at:dailyOrders?.updatedAt||null,totals:dailyOrders?.counters||null},
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
           updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null}
+      },
+      customer_cases:{
+        started:!!caseSync,
+        last_checkpoint:caseSync?.lastRunAt||null,
+        last_completed_cycle:caseSync?.completedCycleAt||null,
+        scanned:caseSync?.scanned||0,
+        accepted_events:caseSync?.accepted||0,
+        excluded:caseSync?.excluded||0,
+        note:"Case numbers are candidate events, not unique verified unresolved cases; detail endpoint requires authorization"
       },
       source_connectors:{
         shopify_backend_authorized:!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET))),
