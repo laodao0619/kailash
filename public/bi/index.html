@@ -164,6 +164,30 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 .rfm-snapshot-bar label{min-width:175px}.rfm-snapshot-bar label input,.rfm-snapshot-bar label select{max-width:210px}
 #rfm-comparison{margin:8px 0 15px}
 @media(max-width:1100px){.rfm-visual-layout{grid-template-columns:1fr}}
+
+/* 360° practical workspace: sticky toolbar + pinned, collapsible notes */
+#customer-dialog{width:min(1440px,97vw);max-height:94dvh;overflow-y:auto;overflow-x:hidden;padding:0;scrollbar-gutter:stable}
+#customer-dialog .dialog-content{padding:22px 25px}
+#customer-dialog .dialog-top{position:sticky;top:-22px;z-index:35;margin:-22px -25px 17px;padding:15px 25px;background:rgba(255,255,255,.96);backdrop-filter:blur(18px);border-bottom:1px solid #e5eae6;box-shadow:0 5px 14px rgba(10,40,25,.04)}
+#customer-dialog .dialog-top h1{font-size:24px;margin:3px 0}
+#customer-dialog .dialog-top .toolbar{flex-shrink:0}
+#customer-dialog .dialog-top .toolbar button{min-height:39px}
+.customer-note-drawer{position:fixed;right:clamp(14px,3vw,45px);top:clamp(95px,13vh,145px);z-index:75;width:min(400px,calc(100vw - 38px));max-height:calc(90dvh - 96px);overflow:auto;background:#fff;border:1px solid #dfe9e1;border-radius:16px;padding:19px;box-shadow:0 18px 58px #16362635}
+.customer-note-drawer .note-field{min-height:220px;resize:vertical}
+.customer-note-drawer .note-actions{align-items:flex-start;flex-direction:column}
+.customer-product-grid{grid-template-columns:repeat(var(--customer-cols,4),minmax(0,1fr));align-items:start}
+.customer-product-grid .product-card img{aspect-ratio:3/4;object-fit:cover;background:#f2f4f1}
+.customer-product-grid .product-card{border-radius:11px;overflow:hidden}
+.customer-product-grid .product-info{padding:10px}
+.customer-product-grid .product-info b{font-size:12px;min-height:unset;line-height:1.4}
+.customer-product-grid .product-info p{font-size:11px;margin:5px 0}
+.customer-product-grid .paid-price{font-weight:750;font-size:15px;color:#224e35;margin:8px 0 3px}
+.customer-product-grid .price-was{text-decoration:line-through;font-size:11px;color:#87988c}
+.customer-product-grid .discount-pill{display:inline-block;border-radius:5px;background:#f9ede0;color:#936126;font-size:10px;padding:2px 5px}
+.customer-product-grid .order-source{border-top:1px solid #e9efea;padding-top:7px;margin-top:8px;font-size:11px;color:#647869;line-height:1.55}
+.customer-product-grid .order-issue{background:#fff8ed;border-radius:6px;padding:6px;font-size:11px;color:#8e6436;margin-top:6px}
+#customer-product-cols{min-width:75px}
+@media(max-width:760px){.customer-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#customer-dialog .dialog-content{padding:16px}#customer-dialog .dialog-top{top:-16px;margin:-16px -16px 12px;padding:12px 16px}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -286,7 +310,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
 </main></div>
 <dialog id="customer-dialog"><div class="dialog-content">
-<div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><button id="close-dialog">关闭</button></div>
+<div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><div class="toolbar"><button id="note-shortcut" type="button">✎ 客户备注</button><button id="close-dialog" type="button" aria-label="关闭客户详情">✕ 关闭</button></div></div>
 <div class="profile-kpis" id="profile-kpis"></div>
 <section class="panel" style="margin-top:19px;padding:17px">
 <h2>客户生命历程 · 时间分析</h2>
@@ -303,7 +327,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="chart-hint" id="timeline-window-label">当前显示最近180天。鼠标移至图表滚动缩放，可用上方按钮重置。</p>
 <div class="metric-checks" id="journey-metrics">
 <label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
-<label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
+<label><input type="checkbox" value="orderValue" checked> 累计平均客单价</label>
 <label><input type="checkbox" value="channel" checked> 订单来源与触达</label>
 <label><input type="checkbox" value="email" checked> 邮件沟通</label>
 </div>
@@ -316,21 +340,21 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div id="product-narrative" class="status" style="margin:12px 0">正在整理客户购买偏好…</div>
 <div id="product-categories" class="muted" style="margin:8px 0"></div>
 <div id="profile-tags" class="toolbar"></div>
-<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span><button id="product-clear" type="button">显示全部产品</button></div>
-<div id="profile-products" class="products-grid"></div>
+<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span>
+<label class="muted">每行展示 <select id="customer-product-cols" aria-label="客户已购商品每行数量"><option value="2">2款</option><option value="3">3款</option><option value="4" selected>4款</option><option value="5">5款</option><option value="6">6款</option></select></label>
+<button id="product-clear" type="button">显示全部产品</button></div>
+<div id="profile-products" class="products-grid customer-product-grid" style="--customer-cols:4"></div>
 </section>
 <section class="panel" style="margin-top:15px;padding:17px">
 <h2>邮件沟通摘要</h2>
 <p class="muted">按真实邮件线程整理主题、双向回复及疑似售后问题；摘要基于邮件主题与记录，不是对全文的AI语义判断。</p>
 <div id="mail-summary" class="status"></div><div id="mail-threads"></div>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
-<h2>客户专属备注</h2>
-<p class="muted">与 Shopify 客户编号绑定，保存于受保护的云端私有存储，不会写入公开网页。请避免填写密码或支付卡信息。</p>
-<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="记录客户沟通重点、喜好、售后处理进展、下一步跟进计划…"></textarea>
-<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button>
-<span id="customer-note-status" class="muted">尚未加载</span></div>
-</section>
+<div id="note-drawer" class="customer-note-drawer" hidden>
+<div class="row"><h2>客户专属备注</h2><button type="button" id="note-close" aria-label="收起备注">收起 ✕</button></div>
+<p class="muted">备注会保存到客户私有云端记录。请勿输入密码或支付卡号。</p>
+<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="沟通重点、产品偏好、售后、下次跟进…"></textarea>
+<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button><span id="customer-note-status" class="muted">尚未加载</span></div></div>
 <h2 style="margin-top:23px">原始订单与沟通事件</h2>
 <p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
 <div id="events" class="event-list"></div>
