@@ -26,7 +26,7 @@ function shopOrder(){
     utmParameters:{source:"facebook",medium:"cpc",campaign:"test_campaign"}},
    lastVisit:null}};
 }
-function setupFetch({duplicate=false,ambiguous=false,mailDate="2026-11-08T08:51:12Z"}={}){
+function setupFetch({duplicate=false,ambiguous=false,financialStatus="PAID",mailDate="2026-11-08T08:51:12Z"}={}){
  let calls=[];
  global.fetch=async(url,options={})=>{
   calls.push(String(url));
@@ -38,7 +38,7 @@ function setupFetch({duplicate=false,ambiguous=false,mailDate="2026-11-08T08:51:
   if(String(url).includes("/admin/api/"))return response({data:{customer:{
    id:"gid://shopify/Customer/12345678901",firstName:"Sample",lastName:"Customer",createdAt:"2026-10-02T00:00:00Z",
    numberOfOrders:"1",defaultEmailAddress:{emailAddress:EMAIL,marketingState:"SUBSCRIBED"},
-   orders:{pageInfo:{hasNextPage:false},nodes:[shopOrder()]}}}});
+   orders:{pageInfo:{hasNextPage:false},nodes:[{...shopOrder(),displayFinancialStatus:financialStatus}]}}}});
   if(String(url).includes("oauth2.googleapis.com/token"))return response({access_token:"test-oauth"});
   if(String(url).includes("/messages?"))return response({messages:[{id:"mail-1"}]});
   if(String(url).includes("messages/mail-1"))return response({
@@ -94,6 +94,14 @@ test("a message from an unexpected sender is never linked",async()=>{
  await handler(req(),out);
  assert.equal(out.code,200);
  assert.equal(out.body.events.filter(x=>x.kind==="communication").length,0);
+});
+test("a fully refunded order stays on timeline but cannot create interest tags",async()=>{
+ setEnvironment();setupFetch({financialStatus:"REFUNDED"});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200);
+ const order=out.body.events.find(x=>x.kind==="order");
+ assert.equal(order.validForReview,false);
+ assert.equal(out.body.profile.productInterests.length,0);
 });
 test("duplicate Shopify owners prevent all Gmail disclosure",async()=>{
  setEnvironment();const calls=setupFetch({ambiguous:true});const out=res();
