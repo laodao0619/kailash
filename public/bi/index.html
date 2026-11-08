@@ -241,6 +241,166 @@ async function load(){
   if(pending&&state.token)setTimeout(()=>{if(!state.busy)load()},30000);
  }finally{state.busy=false;}
 }
+
+const customerView={id:null,orders:[],events:[],products:[],insights:[],email:null,noteVersion:0,noteLoaded:false};
+const chartColors={quantity:"#2d664b",orderValue:"#8a5b9a",meta:"#3276d5",google:"#dfa527",
+ email:"#32a36c",pinterest:"#b35886",organic:"#84988b",unknown:"#8896a0"};
+const svgEsc=esc;
+const safeUrl=(value,type="web")=>{
+ try{
+  const u=new URL(String(value||""));
+  if(u.protocol!=="https:")return "";
+  if(type==="product"&&!/(\.|^)kailashenergy\.com$/i.test(u.hostname))return "";
+  return u.href;
+ }catch(_){return ""}
+};
+function xmlNumber(n){return Number(n).toFixed(2)}
+function chartLine(rows,mapX,mapY,color,label){
+ if(!rows.length)return "";
+ const values=rows.map(row=>({x:mapX(new Date(row.at).getTime()),y:mapY(row.value),at:row.at,value:row.value}));
+ const line=values.length>1?'<path d="'+values.map((p,i)=>(i?"L":"M")+xmlNumber(p.x)+" "+xmlNumber(p.y)).join(" ")+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linejoin="round"/>':"";
+ return line+values.map(p=>'<circle cx="'+xmlNumber(p.x)+'" cy="'+xmlNumber(p.y)+'" r="4.4" fill="'+color+'"><title>'+svgEsc(label+": "+p.value+" · "+fmt(p.at))+'</title></circle>').join("");
+}
+function drawJourneyChart(){
+ const checked=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
+ const events=customerView.events.filter(e=>e.at&&Number.isFinite(Date.parse(e.at)));
+ const orders=customerView.orders.filter(e=>e.validForReview);
+ const touch=events.filter(e=>e.kind==="acquisition_visit");
+ const emails=events.filter(e=>e.kind==="communication");
+ const groups=[
+  {key:"quantity",label:"购买件数 / 单次订单",kind:"number",data:orders.map(o=>({at:o.at,value:o.products.reduce((sum,p)=>sum+(Number(p.quantity)||0),0)})),color:chartColors.quantity},
+  {key:"orderValue",label:"单笔订单金额 / USD",kind:"number",data:orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount))).map(o=>({at:o.at,value:Number(o.amount)})),color:chartColors.orderValue},
+  {key:"channel",label:"已记录的来源触点",kind:"touch",data:touch},
+  {key:"email",label:"邮件沟通记录",kind:"email",data:emails}
+ ].filter(g=>checked.has(g.key));
+ const svg=$("journey-svg");
+ const from=Math.min(...events.map(e=>Date.parse(e.at))),to=Math.max(...events.map(e=>Date.parse(e.at)));
+ if(!groups.length){svg.setAttribute("viewBox","0 0 850 130");svg.innerHTML='<text x="25" y="65" fill="#748478" font-size="14">请选择至少一项指标</text>';return}
+ if(!events.length||!Number.isFinite(from)){svg.setAttribute("viewBox","0 0 850 140");svg.innerHTML='<text x="25" y="60" fill="#748478" font-size="13">暂无可追溯的客户事件</text>';return}
+ const width=850,left=145,right=26,laneHeight=118,top=22,bottom=55;
+ const height=top+groups.length*laneHeight+bottom;
+ svg.setAttribute("viewBox","0 0 "+width+" "+height);
+ const maxT=to>from?to:from+86400000,minT=to>from?from:from-86400000;
+ const x=t=>left+(t-minT)/(maxT-minT)*(width-left-right);
+ let out='';
+ for(let i=0;i<=4;i++){
+  const xx=left+i*(width-left-right)/4;
+  const date=new Date(minT+i*(maxT-minT)/4).toISOString().slice(0,10);
+  out+='<line x1="'+xmlNumber(xx)+'" y1="'+top+'" x2="'+xmlNumber(xx)+'" y2="'+(height-bottom)+'" stroke="#edf1ed"/>';
+  out+='<text x="'+xmlNumber(xx)+'" y="'+(height-24)+'" text-anchor="middle" font-size="11" fill="#7e9282">'+date+'</text>';
+ }
+ for(let i=0;i<groups.length;i++){
+  const g=groups[i],yStart=top+i*laneHeight,yBottom=yStart+91;
+  out+='<rect x="'+left+'" y="'+yStart+'" width="'+(width-left-right)+'" height="91" fill="'+(i%2?"#f9fbf8":"#fff")+'"/>';
+  out+='<text x="12" y="'+(yStart+23)+'" font-size="12" fill="#405b49" font-weight="600">'+svgEsc(g.label)+'</text>';
+  out+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#dce8dd"/>';
+  if(g.kind==="number"){
+   const max=Math.max(1,...g.data.map(e=>e.value));
+   const scale=v=>yBottom-(Math.max(0,v)/max)*66;
+   out+='<text x="'+(left-13)+'" y="'+(yBottom-64)+'" fill="#7d8e80" font-size="10" text-anchor="end">'+svgEsc(max.toFixed(g.key==="orderValue"?0:0))+'</text>';
+   out+='<text x="'+(left-13)+'" y="'+yBottom+'" fill="#7d8e80" font-size="10" text-anchor="end">0</text>';
+   out+=chartLine(g.data,x,scale,g.color,g.label);
+   if(!g.data.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">该指标暂无足够已核验数据</text>';
+  }else{
+   const values=g.data;
+   const y0=yStart+51;
+   out+=values.map((e,index)=>{
+    const channel=g.kind==="touch"?(e.channel||"unknown"):(e.direction==="outbound"?"email":"email");
+    const color=chartColors[channel]||chartColors.unknown;
+    const yy=y0+(index%3-1)*8;
+    const subtitle=g.kind==="touch"?channel+(e.utm?.campaign?" / "+e.utm.campaign:""):(e.direction==="outbound"?"客服回复":"客户来信")+" / "+e.title;
+    return '<circle cx="'+xmlNumber(x(Date.parse(e.at)))+'" cy="'+yy+'" r="'+(g.kind==="email"?5:5.4)+'" fill="'+color+'" stroke="#fff" stroke-width="1.6"><title>'+svgEsc(subtitle+" · "+fmt(e.at))+'</title></circle>';
+   }).join("");
+   if(!values.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">尚无已记录的触达事件</text>';
+  }
+ }
+ out+='<text x="'+(width-right)+'" y="'+(height-7)+'" text-anchor="end" fill="#8c9d8f" font-size="11">时间（北京时间按日期展示）</text>';
+ svg.innerHTML=out;
+ $("chart-legend").innerHTML=Object.entries({meta:"Meta广告",google:"Google广告",email:"邮件往来",pinterest:"Pinterest",organic:"自然/直接访问",unknown:"来源未明"}).map(([key,label])=>
+  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("");
+ $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。订单金额为单笔订单总金额，并非跨订单平均客单价；未知币种不作美元换算。";
+}
+function showProducts(tag=""){
+ const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
+ $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
+ $("profile-products").innerHTML=shown.length?shown.map(p=>{
+  const count=p.purchases.filter(x=>x.validForReview).reduce((s,x)=>s+Number(x.quantity||0),0);
+  const purchase=p.purchases.find(x=>x.validForReview)||p.purchases[0]||{};
+  const href=safeUrl(p.productUrl,"product"),image=safeUrl(p.imageUrl,"image");
+  return '<article class="product-card">'+(image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':'<div style="height:140px;background:#f2f5f1;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
+   '<div class="product-info"><b>'+esc(p.title)+'</b><span class="pill">'+esc(p.productType)+'</span>'+
+   '<p>'+esc((p.description||"").slice(0,160)||"暂无商品描述")+'</p>'+
+   '<div class="muted">已购买 '+n(count)+' 件 · '+n(p.validOrders)+'笔有效订单</div>'+
+   '<div class="muted">订单记录单价：'+(purchase.unitPrice!==null?money(purchase.unitPrice,purchase.currency||"USD"):"未记录")+'</div>'+
+   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">查看网站商品原始页</a>':'<span class="muted">商品可能已下架 / 无公开链接</span>')+
+   '</div></article>';
+ }).join(""):'<p class="muted">当前筛选没有可匹配的历史商品。</p>';
+}
+function displayProductInsights(data){
+ const p=data.profile||{};
+ customerView.products=p.products||[];
+ customerView.insights=p.productInterests||[];
+ $("product-categories").textContent=(p.productSummary||[]).length?
+  "购买类型："+p.productSummary.slice(0,7).map(x=>x.label+" "+x.quantity+"件").join(" · "):
+  "暂无足够的有效历史订单总结";
+ const tags=p.productInterests||[];
+ $("profile-tags").innerHTML=tags.map((t,i)=>
+  '<button type="button" class="interest-button" data-tag="'+i+'">'+esc(t.label)+" · "+n(t.quantity)+"件</button>").join("")||
+  '<span class="muted">暂无足够的购买偏好证据</span>';
+ document.querySelectorAll("#profile-tags button[data-tag]").forEach(button=>button.onclick=()=>{
+  const tag=tags[Number(button.dataset.tag)]?.label;
+  document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));
+  if(tag){button.classList.add("active");showProducts(tag)}
+ });
+ showProducts();
+}
+function showEmailSummary(mail){
+ $("mail-summary").textContent="已检索到 "+n(mail?.messages||0)+" 条客户相关邮件，覆盖 "+
+ n(mail?.threads||0)+" 个对话线程 · 客户来信 "+n(mail?.inbound||0)+
+ " · 客服回复 "+n(mail?.outbound||0)+
+ " · 含疑似售后问题线程 "+n(mail?.possibleIssues||0)+"（均待人工核对）";
+ const entries=mail?.conversations||[];
+ $("mail-threads").innerHTML=entries.length?entries.map(t=>
+ '<div class="mail-thread"><strong>'+esc(t.subject||"未注明主题")+'</strong>'+
+ '<p>'+esc(t.summary||"")+'</p>'+
+ '<p>来信 '+n(t.inbound)+' / 回复 '+n(t.outbound)+' · '+esc(fmt(t.lastAt))+'</p>'+
+ (safeUrl(t.gmailUrl)?'<a href="'+esc(safeUrl(t.gmailUrl))+'" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2b6346;text-decoration:underline">查看原始邮件线程</a>':"")+'</div>'
+ ).join(""):'<p class="muted">当前没有可核验的邮件对话。</p>';
+}
+async function loadCustomerNote(id){
+ customerView.noteLoaded=false;customerView.noteVersion=0;
+ $("customer-note-text").value="";$("customer-note-save").disabled=true;
+ $("customer-note-status").textContent="读取私有备注中…";
+ try{
+  const note=await request("/api/bi-customer-note",{id});
+  if(customerView.id!==id)return;
+  $("customer-note-text").value=note.text||"";
+  customerView.noteVersion=note.version||0;customerView.noteLoaded=true;
+  $("customer-note-status").textContent=note.updatedAt?"上次保存："+fmt(note.updatedAt):"暂无备注，可开始填写";
+  $("customer-note-save").disabled=false;
+ }catch(e){if(customerView.id===id)$("customer-note-status").textContent="备注加载失败："+e.message}
+}
+async function saveCustomerNote(){
+ if(!customerView.id||!customerView.noteLoaded)return;
+ $("customer-note-save").disabled=true;
+ $("customer-note-status").textContent="正在保存到私有云端…";
+ try{
+  const r=await fetch("/api/bi-customer-note?id="+encodeURIComponent(customerView.id),{
+   method:"PUT",cache:"no-store",
+   headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
+   body:JSON.stringify({text:$("customer-note-text").value,version:customerView.noteVersion})
+  });
+  const d=await r.json();
+  if(!r.ok||!d.ok){
+   if(r.status===409){$("customer-note-status").textContent="备注在其他页面已更改，请先复制当前内容，再重新打开客户以避免覆盖。";return}
+   throw Error(d.error||"保存失败");
+  }
+  customerView.noteVersion=d.version;
+  $("customer-note-status").textContent="已保存 · "+fmt(d.updatedAt);
+ }catch(e){$("customer-note-status").textContent="保存失败："+e.message}
+ finally{$("customer-note-save").disabled=false}
+}
+
 async function profile(c){
  $("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
