@@ -8,6 +8,7 @@ function createGmailBridge({
   url = process.env.GMAIL_BRIDGE_URL || DEFAULT_URL,
   secret = process.env.FEISHU_APP_SECRET,
   allowedOpenIds = process.env.CRM_ALLOWED_OPEN_IDS || '',
+  lookupCustomer = null,
 } = {}) {
   const allowed = new Set(allowedOpenIds.split(',').map((s) => s.trim()).filter(Boolean));
 
@@ -45,15 +46,52 @@ function createGmailBridge({
     if (!response.ok) return `Gmail桥接查询失败（HTTP ${response.status}），请稍后重试。`;
     const data = await response.json().catch(() => null);
     if (!data?.ok || !Array.isArray(data.messages)) return 'Gmail桥接返回数据格式异常。';
-    const rows = data.messages.map((m) => ({
-      优先级: m.priority, 发件人: m.from, 主题: m.subject,
-      时间: m.date, 摘要: m.snippet,
+    const rows = await Promise.all(data.messages.map(async (m) => {
+      let grade = '待核验';
+      let name = '';
+      if (lookupCustomer && m.from) {
+        try {
+          const record = await lookupCustomer(m.from, context);
+          const json = String(record || '').match(/\{[\s\S]*\}/)?.[0];
+          const customer = json ? JSON.parse(json) : null;
+          if (customer && customer.邮箱?.toLowerCase() === m.from.toLowerCase() && customer.客户数据状态 === '有效') {
+            name = customer.客户姓名 || '';
+            grade = /^(S\+|S|A|B|基础客户|沉睡|从未购买)$/.test(customer.CRM等级) ? customer.CRM等级 : '待核验';
+          }
+        } catch { /* Missing CRM data is not permission to infer a tier. */ }
+      }
+      return {...m, grade, name};
     }));
-    return `来源：Gmail（${data.mailbox || '客服邮箱'}）。范围：最近30天收件箱未读，已过滤广告和自动通知。`
-      + `本次扫描 ${data.scanned} 封，识别 ${data.candidateCountWithinScan} 条不同会话的候选客户邮件，展示 ${rows.length} 条。`
-      + (data.hasMore ? '还有未扫描的邮件，以上绝非邮箱总量。' : '')
-      + '“未读”不等于“未处理”；是否已回复需要结合发件箱或工单继续核对。\n'
-      + JSON.stringify(rows, null, 2);
+    const gradeRank = {'S+':0,S:1,A:2,B:3};
+    const priorityRank = {P0:0,P1:1,P2:2};
+    rows.sort((a,b) => priorityRank[a.priority]-priorityRank[b.priority]
+      || (gradeRank[a.grade]??4)-(gradeRank[b.grade]??4)
+      || String(b.date).localeCompare(String(a.date)));
+    const groups = ['未收到货','商品售后','退款退货','支付争议','物流询单','订单修改','订单咨询','其他客户咨询'];
+    const output = [
+      '# 📮 客户邮件优先处理台',
+      `**本次扫描** ${data.scanned} 封｜**客户会话候选** ${data.candidateCountWithinScan} 条｜**展示** ${rows.length} 条`,
+      '⚠️ 这是最近30天未读候选，不等于已确认的未处理总数。系统通知已剔除，客服是否回复仍待核对。',
+      data.hasMore ? '⚠️ 扫描未覆盖全部邮件，统计并非邮箱总量。' : '',
+    ];
+    let index = 0;
+    for (const group of groups) {
+      const items = rows.filter(m => (m.category || '其他客户咨询') === group);
+      if (!items.length) continue;
+      output.push(`\n## ${group} · ${items.length} 封`);
+      for (const m of items) {
+        index += 1;
+        const level = m.priority === 'P0' ? '🔴 紧急' : m.priority === 'P1' ? '🟠 优先' : '🔵 常规';
+        output.push(`**${index}. ${level}｜${m.grade}｜${m.name || m.from}**`);
+        output.push(`**主题：** ${m.subject || '（无主题）'}｜**时间：** ${String(m.date || '').replace('T',' ').slice(0,16)}`);
+        output.push(`**问题摘要：** ${m.summary || '需阅读来信确认'}`);
+        const original = String(m.original || m.snippet || '正文暂未取到').replace(/\s+/g,' ').trim();
+        output.push(`**客户原文：** “${original.slice(0, 310)}${original.length > 310 ? '…（原文较长）' : ''}”`);
+        output.push(`**邮箱：** ${m.from}`);
+      }
+    }
+    output.push('**排序依据：** 问题紧急度 → 已核验CRM等级 S+/S/A/B → 时间；缺等级显示“待核验”。');
+    return output.filter(Boolean).join('\n').slice(0,7800);
   }
 
   return { pendingCustomerEmails };
