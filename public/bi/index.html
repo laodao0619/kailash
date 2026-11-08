@@ -140,6 +140,30 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 @media(max-width:920px){aside{position:relative;width:100%;height:auto;padding:17px 18px;overflow:visible}.layout{grid-template-columns:1fr}nav{display:flex;overflow:auto;padding-bottom:4px}nav a{white-space:nowrap}main{padding:22px 16px}.top{flex-wrap:wrap}}
 @media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}.source-grid,.health-grid{grid-template-columns:1fr}.module-kpis{grid-template-columns:1fr 1fr}.dialog-content{padding:18px}.timeline-tools button{min-height:39px}.top h1{font-size:24px}input[type=search]{min-width:180px}}
 
+
+.rfm-model{border:1px solid #e7ece8;border-radius:16px;background:#fbfcfb;padding:20px;margin:0 0 23px}
+.rfm-model-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rfm-model-head p{margin:5px 0 12px}
+.rfm-model-filters{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin:12px 0 18px}
+.rfm-model-filters label,.rfm-snapshot-bar label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:550;color:#6c796d}
+.rfm-model-filters input{width:98px}.rfm-model-filters select{min-width:120px}
+.rfm-visual-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);gap:20px}
+.rfm-canvas-frame{border:1px solid #e4eae5;border-radius:14px;background:radial-gradient(circle at 45% 48%,#fff 0,#f5faf7 65%,#edf3ef 100%);min-width:0;overflow:hidden}
+#rfm-cube{display:block;width:100%;aspect-ratio:3/2;touch-action:none;cursor:grab}
+#rfm-cube:active{cursor:grabbing}
+.rfm-canvas-help{text-align:center;color:#77877a;font-size:11px;padding:0 10px 12px}
+.rfm-model-panel{min-width:0}
+.rfm-model-panel .module-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 13px}
+.rfm-model-panel .module-stat{padding:12px}.rfm-model-panel .module-stat strong{font-size:20px}
+.rfm-segments{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}
+.rfm-segment{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid #e4ebe5;border-radius:10px;background:#fff;text-align:left;font-size:11px}
+.rfm-segment.active{border-color:#498d6e;background:#eff7f0}
+.rfm-segment i{width:11px;height:11px;flex-shrink:0;border-radius:4px}
+.rfm-segment span{font-size:10px;color:#637568}
+.rfm-snapshot-bar{display:flex;align-items:end;gap:9px;flex-wrap:wrap;margin:18px 0}
+.rfm-snapshot-bar label{min-width:175px}.rfm-snapshot-bar label input,.rfm-snapshot-bar label select{max-width:210px}
+#rfm-comparison{margin:8px 0 15px}
+@media(max-width:1100px){.rfm-visual-layout{grid-template-columns:1fr}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -198,6 +222,26 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="head"><div><div class="eyebrow">02 / CUSTOMER SEGMENTATION</div><h2>RFM 客户分层</h2><p class="muted">实时读取已保存的历史CRM快照，后续账本完成后自动更新来源；不把历史回写冒充最终审计。</p></div><span class="pill">历史汇总 · 待最终净额核验</span></div>
 <div class="body">
 <div class="module-kpis" id="rfm-summary-cards"><span class="muted">登录后加载真实RFM历史分布…</span></div>
+<div class="rfm-model">
+ <div class="rfm-model-head"><div><h3>RFM 三维健康分布</h3><p class="muted">R 最近购买 · F 购买次数 · M 180天消费。立体色块分别代表8个RFM行为分群，颜色深浅及内部粒子密度反映相对人数。</p></div>
+ <div class="toolbar"><button id="rfm-reset-view">重置视角</button><button id="rfm-save" class="primary">保存当前模型</button></div></div>
+ <div class="rfm-model-filters">
+ <label>客户等级<select id="rfm-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
+ <label>AOV客群<select id="rfm-aov"><option value="all">全部客单价</option><option value="high">≥ $400</option><option value="low">＜ $400</option><option value="unknown">AOV未知</option></select></label>
+ <label>R 高值阈值 (天) <input id="rfm-r" type="number" value="90" min="1" max="3650"></label>
+ <label>F 高值阈值 (单) <input id="rfm-f" type="number" value="2" min="1" max="200"></label>
+ <label>M 高值阈值 (USD) <input id="rfm-m" type="number" value="800" min="0" max="1000000"></label>
+ <button id="rfm-run" class="primary">更新模型</button></div>
+ <div class="rfm-visual-layout"><div class="rfm-canvas-frame"><canvas id="rfm-cube" width="900" height="600" aria-label="可拖动旋转的RFM三维八象限数据图" role="img"></canvas>
+ <div class="rfm-canvas-help">按住拖动旋转 · 滚轮缩放模型 · 点击色块查看分群</div></div>
+ <div class="rfm-model-panel"><div id="rfm-health" class="module-kpis"><p class="muted">正在加载历史RFM模型…</p></div><h3>八象限结构</h3><div id="rfm-8segments" class="rfm-segments"></div>
+ <div id="rfm-segment-detail" class="status">选择一个色块，查看这类客户的数量与含义。</div></div></div>
+ <div class="rfm-snapshot-bar"><label>保存名称<input id="rfm-snapshot-name" type="text" maxlength="80" placeholder="例如：11月基线-高客单价"></label>
+ <label>历史模型<select id="rfm-snapshot-select"><option value="">选择已保存快照</option></select></label>
+ <button id="rfm-compare">加载对比</button><button id="rfm-copy">复制当前统计</button>
+ <span id="rfm-snapshot-status" class="muted"></span></div><div id="rfm-comparison" class="status" hidden></div>
+ <p class="muted">健康度采用“R高值用户占已完整分类用户比例”，不是净利润、ROAS或业务好坏的统一结论。阈值可调整，数据来自现有CRM历史快照，最终净额仍待核验。</p>
+ </div>
 <div class="rfm-layout"><div><h3>各等级客户占比</h3><div id="rfm-bars" class="rfm-bars"><p class="muted">等待客户索引…</p></div><p class="muted">点击任意等级，跳转客户列表并筛选该等级。</p></div>
 <div><h3>RFM 计算口径</h3><div class="rule-list">
 <div><b>S+</b><span>M ≥ $3,000 · R ≤ 45天 · F ≥ 5笔</span></div>
@@ -293,6 +337,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 </div></dialog>
 <script src="/bi/timeline-range.js"></script>
 <script src="/bi/workbench-modules.js"></script>
+<script src="/bi/rfm-3d.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
