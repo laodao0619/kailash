@@ -1,6 +1,9 @@
 const API="https://open.feishu.cn/open-apis";
 module.exports=async(req,res)=>{
  if(req.method!=="GET") return res.status(405).json({ok:false});
+ const expected=process.env.REPORT_GATEWAY_TOKEN||"";
+ const got=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
+ if(!expected||got!==expected)return res.status(401).json({ok:false,error:"Unauthorized"});
  const tokenArg=req.query.token;
  if(!tokenArg) return res.status(400).json({ok:false,error:"Missing wiki node token"});
  try{
