@@ -1,0 +1,36 @@
+name: KBI V1 read-only tests
+on:
+  pull_request:
+    paths:
+      - 'api/bi-journey.js'
+      - 'lib/crm-shopify.js'
+      - 'lib/crm-gmail.js'
+      - 'tests/kbi-journey.test.js'
+      - '.github/workflows/kbi-v1-tests.yml'
+  push:
+    branches: ['feat/kbi-v1-readonly']
+    paths:
+      - 'api/bi-journey.js'
+      - 'lib/crm-shopify.js'
+      - 'lib/crm-gmail.js'
+      - 'tests/kbi-journey.test.js'
+      - '.github/workflows/kbi-v1-tests.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node syntax validation
+        run: |
+          node --check api/bi-journey.js
+          node --check lib/crm-shopify.js
+          node --check lib/crm-gmail.js
+          node --check tests/kbi-journey.test.js
+      - name: Run zero-secret unit tests
+        run: node --test tests/kbi-journey.test.js
