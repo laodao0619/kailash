@@ -5,6 +5,8 @@ on:
       - 'api/bi-journey.js'
       - 'api/bi-customers.js'
       - 'api/bi-customers-v2.js'
+      - 'api/bi-customers-export.js'
+      - 'tests/kbi-csv-export.test.js'
       - 'api/bi-index-build.js'
       - 'tests/kbi-full-index.test.js'
       - 'tests/kbi-bootstrap.test.js'
@@ -31,6 +33,8 @@ on:
       - 'api/bi-journey.js'
       - 'api/bi-customers.js'
       - 'api/bi-customers-v2.js'
+      - 'api/bi-customers-export.js'
+      - 'tests/kbi-csv-export.test.js'
       - 'api/bi-index-build.js'
       - 'tests/kbi-full-index.test.js'
       - 'tests/kbi-bootstrap.test.js'
@@ -69,8 +73,10 @@ jobs:
           node --check api/bi-journey.js
           node --check api/bi-customers.js
           node --check api/bi-customers-v2.js
+          node --check api/bi-customers-export.js
+          node --check tests/kbi-csv-export.test.js
           node --check api/bi-index-build.js
-          node --check tests/kbi-full-index.test.js tests/kbi-bootstrap.test.js
+          node --check tests/kbi-full-index.test.js tests/kbi-bootstrap.test.js tests/kbi-csv-export.test.js
           node --check tests/kbi-bootstrap.test.js
           node --check api/bi-overview.js
           node --check api/bi-ingestion-status.js
