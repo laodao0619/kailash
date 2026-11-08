@@ -42,5 +42,5 @@ test("joined series sorts events and accumulates counts without inventing missin
   {at:"2026-09-03T10:00:00Z",qty:1}
  ],e=>e.qty);
  assert.deepEqual(rows.map(x=>x.value),[1,3]);
- assert.equal(T.polyline(rows,v=>v.value,v=>v.value),"M1.00 1.00 L3.00 3.00");
+ assert.equal(T.polyline(rows,v=>v.value,v=>v.value),"M1.00 1.00L3.00 3.00");
 });
