@@ -23,6 +23,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/crm-daily-orders",
+      "schedule": "10 2 * * *"
+    },
+    {
       "path": "/api/crm-daily-gmail",
       "schedule": "20 2 * * *"
     },
@@ -33,6 +37,10 @@
     {
       "path": "/api/crm-daily-gmail",
       "schedule": "20 14 * * *"
+    },
+    {
+      "path": "/api/crm-daily-orders",
+      "schedule": "10 14 * * *"
     }
   ]
 }
