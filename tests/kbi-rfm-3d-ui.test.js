@@ -44,3 +44,11 @@ test("purchase evidence includes historical price, discount, channel and order-m
  assert.equal(purchase.relatedEmailIssues[0].relation,"possible_order_number_match_not_verified");
  assert.equal(insights.productHistory([order],[{...mails[0],title:"Order 7003",preview:""}]).products[0].purchases[0].relatedEmailIssues.length,0);
 });
+
+test("RFMs filter refresh automatically and comparison reveals per-octant historical differences",()=>{
+ assert(model.includes('$(id).onchange=()=>refresh()'));
+ assert(model.includes('setTimeout(()=>'));
+ assert(model.includes('rfm-compare-table'));
+ assert(model.includes('baseline.segments.find'));
+ assert(model.includes('sourceAsOf:current.asOf'));
+});

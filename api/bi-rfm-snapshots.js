@@ -41,6 +41,9 @@ module.exports=async(req,res)=>{
   const {snapshot}=require("./bi-customers-v2");
   const {group}=require("../lib/kbi-rfm-cube");
   const data=await snapshot();
+  // Save exactly the underlying CRM source version the analyst is viewing.
+  if(!b.sourceAsOf||b.sourceAsOf!==data.generatedAt)
+   return res.status(409).json({ok:false,error:"stale_source_refresh_required"});
   const src=b.scope||{};
   const filters={tier:String(src.tier||""),aov:String(src.aov||"all"),
    recencyDays:Number(src.thresholds?.recencyDays||90),

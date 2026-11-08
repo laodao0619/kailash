@@ -135,26 +135,35 @@ function initialize({$,request,state,esc,n}){
   try{
    const response=await fetch("/api/bi-rfm-snapshots",{method:"POST",
     headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
-    body:JSON.stringify({id,label,scope:current.scope})});
+    body:JSON.stringify({id,label,scope:current.scope,sourceAsOf:current.asOf})});
    const data=await response.json();
    if(!response.ok||!data.ok)throw Error(data.error||"保存失败");
    $("rfm-snapshot-status").textContent="已保存："+label;await savedList();
-  }catch(e){$("rfm-snapshot-status").textContent="保存失败："+e.message}
+  }catch(e){$("rfm-snapshot-status").textContent="保存失败："+(e.message==="stale_source_refresh_required"?"客户数据刚刚更新，请先点击更新模型再保存":e.message)}
  }
  async function compareWithSaved(){
   const id=$("rfm-snapshot-select").value;if(!id||!current)return;
   try{
    const d=await request("/api/bi-rfm-snapshots",{id});compare=d.snapshot;
-   const s=compare.summary;
-   const equal=JSON.stringify(s.scope)===JSON.stringify(current.scope);
-   $("rfm-comparison").hidden=false;
-   $("rfm-comparison").textContent="基线「"+compare.label+"」："+s.classified+"人，R高值健康度 "+
-    (s.health.rate===null?"未知":s.health.rate+"%")+"；当前："+current.classified+"人，"+
-    (current.health.rate===null?"未知":current.health.rate+"%")+
-    (equal&&s.health.rate!==null&&current.health.rate!==null?
-     "；变化 "+(current.health.rate-s.health.rate).toFixed(2)+" 个百分点":
-     "。两次筛选或阈值不同，禁止直接解读健康度变化。");
-  }catch(e){$("rfm-comparison").textContent="对比读取失败："+e.message}
+   const baseline=compare.summary;
+   const same=JSON.stringify(baseline.scope)===JSON.stringify(current.scope);
+   const head='<strong>保存的模型：'+esc(compare.label)+'</strong> · '+esc(new Date(compare.at).toLocaleString("zh-CN"))+
+    '<p class="muted">基线分类 '+baseline.classified+'人，当前 '+current.classified+
+    '人；R高值占比 '+(baseline.health.rate===null?"无数据":baseline.health.rate+"%")+
+    ' → '+(current.health.rate===null?"无数据":current.health.rate+"%")+'</p>';
+   const warn=same?'<p class="muted">同口径比较八类客户结构，数值来自各次保存的聚合快照。</p>':
+    '<p class="warn">注意：筛选条件或R/F/M阈值不同。以下差异仅供探索，不可作为健康度变化结论。</p>';
+   const table='<div class="rfm-compare-table"><div><b>细分群体</b><b>基线</b><b>当前</b><b>占比变化</b></div>'+
+    current.segments.map(seg=>{
+     const old=baseline.segments.find(x=>x.code===seg.code)||{count:0,pct:0};
+     const delta=seg.pct-old.pct;
+     const display=(delta>0?"+":"")+delta.toFixed(2)+"pp";
+     return '<div><span><i style="background:'+COLORS[seg.code]+'"></i>'+esc(seg.label)+'</span>'+
+      '<span>'+old.count+' / '+old.pct+'%</span><span>'+seg.count+' / '+seg.pct+'%</span>'+
+      '<span style="color:'+(delta>=0?"#367457":"#b47162")+'">'+display+'</span></div>';
+    }).join("")+'</div>';
+   $("rfm-comparison").hidden=false;$("rfm-comparison").innerHTML=head+warn+table;
+  }catch(e){$("rfm-comparison").hidden=false;$("rfm-comparison").textContent="对比读取失败："+e.message}
  }
  const pointer=(e)=>{
   const rect=canvas.getBoundingClientRect();
@@ -172,6 +181,17 @@ function initialize({$,request,state,esc,n}){
   if(found)detail(found.code);
  });
  canvas.addEventListener("wheel",e=>{e.preventDefault();scale=Math.max(.55,Math.min(1.6,scale*(e.deltaY>0?.92:1.08)));render()},{passive:false});
+ // Apply filter changes immediately; numeric thresholds are debounced while typing.
+ let changeTimer=null;
+ for(const id of ["rfm-tier","rfm-aov"]){$(id).onchange=()=>refresh()}
+ for(const id of ["rfm-r","rfm-f","rfm-m"]){
+  $(id).addEventListener("input",()=>{
+   clearTimeout(changeTimer);
+   changeTimer=setTimeout(()=>{
+    if([$("rfm-r"),$("rfm-f"),$("rfm-m")].every(x=>x.checkValidity()&&x.value.trim()))refresh();
+   },430);
+  });
+ }
  $("rfm-reset-view").onclick=()=>{rot=.58;pitch=-.44;scale=1;render()};
  $("rfm-run").onclick=refresh;$("rfm-save").onclick=save;$("rfm-compare").onclick=compareWithSaved;
  $("rfm-copy").onclick=()=>{
