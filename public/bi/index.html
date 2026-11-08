@@ -182,6 +182,8 @@ async function load(){
   $("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:32px;text-align:center">'+
     (pending?"客户索引正在从已有云端CRM数据建立，暂未完成。无需重新抓取Shopify历史。":"客户数据读取失败："+esc(e.message))+'</td></tr>';
   $("top-status").textContent=pending?"索引初始化中":"客户数据异常";
+  $("refresh").disabled=false;
+  if(pending&&state.token)setTimeout(()=>{if(!state.busy)load()},30000);
  }finally{state.busy=false;}
 }
 async function profile(c){
@@ -196,8 +198,8 @@ async function profile(c){
  try{
   const data=await request("/api/bi-journey",{id:c.id});
   $("profile-tags").innerHTML=(data.profile?.productInterests||[]).map(t=>'<span class="pill">'+esc(t.label)+' · '+n(t.evidenceCount)+'笔</span>').join("")||'<span class="muted">暂无足够证据</span>';
-  $("journey-coverage").textContent="Shopify订单："+(data.coverage?.orders==="all_returned_orders"?"当前已返回全部":"超过50笔，仍有未加载订单")+
-   "；Gmail："+(data.coverage?.email||"未知")+"。来源记录不等同因果归因。";
+  $("journey-coverage").textContent="Shopify订单："+(data.coverage?.orders==="all_returned_orders"?"当前已返回全部":"超过300笔，仍有未加载订单")+
+   "；Gmail："+({sample_up_to_50:"双向沟通当前已返回",partial_more_messages:"还有未加载邮件",gmail_backend_unavailable:"Gmail暂不可用",ambiguous_customer_email:"客户邮箱不唯一，已保护隐私"}[data.coverage?.email]||data.coverage?.email||"未知")+"。来源记录不等同因果归因。";
   const events=[...(data.events||[])].reverse();
   $("events").innerHTML=events.map(e=>{
    const extra=e.kind==="order"?
@@ -212,7 +214,7 @@ async function profile(c){
   $("events").textContent="客户M/F/R历史快照仍可查看；实时订单与沟通需检查后台接口。";
  }
 }
-$("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;load()};
+$("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;$("refresh").disabled=false;load()};
 $("secret").onkeydown=e=>{if(e.key==="Enter")$("connect").click()};
 $("apply").onclick=()=>{state.page=1;load()};
 $("reset").onclick=()=>{for(const id of ["q","minM","minLifetime","minF","maxR","minOrders"])$(id).value="";
