@@ -41,6 +41,11 @@ module.exports=async(req,res)=>{
   }
   const token=await feishu.tenantToken();
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
+  if(state.shopifyTotals?.initialImported==null){
+   state.shopifyTotals=state.shopifyTotals||{created:0,updated:0,processed:0,pages:0};
+   state.shopifyTotals.initialImported=index.size;
+   await saveState(state);
+  }
   // Each page is committed separately. The cursor advances only after its Feishu writes succeed.
   const pages=Math.max(1,Math.min(25,Number(req.query?.pages)||20));
   const deadline=Date.now()+88000;
