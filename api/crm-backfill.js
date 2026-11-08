@@ -25,6 +25,7 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authorized(req))return res.status(401).json({ok:false});
  const ready=!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));
+ if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(200).json({ok:true,skipped:"not_crm_execution_project"});
  if(!ready)return res.status(200).json({ok:true,skipped:"shopify_credentials_unavailable"});
  let state={},stats={new:0,updated:0,pages:0,failed:0};
  try{
@@ -33,8 +34,10 @@ module.exports=async(req,res)=>{
   const token=await feishu.tenantToken();
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
   // Each page is committed separately. The cursor advances only after its Feishu writes succeed.
-  const pages=Math.max(1,Math.min(10,Number(req.query?.pages)||6));
+  const pages=Math.max(1,Math.min(25,Number(req.query?.pages)||20));
+  const deadline=Date.now()+88000;
   for(let i=0;i<pages;i++){
+   if(Date.now()>deadline)break;
    const page=await shopify.customers(state.shopifyCursor||null,50);
    if(!page?.nodes||!page?.pageInfo)throw Error("Shopify customer page malformed");
    if(!page.nodes.length&&!page.pageInfo.hasNextPage){
