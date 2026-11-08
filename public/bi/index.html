@@ -292,6 +292,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div id="events" class="event-list"></div>
 </div></dialog>
 <script src="/bi/timeline-range.js"></script>
+<script src="/bi/workbench-modules.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
@@ -301,6 +302,7 @@ const money=(v,currency="USD")=>typeof v==="number"&&Number.isFinite(v)?(currenc
 const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
 const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
 const state={token:"",page:1,busy:false,rows:[],total:0};
+let modules=null;
 async function request(path,params={},authenticated=true){
  const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
  const url=path+(search.size?"?"+search:"");
@@ -367,6 +369,7 @@ async function load(){
   $("export").disabled=false;
   $("top-status").textContent="已连接客户索引";
   $("login").hidden=true;
+  if(!modules&&window.KBIWorkbenchModules){modules=window.KBIWorkbenchModules.initialize({$,request,state,load,esc,n,money,fmt,safeUrl});modules.start()}
  }catch(e){
   const pending=e.message==="crm_index_not_ready";
   $("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:32px;text-align:center">'+
@@ -581,6 +584,7 @@ async function saveCustomerNote(){
 
 async function profile(c){
  const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
+ timelineState.view=null;timelineState.preset="180";document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range==="180"));$("timeline-custom").hidden=true;
  if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
  const facts=[["等级（历史快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
@@ -654,8 +658,33 @@ $("next").onclick=()=>{if(state.page*Number($("size").value)<state.total){state.
 $("size").onchange=()=>{state.page=1;load()};
 document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{const key=th.dataset.sort;
  $("dir").value=$("sort").value===key&&$("dir").value==="desc"?"asc":"desc";$("sort").value=key;state.page=1;load()}));
-$("refresh-status").onclick=baseline;$("close-dialog").onclick=()=>$("customer-dialog").close();
+$("refresh-status").onclick=()=>{baseline();modules?.health?.()};$("close-dialog").onclick=()=>$("customer-dialog").close();
 document.querySelectorAll("#journey-metrics input").forEach(input=>input.onchange=drawJourneyChart);
+document.querySelectorAll("[data-range]").forEach(b=>b.onclick=()=>{
+ if(b.dataset.range==="custom"){$("timeline-custom").hidden=false;document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("active",x===b));return;}
+ setTimelineRange(b.dataset.range);
+});
+$("timeline-apply").onclick=()=>{
+ const begin=$("timeline-start").value,end=$("timeline-end").value;
+ if(!begin||!end||end<begin){$("timeline-window-label").textContent="请输入有效日期范围（开始日期不晚于结束日期）。";return;}
+ timelineState.customStart=begin;timelineState.customEnd=end;setTimelineRange("custom");
+};
+$("journey-svg").addEventListener("wheel",e=>{
+ if(!customerView.events.length||!window.KBITimeline)return;
+ e.preventDefault();
+ const rect=$("journey-svg").getBoundingClientRect();
+ const ratio=Math.max(.03,Math.min(.97,(e.clientX-rect.left)/Math.max(1,rect.width)));
+ const T=window.KBITimeline;
+ const bounds=T.allBounds(customerView.events,Date.now());
+ const current=timelineState.view||T.timeWindow(customerView.events,timelineState.preset,Date.now(),
+  timelineState.customStart,timelineState.customEnd);
+ timelineState.view=T.zoom(current,e.deltaY,ratio,bounds);
+ timelineState.preset="zoom";
+ document.querySelectorAll("[data-range]").forEach(x=>x.classList.remove("active"));
+ $("timeline-custom").hidden=true;
+ drawJourneyChart();
+},{passive:false});
+
 $("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
 $("customer-note-save").onclick=saveCustomerNote;
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
