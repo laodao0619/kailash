@@ -72,15 +72,42 @@ async function load(){
  }catch(e){$("rows").innerHTML='<tr><td colspan="7" class="empty">无法读取数据：'+esc(e.message)+'</td></tr>';$("sync").textContent="连接异常";}
  finally{busy=false;}
 }
+async function apiJourney(id){
+ const r=await fetch("/api/bi-journey?id="+encodeURIComponent(id),{
+  headers:{Authorization:"Bearer "+token},cache:"no-store"});
+ const data=await r.json();
+ if(!r.ok||!data.ok)throw Error(data.error||"journey_not_ready");
+ return data;
+}
 async function profile(c){
  $("profile").showModal();$("profile-name").textContent=c.name||"未填写姓名";$("profile-email").textContent=c.email||"无邮箱";
  $("profile-data").innerHTML=[["CRM等级",c.tier||"未验证"],["历史消费参考",money(c.lifetimeSpend)],["历史订单",c.lifetimeOrders??"—"],["国家/地区",c.country||"—"],["最近订单",c.lastOrder||"未回填"],["数据同步",fmt(c.syncedAt)]].map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1])+'</strong></div>').join("");
  $("coverage").textContent="正在读取客户沟通历史…";$("timeline").innerHTML="";
  try{
-  const data=await api({mode:"customer",id:c.id});
-  $("coverage").textContent="当前：Gmail沟通镜像可用；全历史订单行、首访广告归因尚未接入。缺失的事件不会虚构。";
-  $("timeline").innerHTML=data.events.length?data.events.map(e=>'<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(e.channel)+" · "+esc(e.source)+'</small></div>').join(""):'<div class="fine">当前镜像中没有找到可关联的沟通事件。</div>';
- }catch(e){$("coverage").textContent="客户时间轴读取失败："+e.message;}
+  // Live Shopify order events and verified inbound Gmail messages take precedence.
+  const data=await apiJourney(c.id);
+  const coverage=data.coverage||{};
+  $("coverage").textContent="真实来源：Shopify订单 + Gmail收件。订单覆盖："+(coverage.orders==="all_returned_orders"?"当前可查订单":"前50笔（更多待分页）")+"；邮件覆盖："+(coverage.email==="sample_up_to_50"?"当前样本":"未完整接入")+"。RFM净额未审计，不做因果归因。";
+  const events=(data.events||[]).slice().reverse();
+  $("timeline").innerHTML=events.length?events.map(e=>{
+   const d=e.kind==="order"?[
+     e.currency&&e.amount!==null?e.currency+" "+e.amount:"",
+     e.status||"",e.fulfillment||"",
+     (e.products||[]).map(x=>x.title+" ×"+x.quantity).join("、")
+   ].filter(Boolean).join(" · "):e.kind==="communication"?"客户来信 · 邮件原始证据":"客户建档";
+   const visit=e.kind==="order"?e.attribution?.firstVisit:null;
+   const utm=visit?.utm;
+   const attr=visit?'<div class="fine" style="margin-top:6px">已记录首访：'+esc([utm?.source,utm?.medium,utm?.campaign].filter(Boolean).join(" / ")||visit.source||"来源未注明")+'</div>':'';
+   const origin=e.kind==="communication"&&e.gmailUrl?'<a href="'+esc(e.gmailUrl)+'" target="_blank" rel="noopener noreferrer">查看原始邮件</a>':"";
+   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(d)+' · '+esc(e.source)+'</small>'+attr+'<div>'+origin+'</div></div>';
+  }).join(""):'<div class="fine">当前还没有可追溯的事件。</div>';
+ }catch(e){
+  $("coverage").textContent="实时历史尚未接通（"+e.message+"），尝试读取现有CRM沟通镜像。";
+  try{
+   const data=await api({mode:"customer",id:c.id});
+   $("timeline").innerHTML=data.events.length?data.events.map(e=>'<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(e.channel)+" · "+esc(e.source)+'</small></div>').join(""):'<div class="fine">当前没有可核验的沟通记录。</div>';
+  }catch(_){$("timeline").textContent="尚未获取客户事件。";}
+ }
 }
 $("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;load()};
 $("apply").onclick=()=>{page=1;load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;load()};
