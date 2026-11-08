@@ -18,12 +18,18 @@ function authorized(req, now = Date.now()) {
   return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
-function priority(subject, snippet) {
-  const value = `${subject || ""} ${snippet || ""}`.toLowerCase();
-  if (/refund|chargeback|fraud|cancel|return|damaged|broken|wrong item|not received|did not receive|missing|lost package|complaint|退款|退货|未收到|破损|投诉/.test(value)) return "P0";
-  if (/where is|delivery|shipping|tracking|order|address|size|exchange|arrive|发货|物流|地址|尺寸|换货/.test(value)) return "P1";
-  return "P2";
+function issue(subject, body) {
+  const value = `${subject || ""} ${body || ""}`.toLowerCase();
+  if (/not received|did not receive|never received|haven't received|hasn't arrived|not arrived|missing package|lost parcel|lost package|order not received|未收到|未送达|丢件/.test(value)) return {category:"未收到货",priority:"P0",summary:"客户反馈未收到订单，需要核实物流轨迹、签收凭据及收货地址。"};
+  if (/chargeback|fraud|unauthorized charge|被盗刷|欺诈/.test(value)) return {category:"支付争议",priority:"P0",summary:"客户提出支付或扣款争议，需要优先核对交易。"};
+  if (/refund|return|cancel|退款|退货|取消订单/.test(value)) return {category:"退款退货",priority:"P0",summary:"客户提出退款、退货或取消诉求，需要核对订单状态与售后政策。"};
+  if (/damaged|broken|defect|wrong item|wrong product|破损|损坏|发错/.test(value)) return {category:"商品售后",priority:"P0",summary:"客户反馈商品损坏、瑕疵或错发，需要核对照片与订单。"};
+  if (/where is|tracking|delivery|shipping|shipped|arriv|post office|parcel|package|物流|快递|发货|多久到/.test(value)) return {category:"物流询单",priority:"P1",summary:"客户询问物流状态或反馈邮局信息，需要查询最新物流。"};
+  if (/address|size|exchange|modify|change my order|地址|尺寸|换货|修改订单/.test(value)) return {category:"订单修改",priority:"P1",summary:"客户申请修改地址、尺寸或订单信息，需要核对履约进度。"};
+  if (/order|purchase|payment|invoice|discount|coupon|付款|发票|优惠码|订单/.test(value)) return {category:"订单咨询",priority:"P1",summary:"客户咨询订单或购买事宜，需要结合订单记录回复。"};
+  return {category:"其他客户咨询",priority:"P2",summary:"客户主动来信，需人工阅读正文并确认下一步处理。"};
 }
+function priority(subject, snippet){return issue(subject,snippet).priority;}
 
 async function gather(limit) {
   const token = await gmail.token();
@@ -52,17 +58,19 @@ async function gather(limit) {
     if (threads.has(msg.threadId)) continue;
     threads.add(msg.threadId);
     const info = gmail.compactMessage(msg);
+    const original = gmail.messageBody(msg);
+    const classification = issue(info.subject, original);
     accepted.push({
       threadId: info.threadId, from: info.from, subject: info.subject,
-      date: info.date, snippet: String(msg.snippet || "").slice(0, 220),
-      priority: priority(info.subject, msg.snippet),
+      date: info.date, original, snippet: String(msg.snippet || "").slice(0, 220),
+      ...classification,
     });
     }
   }
   accepted.sort((a, b) => ({ P0: 0, P1: 1, P2: 2 })[a.priority] - ({ P0: 0, P1: 1, P2: 2 })[b.priority] || b.date.localeCompare(a.date));
   return {
     source: "Gmail", mailbox: "service@kailashenergy.com",
-    criteria: "最近30天收件箱未读邮件；过滤广告和自动通知；仅为候选待办，未核实是否已回复",
+    criteria: "最近30天收件箱未读邮件；过滤系统通知、营销与机器人；仅为待核验候选，并非全部待办或未回复总数",
     scanned: messageRows.length, hasMore: !!result.nextPageToken,
     candidateCountWithinScan: accepted.length, excludedWithinScan: rejected,
     returned: Math.min(accepted.length, limit), messages: accepted.slice(0, limit),
@@ -87,3 +95,4 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.authorized = authorized;
 module.exports.priority = priority;
+module.exports.issue = issue;
