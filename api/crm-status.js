@@ -24,7 +24,7 @@ module.exports=async(req,res)=>{
       tasks:(state.tasks||[]).map(x=>({id:x.id,status:x.status,last_run_at:x.last_run_at||null})),
       last_event_at:(state.log||[]).at(-1)?.at||null,
       imports:{
-        shopify:{completed:!!shopify?.shopifyCycleComplete,totals:shopify?.shopifyTotals||null,last_checkpoint:shopify?.updatedAt||null},
+        shopify:{completed:!!shopify?.shopifyCycleComplete,totals:shopify?.shopifyTotals||null,quality_version:shopify?.qualityVersion||null,invalid_existing_removed:shopify?.qualityAudit?.existingRemoved||0,paid_suspicious_excluded_existing:shopify?.qualityAudit?.existingFlaggedPaid||0,subscription_views_configured:shopify?.viewSetVersion==="v2",last_checkpoint:shopify?.updatedAt||null},
         gmail:{completed:!!gmail?.finished,totals:gmail?.totals||null,last_checkpoint:gmail?.updatedAt||null,filter:"365 days, human inbound only, matched customer, one record per thread"}
       },
       source_connectors:{
