@@ -36,6 +36,28 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 .dialog-content{padding:24px}.dialog-top{border-bottom:1px solid #e8eee8;padding-bottom:18px}.profile-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:17px 0}
 .profile-kpis>div{background:#f5f8f5;border-radius:9px;padding:13px}.profile-kpis small{display:block;font-size:11px;color:#718575;margin-bottom:7px}.profile-kpis strong{font-size:15px}
 .event-list{border-left:1px solid #d7e5d9;margin:18px 0 0 7px;padding-left:24px}.event{position:relative;margin-bottom:20px}.event:before{content:"";position:absolute;left:-29px;top:4px;width:10px;height:10px;border-radius:50%;background:#7f9d82;box-shadow:0 0 0 3px #eff6ef}.event time{font-size:11px;color:#8d9d90}.event b{display:block;font-size:13px;margin:6px 0}.event p{margin:0;font-size:11px;color:#778b7b;white-space:normal}
+
+.journey-chart{width:100%;min-height:210px;display:block;background:#fcfdfb;border:1px solid #e4ece5;border-radius:12px}
+.metric-checks{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.metric-checks label{display:flex;align-items:center;gap:6px;border:1px solid #dfeae2;background:#fff;border-radius:8px;padding:7px 10px;font-size:12px;color:#435a48}
+.metric-checks input{min-height:auto;accent-color:#2a593d}
+.chart-legend{display:flex;flex-wrap:wrap;gap:13px;padding:8px 0;font-size:11px;color:#627969}
+.chart-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.products-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.product-card{border:1px solid #e4ece5;border-radius:10px;overflow:hidden;background:#fff;min-width:0}
+.product-card img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#f2f5f1;display:block}
+.product-info{padding:11px}
+.product-info b{font-size:12px;line-height:1.5;display:block;min-height:33px}
+.product-info p{font-size:11px;color:#758579;line-height:1.5;margin:7px 0;max-height:48px;overflow:hidden}
+.product-info a{font-size:11px;color:#2c684a;text-decoration:underline}
+.interest-button{border:1px solid #cfe0d2;border-radius:20px;background:#edf7ef;padding:7px 11px}
+.interest-button.active{background:#224b37;color:white}
+.note-field{display:block;min-height:120px;resize:vertical;width:100%;border:1px solid #d6e5d8;border-radius:8px;padding:12px;color:#344c3b;background:#fff;font:13px/1.6 system-ui}
+.note-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.mail-thread{padding:12px 0;border-bottom:1px solid #e7eee7}
+.mail-thread strong{font-size:12px}
+.mail-thread p{margin:5px 0;font-size:12px;color:#607563;line-height:1.6;white-space:normal}
+@media(max-width:620px){.products-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dialog-content{padding:16px}}
 [hidden]{display:none!important}
 @media(max-width:920px){.layout{grid-template-columns:1fr}aside{padding:12px;gap:10px}nav{display:flex;overflow:auto}nav a{white-space:nowrap}aside .foot{display:none}main{padding:19px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
 @media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
@@ -99,8 +121,40 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <dialog id="customer-dialog"><div class="dialog-content">
 <div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><button id="close-dialog">关闭</button></div>
 <div class="profile-kpis" id="profile-kpis"></div>
-<h2>已观察到的商品兴趣</h2><p class="muted">从已购商品标题提取，保留证据；不代表客户自述偏好。</p><div id="profile-tags" class="toolbar"></div>
-<h2 style="margin-top:24px">客户生命历程</h2><p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
+<section class="panel" style="margin-top:19px;padding:17px">
+<h2>客户生命历程 · 时间分析</h2>
+<p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
+<div class="metric-checks" id="journey-metrics">
+<label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
+<label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
+<label><input type="checkbox" value="channel" checked> 订单来源与触达</label>
+<label><input type="checkbox" value="email" checked> 邮件沟通</label>
+</div>
+<div id="chart-legend" class="chart-legend"></div>
+<svg id="journey-svg" class="journey-chart" role="img" aria-label="客户购买和触达时间序列" viewBox="0 0 850 230" preserveAspectRatio="xMidYMid meet"></svg>
+<p class="muted" id="chart-explanation">加载真实订单与邮件后生成时间图。</p>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>历史购买产品与偏好画像</h2><p class="muted">展示已返回历史订单中的商品图、成交时单价、数量、商品类别、描述和网站链接；当前产品售价可能与成交价不同。</p>
+<div id="product-categories" class="muted" style="margin:8px 0"></div>
+<div id="profile-tags" class="toolbar"></div>
+<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span><button id="product-clear" type="button">显示全部产品</button></div>
+<div id="profile-products" class="products-grid"></div>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>邮件沟通摘要</h2>
+<p class="muted">按真实邮件线程整理主题、双向回复及疑似售后问题；摘要基于邮件主题与记录，不是对全文的AI语义判断。</p>
+<div id="mail-summary" class="status"></div><div id="mail-threads"></div>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>客户专属备注</h2>
+<p class="muted">与 Shopify 客户编号绑定，保存于受保护的云端私有存储，不会写入公开网页。请避免填写密码或支付卡信息。</p>
+<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="记录客户沟通重点、喜好、售后处理进展、下一步跟进计划…"></textarea>
+<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button>
+<span id="customer-note-status" class="muted">尚未加载</span></div>
+</section>
+<h2 style="margin-top:23px">原始订单与沟通事件</h2>
+<p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
 <div id="events" class="event-list"></div>
 </div></dialog>
 <script>
