@@ -4,6 +4,9 @@ const {get,put}=require("@vercel/blob");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
+const summaryHandler=require("./bi-workbench-summary");
+const casesHandler=require("./bi-workbench-cases");
+const productsHandler=require("./bi-workbench-products");
 const INDEX="kbi-index/v2/current.json";
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
@@ -42,14 +45,14 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
- const report={version:2,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
+ const report={version:3,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===2&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(previous.version===3&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
@@ -85,6 +88,19 @@ module.exports=async(req,res)=>{
    report.checks.search=false;report.checks.customer360=false;
    report.checks.productHistory=false;report.checks.mailSummary=false;report.checks.noteRead=false;
   }
+  const summary=await call(summaryHandler,{});
+  report.checks.rfmSummary=summary.code===200&&summary.data?.ok&&
+   summary.data.masterTotal===d.masterTotal&&
+   summary.data.tiers.reduce((n,g)=>n+g.count,0)===d.masterTotal;
+  report.metrics.rfmKnown=summary.data?.historical?.m180?.coverage||null;
+  const catalog=await call(productsHandler,{});
+  report.checks.catalog=catalog.code===200&&catalog.data?.ok&&
+   Array.isArray(catalog.data.products);
+  report.metrics.catalogSampleSize=catalog.data?.products?.length||0;
+  const cases=await call(casesHandler,{page:"1"});
+  report.checks.caseCenter=cases.code===200&&cases.data?.ok&&
+   Array.isArray(cases.data.cases);
+  report.metrics.caseCandidatesInScan=cases.data?.scannedCases||0;
   report.ready=Object.values(report.checks).every(Boolean);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
