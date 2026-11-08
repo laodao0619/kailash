@@ -63,6 +63,10 @@ module.exports=async(req,res)=>{
         target_table_id:caseWriteback?.tableId||null,
         total_cases_at_last_run:caseWriteback?.totalCases??null,
         scanned_events_at_last_run:caseWriteback?.scannedEvents??null,
+        last_batch_processed:caseWriteback?.lastBatchProcessed??null,
+        last_batch_created:caseWriteback?.lastBatchCreated??null,
+        last_batch_updated:caseWriteback?.lastBatchUpdated??null,
+        last_batch_failed:caseWriteback?.lastBatchFailed??null,
         verified_target:caseWriteback?.tableId==="tblNi7C5q5FYlG06"
       },
       source_connectors:{
