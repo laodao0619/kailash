@@ -6,6 +6,7 @@ const handler=require("../api/crm-daily-customers");
 const state=require("../lib/crm-daily-state");
 const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
+const bulk=require("../lib/crm-bulk-feishu");
 const prev=process.env.CRON_SECRET;
 process.env.CRON_SECRET="synthetic-cron-secret-test";
 const req={method:"GET",headers:{authorization:"Bearer synthetic-cron-secret-test"}};
@@ -38,7 +39,11 @@ test("completed baseline: upsert only changed Shopify customers and save new del
   }],pageInfo:{hasNextPage:false,endCursor:null}}};
  });
  const token=mock.method(feishu,"tenantToken",async()=> "feishu-test");
- const upsert=mock.method(feishu,"upsertCustomer",async()=> "updated");
+ const lookup=mock.method(feishu,"findBy",async()=>[{record_id:"existing-customer"}]);
+ const upsert=mock.method(bulk,"batchCustomers",async(_token,rows,index)=>{
+  assert.equal(rows.length,1);assert.equal(index.get("gid://shopify/Customer/123"),"existing-customer");
+  return {created:0,updated:1};
+ });
  try{
   const result=res();await handler(req,result);
   assert.equal(result.code,200);assert.equal(result.value.completed,true);
@@ -47,6 +52,6 @@ test("completed baseline: upsert only changed Shopify customers and save new del
   assert.equal(query.mock.callCount(),1);assert.match(queries[0].filter,/updated_at:>=/);
   assert.equal(writes.length,1);assert.equal(writes[0].completed,true);
   assert.equal(paths.some(p=>p.includes("import-cursor")),true);
- }finally{for(const x of [read,save,query,token,upsert])x.mock.restore();
+ }finally{for(const x of [read,save,query,token,lookup,upsert])x.mock.restore();
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
