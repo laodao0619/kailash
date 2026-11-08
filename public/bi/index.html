@@ -57,7 +57,7 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 </section>
 <section id="customers" class="panel">
 <div class="head"><div><div class="eyebrow">客户管理 / 全量筛选</div><h2>客户列表与分群</h2></div>
-<div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="refresh" disabled>刷新客户索引</button></div></div>
+<div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="export" disabled>导出当前筛选</button><button id="refresh" disabled>刷新客户索引</button></div></div>
 <div class="warn" style="margin:15px 20px 0" id="data-caveat">CRM等级及180天M/F/R来自今天既有历史回写；在完整退款/全历史财务审计完成前，不代表最终已核验账本。</div>
 <div class="filters">
 <div class="filter-row"><input type="search" id="q" placeholder="搜索客户姓名、邮箱、编号、地区或跟进备注">
@@ -175,6 +175,7 @@ async function load(){
    :'<tr><td colspan="11" style="padding:32px;text-align:center" class="muted">没有符合条件的客户。请清除筛选条件重试。</td></tr>';
   document.querySelectorAll("tr[data-i]").forEach(row=>row.addEventListener("click",()=>profile(state.rows[Number(row.dataset.i)])));
   $("refresh").disabled=false;
+  $("export").disabled=false;
   $("top-status").textContent="已连接客户索引";
   $("login").hidden=true;
  }catch(e){
@@ -222,6 +223,21 @@ $("reset").onclick=()=>{for(const id of ["q","minM","minLifetime","minF","maxR",
  $("sort").value="lastOrderAt";$("dir").value="desc";state.page=1;load()};
 $("q").onkeydown=e=>{if(e.key==="Enter"){$("apply").click()}};
 $("refresh").onclick=()=>load();
+$("export").onclick=async()=>{
+ if(!state.token)return;
+ $("export").disabled=true;$("export").textContent="正在导出…";
+ try{
+  const params=filterParams();delete params.page;delete params.size;
+  const q=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
+  const r=await fetch("/api/bi-customers-export?"+q,{cache:"no-store",headers:{Authorization:"Bearer "+state.token}});
+  if(!r.ok)throw Error("导出接口暂不可用");
+  const file=await r.blob(),url=URL.createObjectURL(file),link=document.createElement("a");
+  link.href=url;link.download="Kailash-CRM-筛选客户-"+new Date().toISOString().slice(0,10)+".csv";
+  document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+ }catch(e){alert("导出失败："+e.message)}
+ finally{$("export").disabled=false;$("export").textContent="导出当前筛选"}
+};
+
 $("prev").onclick=()=>{if(state.page>1){state.page--;load()}};
 $("next").onclick=()=>{if(state.page*Number($("size").value)<state.total){state.page++;load()}};
 $("size").onchange=()=>{state.page=1;load()};
