@@ -42,7 +42,7 @@ test("daily archive preserves original ledger, writes each changed-order page ex
   assert.equal(out.value.counters.scanned,1);
   assert.match(args[0].filter,/updated_at:>=/);
   assert.equal(saves.length,2);
-  assert.match(saves[0].path,/\/orders\/\d{4}-\d{2}-\d{2}\/page-0.json$/);
+  assert.match(saves[0].path,/\/orders\/\d{4}-\d{2}-\d{2}\/(before_work|after_store_midnight|before_close)\/page-0.json$/);
   assert.equal(saves[0].data.orders[0].totalRefunded.amount,"10");
   assert.equal(saves[0].data.orders[0].ledgerStatus,"pending_full_history_financial_audit");
   assert.match(saves[1].path,/orders-state.json$/);
