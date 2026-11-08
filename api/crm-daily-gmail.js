@@ -18,8 +18,12 @@ module.exports=async(req,res)=>{
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:"private_state_not_configured"});
  try{
   const [initial,customers]=await Promise.all([state.read(BASELINE),state.read(CUSTOMER_BASELINE)]);
-  if(initial?.finished!==true||customers?.shopifyCycleComplete!==true)
-   return res.status(200).json({ok:true,paused:true,reason:"initial_import_checkpoint_not_verified"});
+  if(customers?.shopifyCycleComplete!==true)
+   return res.status(200).json({ok:true,paused:true,reason:"initial_customer_baseline_not_verified"});
+  // Historical Gmail can still be finishing from its old cursor. New messages
+  // are keyed by message ID; legacy records are keyed by thread ID. The two
+  // streams never reset each other's checkpoints.
+  const historicalGmailComplete=initial?.finished===true;
   const checkpoint=state.cycle(await state.read(SOURCE));
   if(checkpoint.completed)return res.status(200).json({ok:true,completed:true,day:checkpoint.day,counters:checkpoint.counters});
   const [mailToken,feishuToken]=await Promise.all([gmail.token(),feishu.tenantToken()]);
@@ -60,6 +64,7 @@ module.exports=async(req,res)=>{
   return res.status(200).json({ok:true,mode:"daily_gmail_delta",day:checkpoint.day,
    completed:checkpoint.completed,continuedFrom:checkpoint.windowStart,
    pagesThisRun:pages,counters:checkpoint.counters,
-   note:"Historical Gmail import untouched. New messages idempotent by Gmail message ID."});
+   historicalGmailComplete,
+   note:"Historical Gmail cursor preserved; new messages idempotent by Gmail message ID."});
  }catch(_){return res.status(502).json({ok:false,retryable:true,error:"daily_gmail_delta_failed"});}
 };

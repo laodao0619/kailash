@@ -11,12 +11,12 @@ process.env.CRON_SECRET="synthetic-cron-secret-test";
 const req={method:"GET",headers:{authorization:"Bearer synthetic-cron-secret-test"}};
 function res(){return{code:200,value:null,setHeader(){},status(code){this.code=code;return this;},json(data){this.value=data;return this;}};}
 test.after(()=>{if(prev===undefined)delete process.env.CRON_SECRET;else process.env.CRON_SECRET=prev;});
-test("Gmail missing historical completion checkpoint refuses full rescan",async()=>{
+test("Gmail delta refuses work only when customer baseline is missing",async()=>{
  const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="test-blob";
- const reader=mock.method(state,"read",async p=>p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const reader=mock.method(state,"read",async()=>null);
  try{
   const out=res();await handler(req,out);
-  assert.equal(out.code,200);assert.equal(out.value.reason,"initial_import_checkpoint_not_verified");
+  assert.equal(out.code,200);assert.equal(out.value.reason,"initial_customer_baseline_not_verified");
  }finally{reader.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
 test("daily mail sync matches unique identity, deduplicates, saves only incremental checkpoint",async()=>{
