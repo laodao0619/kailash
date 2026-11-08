@@ -140,6 +140,60 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 @media(max-width:920px){aside{position:relative;width:100%;height:auto;padding:17px 18px;overflow:visible}.layout{grid-template-columns:1fr}nav{display:flex;overflow:auto;padding-bottom:4px}nav a{white-space:nowrap}main{padding:22px 16px}.top{flex-wrap:wrap}}
 @media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}.source-grid,.health-grid{grid-template-columns:1fr}.module-kpis{grid-template-columns:1fr 1fr}.dialog-content{padding:18px}.timeline-tools button{min-height:39px}.top h1{font-size:24px}input[type=search]{min-width:180px}}
 
+
+.rfm-model{border:1px solid #e7ece8;border-radius:16px;background:#fbfcfb;padding:20px;margin:0 0 23px}
+.rfm-model-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.rfm-model-head p{margin:5px 0 12px}
+.rfm-model-filters{display:flex;flex-wrap:wrap;align-items:end;gap:10px;margin:12px 0 18px}
+.rfm-model-filters label,.rfm-snapshot-bar label{display:flex;flex-direction:column;gap:5px;font-size:11px;font-weight:550;color:#6c796d}
+.rfm-model-filters input{width:98px}.rfm-model-filters select{min-width:120px}
+.rfm-visual-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);gap:20px}
+.rfm-canvas-frame{border:1px solid #e4eae5;border-radius:14px;background:radial-gradient(circle at 45% 48%,#fff 0,#f5faf7 65%,#edf3ef 100%);min-width:0;overflow:hidden}
+#rfm-cube{display:block;width:100%;aspect-ratio:3/2;touch-action:none;cursor:grab}
+#rfm-cube:active{cursor:grabbing}
+.rfm-canvas-help{text-align:center;color:#77877a;font-size:11px;padding:0 10px 12px}
+.rfm-model-panel{min-width:0}
+.rfm-model-panel .module-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 13px}
+.rfm-model-panel .module-stat{padding:12px}.rfm-model-panel .module-stat strong{font-size:20px}
+.rfm-segments{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}
+.rfm-segment{display:flex;gap:8px;align-items:center;padding:10px;border:1px solid #e4ebe5;border-radius:10px;background:#fff;text-align:left;font-size:11px}
+.rfm-segment.active{border-color:#498d6e;background:#eff7f0}
+.rfm-segment i{width:11px;height:11px;flex-shrink:0;border-radius:4px}
+.rfm-segment span{font-size:10px;color:#637568}
+.rfm-snapshot-bar{display:flex;align-items:end;gap:9px;flex-wrap:wrap;margin:18px 0}
+.rfm-snapshot-bar label{min-width:175px}.rfm-snapshot-bar label input,.rfm-snapshot-bar label select{max-width:210px}
+#rfm-comparison{margin:8px 0 15px}
+@media(max-width:1100px){.rfm-visual-layout{grid-template-columns:1fr}}
+
+/* 360° practical workspace: sticky toolbar + pinned, collapsible notes */
+#customer-dialog{width:min(1440px,97vw);max-height:94dvh;overflow-y:auto;overflow-x:hidden;padding:0;scrollbar-gutter:stable}
+#customer-dialog .dialog-content{padding:22px 25px}
+#customer-dialog .dialog-top{position:sticky;top:-22px;z-index:35;margin:-22px -25px 17px;padding:15px 25px;background:rgba(255,255,255,.96);backdrop-filter:blur(18px);border-bottom:1px solid #e5eae6;box-shadow:0 5px 14px rgba(10,40,25,.04)}
+#customer-dialog .dialog-top h1{font-size:24px;margin:3px 0}
+#customer-dialog .dialog-top .toolbar{flex-shrink:0}
+#customer-dialog .dialog-top .toolbar button{min-height:39px}
+.customer-note-drawer{position:fixed;right:clamp(14px,3vw,45px);top:clamp(95px,13vh,145px);z-index:75;width:min(400px,calc(100vw - 38px));max-height:calc(90dvh - 96px);overflow:auto;background:#fff;border:1px solid #dfe9e1;border-radius:16px;padding:19px;box-shadow:0 18px 58px #16362635}
+.customer-note-drawer .note-field{min-height:220px;resize:vertical}
+.customer-note-drawer .note-actions{align-items:flex-start;flex-direction:column}
+.customer-product-grid{grid-template-columns:repeat(var(--customer-cols,4),minmax(0,1fr));align-items:start}
+.customer-product-grid .product-card img{aspect-ratio:3/4;object-fit:cover;background:#f2f4f1}
+.customer-product-grid .product-card{border-radius:11px;overflow:hidden}
+.customer-product-grid .product-info{padding:10px}
+.customer-product-grid .product-info b{font-size:12px;min-height:unset;line-height:1.4}
+.customer-product-grid .product-info p{font-size:11px;margin:5px 0}
+.customer-product-grid .paid-price{font-weight:750;font-size:15px;color:#224e35;margin:8px 0 3px}
+.customer-product-grid .price-was{text-decoration:line-through;font-size:11px;color:#87988c}
+.customer-product-grid .discount-pill{display:inline-block;border-radius:5px;background:#f9ede0;color:#936126;font-size:10px;padding:2px 5px}
+.customer-product-grid .order-source{border-top:1px solid #e9efea;padding-top:7px;margin-top:8px;font-size:11px;color:#647869;line-height:1.55}
+.customer-product-grid .order-issue{background:#fff8ed;border-radius:6px;padding:6px;font-size:11px;color:#8e6436;margin-top:6px}
+#customer-product-cols{min-width:75px}
+@media(max-width:760px){.customer-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#customer-dialog .dialog-content{padding:16px}#customer-dialog .dialog-top{top:-16px;margin:-16px -16px 12px;padding:12px 16px}}
+
+.c360-tabs{position:sticky;top:73px;z-index:32;display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:rgba(249,251,249,.97);padding:9px 12px;border:1px solid #e7ece7;border-radius:12px;backdrop-filter:blur(12px);margin-bottom:10px}
+.c360-tabs button{border:none;background:transparent;color:#738478;font-weight:600;font-size:12px;min-height:36px}
+.c360-tabs button.active{background:#dfece2;color:#286345}
+.c360-tabs .muted{margin-left:auto}
+@media(max-width:760px){.c360-tabs{top:69px}.c360-tabs .muted{display:none}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -198,6 +252,26 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="head"><div><div class="eyebrow">02 / CUSTOMER SEGMENTATION</div><h2>RFM 客户分层</h2><p class="muted">实时读取已保存的历史CRM快照，后续账本完成后自动更新来源；不把历史回写冒充最终审计。</p></div><span class="pill">历史汇总 · 待最终净额核验</span></div>
 <div class="body">
 <div class="module-kpis" id="rfm-summary-cards"><span class="muted">登录后加载真实RFM历史分布…</span></div>
+<div class="rfm-model">
+ <div class="rfm-model-head"><div><h3>RFM 三维健康分布</h3><p class="muted">R 最近购买 · F 购买次数 · M 180天消费。立体色块分别代表8个RFM行为分群，颜色深浅及内部粒子密度反映相对人数。</p></div>
+ <div class="toolbar"><button id="rfm-reset-view">重置视角</button><button id="rfm-save" class="primary">保存当前模型</button></div></div>
+ <div class="rfm-model-filters">
+ <label>客户等级<select id="rfm-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
+ <label>AOV客群<select id="rfm-aov"><option value="all">全部客单价</option><option value="high">≥ $400</option><option value="low">＜ $400</option><option value="unknown">AOV未知</option></select></label>
+ <label>R 高值阈值 (天) <input id="rfm-r" type="number" value="90" min="1" max="3650"></label>
+ <label>F 高值阈值 (单) <input id="rfm-f" type="number" value="2" min="1" max="200"></label>
+ <label>M 高值阈值 (USD) <input id="rfm-m" type="number" value="800" min="0" max="1000000"></label>
+ <button id="rfm-run" class="primary">更新模型</button></div>
+ <div class="rfm-visual-layout"><div class="rfm-canvas-frame"><canvas id="rfm-cube" width="900" height="600" aria-label="可拖动旋转的RFM三维八象限数据图" role="img"></canvas>
+ <div class="rfm-canvas-help">按住拖动旋转 · 滚轮缩放模型 · 点击色块查看分群</div></div>
+ <div class="rfm-model-panel"><div id="rfm-health" class="module-kpis"><p class="muted">正在加载历史RFM模型…</p></div><h3>八象限结构</h3><div id="rfm-8segments" class="rfm-segments"></div>
+ <div id="rfm-segment-detail" class="status">选择一个色块，查看这类客户的数量与含义。</div></div></div>
+ <div class="rfm-snapshot-bar"><label>保存名称<input id="rfm-snapshot-name" type="text" maxlength="80" placeholder="例如：11月基线-高客单价"></label>
+ <label>历史模型<select id="rfm-snapshot-select"><option value="">选择已保存快照</option></select></label>
+ <button id="rfm-compare">加载对比</button><button id="rfm-copy">复制当前统计</button>
+ <span id="rfm-snapshot-status" class="muted"></span></div><div id="rfm-comparison" class="status" hidden></div>
+ <p class="muted">健康度采用“R高值用户占已完整分类用户比例”，不是净利润、ROAS或业务好坏的统一结论。阈值可调整，数据来自现有CRM历史快照，最终净额仍待核验。</p>
+ </div>
 <div class="rfm-layout"><div><h3>各等级客户占比</h3><div id="rfm-bars" class="rfm-bars"><p class="muted">等待客户索引…</p></div><p class="muted">点击任意等级，跳转客户列表并筛选该等级。</p></div>
 <div><h3>RFM 计算口径</h3><div class="rule-list">
 <div><b>S+</b><span>M ≥ $3,000 · R ≤ 45天 · F ≥ 5笔</span></div>
@@ -242,9 +316,16 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
 </main></div>
 <dialog id="customer-dialog"><div class="dialog-content">
-<div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><button id="close-dialog">关闭</button></div>
+<div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><div class="toolbar"><button id="note-shortcut" type="button">✎ 客户备注</button><button id="close-dialog" type="button" aria-label="关闭客户详情">✕ 关闭</button></div></div>
 <div class="profile-kpis" id="profile-kpis"></div>
-<section class="panel" style="margin-top:19px;padding:17px">
+<div class="c360-tabs" role="tablist" aria-label="客户360功能">
+ <button type="button" data-c360-tab="trend" class="active">生命历程</button>
+ <button type="button" data-c360-tab="products">历史商品</button>
+ <button type="button" data-c360-tab="mail">邮件沟通</button>
+ <button type="button" data-c360-tab="events">全部事件</button>
+ <span class="muted">备注使用右上角「客户备注」随时打开</span>
+ </div>
+<section class="panel c360-pane" data-c360-pane="trend" style="margin-top:19px;padding:17px">
 <h2>客户生命历程 · 时间分析</h2>
 <p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
 <div class="timeline-tools" role="group" aria-label="客户事件时间范围">
@@ -259,7 +340,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="chart-hint" id="timeline-window-label">当前显示最近180天。鼠标移至图表滚动缩放，可用上方按钮重置。</p>
 <div class="metric-checks" id="journey-metrics">
 <label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
-<label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
+<label><input type="checkbox" value="orderValue" checked> 累计平均客单价</label>
 <label><input type="checkbox" value="channel" checked> 订单来源与触达</label>
 <label><input type="checkbox" value="email" checked> 邮件沟通</label>
 </div>
@@ -267,32 +348,33 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <svg id="journey-svg" class="journey-chart" role="img" aria-label="客户购买和触达时间序列" viewBox="0 0 850 230" preserveAspectRatio="xMidYMid meet"></svg>
 <p class="muted" id="chart-explanation">加载真实订单与邮件后生成时间图。</p>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
+<section class="panel c360-pane" data-c360-pane="products" hidden style="margin-top:15px;padding:17px">
 <h2>历史购买产品与偏好画像</h2><p class="muted">展示已返回历史订单中的商品图、成交时单价、数量、商品类别、描述和网站链接；当前产品售价可能与成交价不同。</p>
 <div id="product-narrative" class="status" style="margin:12px 0">正在整理客户购买偏好…</div>
 <div id="product-categories" class="muted" style="margin:8px 0"></div>
 <div id="profile-tags" class="toolbar"></div>
-<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span><button id="product-clear" type="button">显示全部产品</button></div>
-<div id="profile-products" class="products-grid"></div>
+<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span>
+<label class="muted">每行展示 <select id="customer-product-cols" aria-label="客户已购商品每行数量"><option value="2">2款</option><option value="3">3款</option><option value="4" selected>4款</option><option value="5">5款</option><option value="6">6款</option></select></label>
+<button id="product-clear" type="button">显示全部产品</button></div>
+<div id="profile-products" class="products-grid customer-product-grid" style="--customer-cols:4"></div>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
+<section class="panel c360-pane" data-c360-pane="mail" hidden style="margin-top:15px;padding:17px">
 <h2>邮件沟通摘要</h2>
 <p class="muted">按真实邮件线程整理主题、双向回复及疑似售后问题；摘要基于邮件主题与记录，不是对全文的AI语义判断。</p>
 <div id="mail-summary" class="status"></div><div id="mail-threads"></div>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
-<h2>客户专属备注</h2>
-<p class="muted">与 Shopify 客户编号绑定，保存于受保护的云端私有存储，不会写入公开网页。请避免填写密码或支付卡信息。</p>
-<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="记录客户沟通重点、喜好、售后处理进展、下一步跟进计划…"></textarea>
-<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button>
-<span id="customer-note-status" class="muted">尚未加载</span></div>
-</section>
-<h2 style="margin-top:23px">原始订单与沟通事件</h2>
+<div id="note-drawer" class="customer-note-drawer" hidden>
+<div class="row"><h2>客户专属备注</h2><button type="button" id="note-close" aria-label="收起备注">收起 ✕</button></div>
+<p class="muted">备注会保存到客户私有云端记录。请勿输入密码或支付卡号。</p>
+<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="沟通重点、产品偏好、售后、下次跟进…"></textarea>
+<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button><span id="customer-note-status" class="muted">尚未加载</span></div></div>
+<section class="c360-pane" data-c360-pane="events" hidden><h2 style="margin-top:23px">原始订单与沟通事件</h2>
 <p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
-<div id="events" class="event-list"></div>
+<div id="events" class="event-list"></div></section>
 </div></dialog>
 <script src="/bi/timeline-range.js"></script>
 <script src="/bi/workbench-modules.js"></script>
+<script src="/bi/rfm-3d.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
@@ -458,7 +540,7 @@ function drawJourneyChart(){
    {name:"客服回复",color:"#78c9a8",rows:T.cumulativeSeries(email.filter(e=>e.direction==="outbound"),()=>1),dashed:true}
   ]}
  ].filter(g=>selected.has(g.id));
- const left=160,right=26,top=25,lane=126,bottom=65,width=960;
+ const left=160,right=26,top=25,lane=150,bottom=53,width=960;
  const height=Math.max(145,top+groups.length*lane+bottom);
  svg.setAttribute("viewBox","0 0 "+width+" "+height);
  svg.setAttribute("aria-label","客户生命周期数据图 · "+fmt(view.start)+" 至 "+fmt(view.end));
@@ -478,6 +560,13 @@ function drawJourneyChart(){
   result+='<rect x="'+left+'" y="'+y0+'" width="'+(width-left-right)+'" height="94" fill="'+(i%2?"#f8faf8":"#fff")+'"/>';
   result+='<text x="12" y="'+(y0+25)+'" fill="#344d3d" font-weight="600" font-size="13">'+esc(g.title)+'</text>';
   result+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#d9e5dc"/>';
+  // Repeat full date axis under every metric lane, not only at chart bottom.
+  for(let tick=0;tick<=6;tick++){
+   const t=view.start+extent*tick/6,tx=left+(width-left-right)*tick/6;
+   result+='<text x="'+xmlNumber(tx)+'" y="'+(yBottom+23)+'" text-anchor="middle" fill="#819389" font-size="11">'+
+    esc(new Date(t).toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai",year:"2-digit",month:"2-digit",day:"2-digit"}))+'</text>';
+  }
+  result+='<line x1="'+left+'" y1="'+(yBottom+30)+'" x2="'+(width-right)+'" y2="'+(yBottom+30)+'" stroke="#e8eee9"/>';
   const series=g.series.map(serie=>({...serie,visible:serie.rows.filter(r=>T.millis(r.at)>=view.start&&T.millis(r.at)<=view.end)}));
   const max=Math.max(1,...series.flatMap(z=>z.visible.map(row=>row.value)));
   const y=row=>yBottom-Math.max(0,row.value)/max*67;
@@ -502,19 +591,47 @@ function drawJourneyChart(){
 
 function showProducts(tag=""){
  const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
- $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
+ $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"历史已购")+"商品："+shown.length+"款";
+ const sourceName={meta:"Meta广告",google:"Google广告",email:"邮件",pinterest:"Pinterest",organic:"自然/直接",unknown:"未知来源"};
+ const sourceColor={meta:"#3978db",google:"#dea633",email:"#2c9f68",pinterest:"#bb6983",organic:"#82998a",unknown:"#84968c"};
+ function purchaseRow(p){
+  const curr=p.currency||"USD";
+  const price=p.discountedUnitPrice??p.unitPrice;
+  const base=p.originalUnitPrice??null;
+  const discount=base!==null&&price!==null&&base>price?Math.round((base-price)/base*100):0;
+  const src=p.orderChannel||"unknown";
+  const issue=(p.relatedEmailIssues||[]).map(e=>{
+   const url=safeUrl(e.url);
+   return '<div class="order-issue">订单号匹配到疑似邮件问题（未经客服确认）：'+
+    (url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(e.subject)+'</a>':esc(e.subject))+'</div>';
+  }).join("");
+  return '<div class="purchase-evidence"><div class="paid-price">'+
+   (price!==null&&Number.isFinite(Number(price))?money(Number(price),curr):"成交单价未记录")+
+   (discount?' <span class="discount-pill">优惠 '+discount+'%</span>':"")+'</div>'+
+   (discount?'<span class="price-was">原单价 '+money(base,curr)+'</span>':
+    '<span class="muted" style="font-size:10px">未记录商品级折扣</span>')+
+   '<div class="order-source"><b>'+esc(p.orderName||"历史订单")+'</b> · '+esc(fmt(p.at))+' · '+n(p.quantity)+'件<br>'+
+   '<span style="color:'+sourceColor[src]+'">● '+esc(sourceName[src]||"未知来源")+'</span> · 仅已记录访问渠道</div>'+issue+'</div>';
+ }
  $("profile-products").innerHTML=shown.length?shown.map(p=>{
-  const count=p.purchases.filter(x=>x.validForReview).reduce((s,x)=>s+Number(x.quantity||0),0);
-  const purchase=p.purchases.find(x=>x.validForReview)||p.purchases[0]||{};
+  const purchases=p.purchases.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  const count=purchases.filter(x=>x.validForReview).reduce((v,x)=>v+Number(x.quantity||0),0);
   const href=safeUrl(p.productUrl,"product"),image=safeUrl(p.imageUrl,"image");
-  return '<article class="product-card">'+(image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':'<div style="height:140px;background:#f2f5f1;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
-   '<div class="product-info"><b>'+esc(p.title)+'</b><span class="pill">'+esc(p.productType)+'</span>'+
-   '<p>'+esc((p.description||"").slice(0,160)||"暂无商品描述")+'</p>'+
-   '<div class="muted">已购买 '+n(count)+' 件 · '+n(p.validOrders)+'笔有效订单</div>'+
-   '<div class="muted">订单记录单价：'+(purchase.unitPrice!==null?money(purchase.unitPrice,purchase.currency||"USD"):"未记录")+'</div>'+
-   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">查看网站商品原始页</a>':'<span class="muted">商品可能已下架 / 无公开链接</span>')+
+  const headline=purchases.find(x=>x.validForReview)||purchases[0];
+  const others=purchases.filter(x=>x!==headline);
+  return '<article class="product-card">'+
+   (image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':
+    '<div style="aspect-ratio:3/4;background:#eef3ee;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
+   '<div class="product-info"><b>'+esc(p.title)+'</b><div style="margin:6px 0"><span class="pill">'+esc(p.productType)+'</span></div>'+
+   '<p>'+esc((p.description||"").slice(0,90)||"暂无产品描述")+'</p>'+
+   '<div class="muted">有效购买 '+n(count)+'件 · '+n(p.validOrders)+'笔订单</div>'+
+   (headline?purchaseRow(headline):"")+
+   (others.length?'<details style="margin:8px 0"><summary style="font-size:11px;color:#336c4d;cursor:pointer">展开其他 '+others.length+' 笔购买记录</summary>'+
+    others.map(purchaseRow).join("")+'</details>':"")+
+   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">追溯网站产品页</a>':
+    '<span class="muted">公开产品页不可用</span>')+
    '</div></article>';
- }).join(""):'<p class="muted">当前筛选没有可匹配的历史商品。</p>';
+ }).join(""):'<p class="muted">当前标签下没有可溯源的已购商品。</p>';
 }
 function displayProductInsights(data){
  const p=data.profile||{};
@@ -584,6 +701,8 @@ async function saveCustomerNote(){
 
 async function profile(c){
  const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
+ $("note-drawer").hidden=true;
+ customer360Tab("trend");
  timelineState.view=null;timelineState.preset="180";document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range==="180"));$("timeline-custom").hidden=true;
  if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
@@ -698,7 +817,22 @@ $("journey-svg").addEventListener("wheel",e=>{
 },{passive:false});
 
 $("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
+function customer360Tab(name){
+ document.querySelectorAll("[data-c360-tab]").forEach(b=>{
+  const active=b.dataset.c360Tab===name;b.classList.toggle("active",active);
+  b.setAttribute("aria-selected",String(active));
+ });
+ document.querySelectorAll("[data-c360-pane]").forEach(section=>{
+  section.hidden=section.dataset.c360Pane!==name;
+ });
+ const dialog=$("customer-dialog");dialog.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll("[data-c360-tab]").forEach(b=>b.onclick=()=>customer360Tab(b.dataset.c360Tab));
 $("customer-note-save").onclick=saveCustomerNote;
+$("note-shortcut").onclick=()=>{$("note-drawer").hidden=!$("note-drawer").hidden;if(!$("note-drawer").hidden)$("customer-note-text").focus()};
+$("note-close").onclick=()=>{$("note-drawer").hidden=true};
+$("customer-product-cols").onchange=()=>{$("profile-products").style.setProperty("--customer-cols",$("customer-product-cols").value)};
+$("customer-dialog").addEventListener("close",()=>{$("note-drawer").hidden=true});
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
 readiness();baseline();
 })();

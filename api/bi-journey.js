@@ -95,13 +95,18 @@ function event(id,kind,at,title,source,extra={}){
  return {id,kind,at:at||null,title,source,...extra};
 }
 function mapOrderProduct(x){
- const itemPrice=x.discountedUnitPriceAfterAllDiscountsSet?.shopMoney||
-  x.originalUnitPriceSet?.shopMoney||null;
+ const original=x.originalUnitPriceSet?.shopMoney||null;
+ const discounted=x.discountedUnitPriceAfterAllDiscountsSet?.shopMoney||original;
+ const itemPrice=discounted;
  return {title:x.title,quantity:x.quantity,lineId:x.id,
   productId:x.product?.id||null,variantId:x.variant?.id||null,
   description:String(x.product?.description||"").slice(0,2200),
   productType:x.product?.productType||"",
   imageUrl:x.image?.url||null,productUrl:x.product?.onlineStoreUrl||null,
+  originalUnitPrice:original?.amount==null?null:Number(original.amount),
+  discountedUnitPrice:discounted?.amount==null?null:Number(discounted.amount),
+  discountAmount:original?.amount!=null&&discounted?.amount!=null?
+   Math.max(0,Number(original.amount)-Number(discounted.amount)):null,
   unitPrice:itemPrice?.amount==null?null:Number(itemPrice.amount),
   currency:itemPrice?.currencyCode||null};
 }
@@ -119,6 +124,7 @@ function orderEvent(o){
  const last=j?.ready?j.lastVisit:null;
  return event("shopify:"+o.id,"order",o.processedAt,"Order "+o.name,"Shopify",{
   orderId:o.id,orderName:o.name,
+  channel:channelOf(last||first||{}),
   status:o.displayFinancialStatus||"UNKNOWN",fulfillment:o.displayFulfillmentStatus||"UNKNOWN",
   validForReview:valid,
   amount:orderTotal?.amount??null,currency:orderTotal?.currencyCode||null,
@@ -264,7 +270,7 @@ module.exports=async(req,res)=>{
    event("shopify:"+c.id+":created","customer_created",c.createdAt,"Customer account created","Shopify"),
    ...visits,...orders,...communications
   ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
-  const purchaseInsights=productHistory(orders);
+  const purchaseInsights=productHistory(orders,communications);
   const communicationSummary=mailSummary(communications);
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),

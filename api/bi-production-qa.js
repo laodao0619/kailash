@@ -7,6 +7,7 @@ const noteHandler=require("./bi-customer-note");
 const summaryHandler=require("./bi-workbench-summary");
 const casesHandler=require("./bi-workbench-cases");
 const productsHandler=require("./bi-workbench-products");
+const rfmCubeHandler=require("./bi-rfm-cube");
 const INDEX="kbi-index/v2/current.json";
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
@@ -45,14 +46,14 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
- const report={version:3,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
+ const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===3&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
@@ -101,6 +102,15 @@ module.exports=async(req,res)=>{
   report.checks.caseCenter=cases.code===200&&cases.data?.ok&&
    Array.isArray(cases.data.cases);
   report.metrics.caseCandidatesInScan=cases.data?.scannedCases||0;
+  const rfm=await call(rfmCubeHandler,{tier:"",aov:"all",r:"90",f:"2",m:"800"});
+  const breakdown=rfm.data?.segments||[];
+  report.checks.rfmEight=rfm.code===200&&rfm.data?.ok&&
+   breakdown.length===8&&breakdown.every(x=>Number.isInteger(x.count)&&x.count>=0)&&
+   breakdown.reduce((v,x)=>v+x.count,0)===rfm.data.classified&&
+   rfm.data.classified+rfm.data.unknown?.count===d.masterTotal;
+  report.metrics.rfmEightCoverage=rfm.data?.classified||0;
+  report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
+  report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
   report.ready=Object.values(report.checks).every(Boolean);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
