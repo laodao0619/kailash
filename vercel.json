@@ -19,7 +19,7 @@
       "schedule": "30 8 * * *"
     },
     {
-      "path": "/api/crm-import",
+      "path": "/api/crm-backfill",
       "schedule": "0 2 * * *"
     }
   ]
