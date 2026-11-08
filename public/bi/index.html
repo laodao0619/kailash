@@ -188,6 +188,12 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 .customer-product-grid .order-issue{background:#fff8ed;border-radius:6px;padding:6px;font-size:11px;color:#8e6436;margin-top:6px}
 #customer-product-cols{min-width:75px}
 @media(max-width:760px){.customer-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#customer-dialog .dialog-content{padding:16px}#customer-dialog .dialog-top{top:-16px;margin:-16px -16px 12px;padding:12px 16px}}
+
+.c360-tabs{position:sticky;top:73px;z-index:32;display:flex;gap:7px;align-items:center;flex-wrap:wrap;background:rgba(249,251,249,.97);padding:9px 12px;border:1px solid #e7ece7;border-radius:12px;backdrop-filter:blur(12px);margin-bottom:10px}
+.c360-tabs button{border:none;background:transparent;color:#738478;font-weight:600;font-size:12px;min-height:36px}
+.c360-tabs button.active{background:#dfece2;color:#286345}
+.c360-tabs .muted{margin-left:auto}
+@media(max-width:760px){.c360-tabs{top:69px}.c360-tabs .muted{display:none}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -312,7 +318,14 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <dialog id="customer-dialog"><div class="dialog-content">
 <div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><div class="toolbar"><button id="note-shortcut" type="button">✎ 客户备注</button><button id="close-dialog" type="button" aria-label="关闭客户详情">✕ 关闭</button></div></div>
 <div class="profile-kpis" id="profile-kpis"></div>
-<section class="panel" style="margin-top:19px;padding:17px">
+<div class="c360-tabs" role="tablist" aria-label="客户360功能">
+ <button type="button" data-c360-tab="trend" class="active">生命历程</button>
+ <button type="button" data-c360-tab="products">历史商品</button>
+ <button type="button" data-c360-tab="mail">邮件沟通</button>
+ <button type="button" data-c360-tab="events">全部事件</button>
+ <span class="muted">备注使用右上角「客户备注」随时打开</span>
+ </div>
+<section class="panel c360-pane" data-c360-pane="trend" style="margin-top:19px;padding:17px">
 <h2>客户生命历程 · 时间分析</h2>
 <p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
 <div class="timeline-tools" role="group" aria-label="客户事件时间范围">
@@ -335,7 +348,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <svg id="journey-svg" class="journey-chart" role="img" aria-label="客户购买和触达时间序列" viewBox="0 0 850 230" preserveAspectRatio="xMidYMid meet"></svg>
 <p class="muted" id="chart-explanation">加载真实订单与邮件后生成时间图。</p>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
+<section class="panel c360-pane" data-c360-pane="products" hidden style="margin-top:15px;padding:17px">
 <h2>历史购买产品与偏好画像</h2><p class="muted">展示已返回历史订单中的商品图、成交时单价、数量、商品类别、描述和网站链接；当前产品售价可能与成交价不同。</p>
 <div id="product-narrative" class="status" style="margin:12px 0">正在整理客户购买偏好…</div>
 <div id="product-categories" class="muted" style="margin:8px 0"></div>
@@ -345,7 +358,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <button id="product-clear" type="button">显示全部产品</button></div>
 <div id="profile-products" class="products-grid customer-product-grid" style="--customer-cols:4"></div>
 </section>
-<section class="panel" style="margin-top:15px;padding:17px">
+<section class="panel c360-pane" data-c360-pane="mail" hidden style="margin-top:15px;padding:17px">
 <h2>邮件沟通摘要</h2>
 <p class="muted">按真实邮件线程整理主题、双向回复及疑似售后问题；摘要基于邮件主题与记录，不是对全文的AI语义判断。</p>
 <div id="mail-summary" class="status"></div><div id="mail-threads"></div>
@@ -355,9 +368,9 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="muted">备注会保存到客户私有云端记录。请勿输入密码或支付卡号。</p>
 <textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="沟通重点、产品偏好、售后、下次跟进…"></textarea>
 <div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button><span id="customer-note-status" class="muted">尚未加载</span></div></div>
-<h2 style="margin-top:23px">原始订单与沟通事件</h2>
+<section class="c360-pane" data-c360-pane="events" hidden><h2 style="margin-top:23px">原始订单与沟通事件</h2>
 <p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
-<div id="events" class="event-list"></div>
+<div id="events" class="event-list"></div></section>
 </div></dialog>
 <script src="/bi/timeline-range.js"></script>
 <script src="/bi/workbench-modules.js"></script>
@@ -689,6 +702,7 @@ async function saveCustomerNote(){
 async function profile(c){
  const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
  $("note-drawer").hidden=true;
+ customer360Tab("trend");
  timelineState.view=null;timelineState.preset="180";document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range==="180"));$("timeline-custom").hidden=true;
  if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
@@ -803,6 +817,17 @@ $("journey-svg").addEventListener("wheel",e=>{
 },{passive:false});
 
 $("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
+function customer360Tab(name){
+ document.querySelectorAll("[data-c360-tab]").forEach(b=>{
+  const active=b.dataset.c360Tab===name;b.classList.toggle("active",active);
+  b.setAttribute("aria-selected",String(active));
+ });
+ document.querySelectorAll("[data-c360-pane]").forEach(section=>{
+  section.hidden=section.dataset.c360Pane!==name;
+ });
+ const dialog=$("customer-dialog");dialog.scrollTo({top:0,behavior:"smooth"});
+}
+document.querySelectorAll("[data-c360-tab]").forEach(b=>b.onclick=()=>customer360Tab(b.dataset.c360Tab));
 $("customer-note-save").onclick=saveCustomerNote;
 $("note-shortcut").onclick=()=>{$("note-drawer").hidden=!$("note-drawer").hidden;if(!$("note-drawer").hidden)$("customer-note-text").focus()};
 $("note-close").onclick=()=>{$("note-drawer").hidden=true};
