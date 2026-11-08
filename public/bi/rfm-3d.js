@@ -51,7 +51,12 @@ function initialize({$,request,state,esc,n}){
    // Axis coding: R high -> +x, F high -> +z, M high -> +y.
    const hi=(c)=>c==="H"?1:0;
    const x=hi(seg.code[0]),z=hi(seg.code[1]),y=hi(seg.code[2]);
-   const start=[x*1.04-.03,y*1.04-.03,z*1.04-.03],w=.95;
+   // Occupied cube volume, not a fixed-sized octant: relative count is
+   // represented by physical volume as well as particles and color opacity.
+   const ratio=seg.count/max;
+   const w=seg.count?(.13+.84*Math.cbrt(ratio)):.08;
+   const pad=(1.04-w)/2;
+   const start=[x*1.04+pad,y*1.04+pad,z*1.04+pad];
    const c=(dx,dy,dz)=>V(start[0]+dx*w,start[1]+dy*w,start[2]+dz*w);
    const corners=[c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0),c(0,0,1),c(1,0,1),c(0,1,1),c(1,1,1)];
    const center=c(.5,.5,.5),poly=[corners[0],corners[1],corners[3],corners[7],corners[6],corners[4]];
@@ -72,7 +77,7 @@ function initialize({$,request,state,esc,n}){
     const seed=(k*17+seg.code.charCodeAt(0)*13)%991;
     const fx=(seed*73%997)/997,fy=(seed*137%983)/983,fz=(seed*311%977)/977;
     const x=seg.code[0]==="H"?1:0,y=seg.code[2]==="H"?1:0,z=seg.code[1]==="H"?1:0;
-    const p=V(x*1.04+fx*.90,y*1.04+fy*.90,z*1.04+fz*.90);
+    const p=V(x*1.04+pad+fx*w,y*1.04+pad+fy*w,z*1.04+pad+fz*w);
     ctx.beginPath();ctx.arc(p.x,p.y,seg.count?1.7:0,0,Math.PI*2);
     ctx.fillStyle=colorAlpha(color,.35+.55*Math.sqrt(seg.count/max));ctx.fill();
    }
