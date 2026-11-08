@@ -61,9 +61,96 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 [hidden]{display:none!important}
 @media(max-width:920px){.layout{grid-template-columns:1fr}aside{padding:12px;gap:10px}nav{display:flex;overflow:auto}nav a{white-space:nowrap}aside .foot{display:none}main{padding:19px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
 @media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
+
+/* Kailash BI V3 — calm, Apple-inspired information hierarchy */
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#202925;background:#f5f6f7;--ink:#202925;--muted:#65736c;--line:#e6e9e8;--accent:#2f6652}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.layout{grid-template-columns:244px minmax(0,1fr)}
+aside{position:sticky;top:0;height:100vh;padding:30px 16px 20px;background:#fff;color:#25352c;border-right:1px solid #e9ecea;gap:24px;overflow:auto}
+.brand{font-size:19px;font-weight:600;margin:0 15px;color:#20392b}.brand small{color:#788b80;font-size:10px;letter-spacing:.13em}
+nav{display:grid;gap:5px}nav a{display:flex;gap:9px;align-items:center;color:#607269;font-size:13px;font-weight:550;border-radius:11px;padding:12px 13px}
+nav a:hover{background:#f1f4f2;color:#2b503b}nav a.active{background:#e9f1eb;color:#28563a}
+.nav-icon{display:inline-flex;width:20px;justify-content:center;font-size:16px;color:#789583}
+aside .foot{color:#899790;font-size:11px;margin-top:auto;padding:14px;line-height:1.8}
+main{padding:32px clamp(20px,3vw,48px);max-width:1740px}
+.top{align-items:center;margin-bottom:25px}
+h1{font-family:inherit;font-weight:650;font-size:30px;letter-spacing:-.038em;color:#202d25}
+h2{font-size:17px;letter-spacing:-.012em;font-weight:650}
+h3{font-size:13px;font-weight:650;letter-spacing:-.005em}
+.eyebrow{font-size:10px;color:#667e6e;font-weight:700;letter-spacing:.14em}
+.muted,.status{font-size:12px;color:#687970;line-height:1.75}
+.panel,.card{border:1px solid #e9ecea;border-radius:16px;box-shadow:0 5px 26px rgba(21,48,32,.035);background:#fff}
+.panel{scroll-margin-top:20px}
+.card{padding:20px 22px}.card small{font-size:12px}.card strong{font-size:30px;font-weight:650}.card em{font-size:11px}
+.head{padding:21px 24px;gap:16px}
+.body{padding:20px 24px}
+.head h2{margin:4px 0}.head .muted{margin:6px 0 0}
+button,input,select,textarea{font-family:inherit}
+button,input,select{font-size:13px}
+button{min-height:38px;padding:9px 15px;border-radius:10px;border-color:#dfe5e0;font-weight:550;color:#344b3d;transition:background .16s,border-color .16s,transform .16s}
+button:hover:not(:disabled){border-color:#bccdc0;background:#f4f7f5}
+button:active:not(:disabled){transform:scale(.985)}
+button.primary{background:#2d674f;border-color:#2d674f;color:white}
+button.primary:hover{background:#24533f}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #7fae92;outline-offset:2px}
+input,select{min-height:40px;border-radius:10px;border-color:#e1e8e2;padding:8px 11px}
+input:focus,select:focus,textarea:focus{border-color:#70a285;box-shadow:0 0 0 3px #bfe4c53d;outline:0}
+.filters{background:#fbfcfb;gap:13px;padding:20px 23px}
+.filter-row{gap:11px}.filter-row label{font-size:12px;color:#68786d;font-weight:500}
+th{background:#fafbfa;font-size:11px;padding:13px 15px;position:sticky;top:0;z-index:1}
+td{font-size:12px;padding:14px 15px}td b{font-weight:600}
+table{font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#f6faf7}.pager{padding:15px 22px}
+.pill{background:#ecf3ee;border:1px solid #e0eae2;color:#37634a;padding:5px 10px;font-size:11px}
+.warn{background:#fbf9f2;border:1px solid #eee7d6;color:#806b46}
+.status{background:#f7f9f7;border-color:#e8ece9;border-radius:11px}
+.work-module{margin-top:20px}
+.module-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:23px}
+.module-stat{border:1px solid #ecf0ec;background:#f9fbf9;border-radius:13px;padding:17px}
+.module-stat small{font-size:11px;color:#6e8075}.module-stat strong{font-size:23px;color:#273c2d;display:block;margin:7px 0}
+.module-stat em{font-size:10px;color:#809186;font-style:normal}
+.rfm-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(275px,.8fr);gap:27px;margin-bottom:20px}
+.rfm-bars{display:grid;gap:11px;padding:8px 0}
+.rfm-bar{display:grid;grid-template-columns:65px minmax(0,1fr) 72px;align-items:center;gap:12px;width:100%;background:transparent;border:0;padding:0;text-align:left;min-height:31px}
+.rfm-bar:hover{background:transparent}.rfm-bar .meter{border-radius:9px;background:#edf2ee;overflow:hidden;height:12px}
+.rfm-bar .meter i{height:100%;display:block;border-radius:9px;background:#6c9580}
+.rfm-bar strong{color:#34483b;font-size:12px;font-weight:650}.rfm-bar span:last-child{font-size:11px;color:#728176;text-align:right}
+.rule-list{display:grid;gap:8px;margin:14px 0}.rule-list>div{display:flex;justify-content:space-between;gap:15px;padding:10px 12px;border-radius:10px;background:#f7f9f7;font-size:11px}
+.rule-list b{font-weight:700;color:#2c6245}.rule-list span{color:#637769;text-align:right}
+.case-filters{display:flex;flex-wrap:wrap;align-items:center}.case-filters input{min-width:260px;flex:1}.case-filters select{min-width:140px}
+.empty-state{padding:32px!important;text-align:center;color:#76877a}
+.source-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.source-card{border:1px solid #e7ece8;border-radius:13px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:160px;font-size:12px}
+.source-mark{display:inline-block;width:13px;height:13px;border-radius:50%}.source-card b{font-size:14px}.source-card>span:not(.source-mark){color:#687a6f;line-height:1.6}.source-card em{font-style:normal;color:#947b45;font-size:11px;margin-top:auto}
+.health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:17px 0}.health-item{background:#f8faf8;border:1px solid #e5ebe6;border-radius:12px;padding:14px}
+.health-item strong{font-size:12px;display:block;margin:4px 0}.health-item small{font-size:11px;color:#7b8b80}
+dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8faf8}
+.dialog-content{padding:25px 30px}
+.profile-kpis>div{background:#fff;border:1px solid #e9ede9;padding:17px;border-radius:12px}
+.profile-kpis strong{font-size:16px}
+.journey-chart{background:#fff;border-color:#e6ebe6;touch-action:pan-y}
+.journey-chart:focus-visible{outline:2px solid #78a88c}
+.timeline-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.timeline-tools button{padding:8px 11px;min-width:45px}
+.timeline-tools button.active{background:#e5f1e8;color:#24553c;border-color:#afd1b9}
+.timeline-tools input[type=date]{width:143px;min-height:37px}
+.chart-hint{font-size:11px;color:#7d8b80}
+@media(max-width:1100px){.module-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rfm-layout{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:920px){aside{position:relative;width:100%;height:auto;padding:17px 18px;overflow:visible}.layout{grid-template-columns:1fr}nav{display:flex;overflow:auto;padding-bottom:4px}nav a{white-space:nowrap}main{padding:22px 16px}.top{flex-wrap:wrap}}
+@media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}.source-grid,.health-grid{grid-template-columns:1fr}.module-kpis{grid-template-columns:1fr 1fr}.dialog-content{padding:18px}.timeline-tools button{min-height:39px}.top h1{font-size:24px}input[type=search]{min-width:180px}}
+
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
-<nav><a href="#overview" class="active">经营总览</a><a href="#customers">客户管理</a><a href="#rfm">客户分层</a><a href="#operations">运营与同步</a></nav>
+<nav aria-label="工作台模块">
+<a href="#overview" class="active"><span class="nav-icon">◫</span> 经营总览</a>
+<a href="#customers"><span class="nav-icon">▤</span> 客户管理</a>
+<a href="#rfm"><span class="nav-icon">◉</span> RFM 客户分层</a>
+<a href="#case-center"><span class="nav-icon">◷</span> 客服跟进</a>
+<a href="#product-center"><span class="nav-icon">◇</span> 商品分析</a>
+<a href="#marketing-center"><span class="nav-icon">◎</span> 营销触达</a>
+<a href="#reports-center"><span class="nav-icon">▥</span> 数据报表</a>
+<a href="#operations"><span class="nav-icon">⚙</span> 系统与同步</a></nav>
 <div class="foot">Kailash BI · 内部业务工作台<br>已有客户基线 + CRM 物化索引<br>2026年11月8日标准</div></aside>
 <main>
 <div class="top" id="overview"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE</div><h1>经营与客户智能工作台</h1><div class="muted">客户价值、历史沟通与订单生命周期。所有指标均显示来源及数据覆盖范围。</div></div><span class="pill" id="top-status">正在检查系统连接</span></div>
@@ -107,15 +194,51 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <label>每页 <select id="size"><option>25</option><option selected>50</option><option>100</option></select></label>
 <button id="prev" disabled>上一页</button><button id="next" disabled>下一页</button></div></div>
 </section>
-<div class="grid2">
-<section id="rfm" class="panel"><div class="head"><h2>客户等级规则</h2><span class="pill">11月8日标准</span></div><div class="body">
-<p class="muted">S+：M≥$3,000、R≤45天、F≥5笔；S：M≥$1,500、R≤90天、F≥3笔；A：M≥$800、R≤180天、F≥2笔；B：M＞$0、R≤180天、F≥1笔。</p>
-<div class="warn">每个等级须同时满足M/R/F三项。当前列表显示既有快照回写等级；全历史净额审计尚未完成，正式评级仍需复核。</div>
+<section id="rfm" class="panel work-module">
+<div class="head"><div><div class="eyebrow">02 / CUSTOMER SEGMENTATION</div><h2>RFM 客户分层</h2><p class="muted">实时读取已保存的历史CRM快照，后续账本完成后自动更新来源；不把历史回写冒充最终审计。</p></div><span class="pill">历史汇总 · 待最终净额核验</span></div>
+<div class="body">
+<div class="module-kpis" id="rfm-summary-cards"><span class="muted">登录后加载真实RFM历史分布…</span></div>
+<div class="rfm-layout"><div><h3>各等级客户占比</h3><div id="rfm-bars" class="rfm-bars"><p class="muted">等待客户索引…</p></div><p class="muted">点击任意等级，跳转客户列表并筛选该等级。</p></div>
+<div><h3>RFM 计算口径</h3><div class="rule-list">
+<div><b>S+</b><span>M ≥ $3,000 · R ≤ 45天 · F ≥ 5笔</span></div>
+<div><b>S</b><span>M ≥ $1,500 · R ≤ 90天 · F ≥ 3笔</span></div>
+<div><b>A</b><span>M ≥ $800 · R ≤ 180天 · F ≥ 2笔</span></div>
+<div><b>B</b><span>M ＞ $0 · R ≤ 180天 · F ≥ 1笔</span></div>
+</div><p class="muted">按S+→S→A→B顺序、三个条件同时符合；基础、沉睡、从未购买单独管理。客单价$400高低分组独立于等级。</p></div></div>
+<div id="rfm-coverage" class="status">尚未完成覆盖率检查。</div>
 </div></section>
-<section id="operations" class="panel"><div class="head"><h2>数据同步与运营状态</h2><button id="refresh-status">刷新状态</button></div><div class="body">
-<div class="status" id="operation-status">等待数据状态…</div>
-<p class="muted">北京时间：08:50客户 / 08:55订单 / 09:00邮件；13:15 / 13:20 / 13:25；15:45 / 15:50 / 15:55。历史 Gmail 继续独立断点补录。</p></div></section>
-</div>
+<section id="case-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">03 / CUSTOMER SERVICE</div><h2>客服 Case 跟进</h2><p class="muted">来自已归档客户沟通事件。仅是待核实的候选，不等于全部未处理工单。</p></div>
+<div class="toolbar"><span class="pill" id="case-count">未加载</span><button id="case-refresh">刷新 Case</button></div></div>
+<div class="filters case-filters"><input id="case-query" type="search" placeholder="搜索客户邮箱、订单号、主题、问题摘要">
+<select id="case-priority" aria-label="Case优先级"><option value="">所有优先级</option><option value="P0">紧急 P0</option><option value="P1">高优先 P1</option><option value="P2">普通 P2</option></select>
+<button id="case-search" class="primary">查询</button></div>
+<div class="scroll"><table><thead><tr><th>客户 / 订单</th><th>问题类型</th><th>紧急程度</th><th>回复与处置</th><th>最近来信</th><th>源邮件</th></tr></thead>
+<tbody id="case-rows"><tr><td colspan="6" class="empty-state">登录后查看已归档客服记录</td></tr></tbody></table></div>
+<div class="pager"><span id="case-page-label">等待查询</span><div class="toolbar"><button id="case-prev" disabled>上一页</button><button id="case-next" disabled>下一页</button></div></div>
+</section>
+<section id="product-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">04 / PRODUCT INTELLIGENCE</div><h2>商品与购买偏好</h2><p class="muted">可用的商品目录与客户订单商品画像。当前目录按更新日期排列，不是销售排行。</p></div><span class="pill">Shopify实时商品</span></div>
+<div class="body"><div class="toolbar"><input id="product-search" type="search" placeholder="搜索商品名称或关键词"><button id="product-search-btn" class="primary">搜索商品</button></div>
+<p class="muted" id="catalog-status">登录后读取当前商品目录；客户购买偏好请从Customer 360°查看。</p>
+<div id="catalog-grid" class="products-grid"></div></div></section>
+<section id="marketing-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">05 / CUSTOMER ACQUISITION</div><h2>营销触达与来源</h2><p class="muted">通过客户订单中的真实UTM访问事件追踪个人触达节奏。全平台曝光、点击和成本数据需要单独接入。</p></div></div>
+<div class="body"><div class="source-grid">
+<div class="source-card"><span class="source-mark" style="background:#3478f6"></span><b>Meta</b><span>客户360°按已记录的Facebook/Instagram UTM识别</span><em>广告曝光与花费尚未接入</em></div>
+<div class="source-card"><span class="source-mark" style="background:#e5ad30"></span><b>Google</b><span>根据订单UTM、来源或referrer识别</span><em>跨设备点击与广告花费尚未接入</em></div>
+<div class="source-card"><span class="source-mark" style="background:#30a86a"></span><b>Email</b><span>已归档客户邮件与同线程客服回复</span><em>未接入营销平台完整发送日志</em></div>
+</div><div class="status" style="margin-top:15px">在客户360°中查看该客户的实际UTM与邮件历史。未记录的广告曝光和点击不会伪造成已发生。<div class="toolbar" style="margin-top:12px"><input id="marketing-customer" type="search" placeholder="输入客户姓名或邮箱，查看其触达历程"><button id="marketing-find" class="primary" type="button">查找客户</button></div></div></div></section>
+<section id="reports-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">06 / REPORTS</div><h2>数据报表</h2><p class="muted">基于当前历史索引的已知数字。正式财务净额、利润、ROAS及销售归因等待独立数据源核验。</p></div><button id="report-refresh">刷新报表</button></div>
+<div class="body"><div id="report-content" class="status">请登录以读取客户价值和订阅分布。</div>
+<div class="toolbar" style="margin-top:16px"><button id="report-export" class="primary">导出当前筛选客户</button><button id="report-rfm">查看RFM分层</button><button id="report-cases">查看客服Case</button></div></div></section>
+<section id="operations" class="panel work-module">
+<div class="head"><div><div class="eyebrow">07 / SYSTEM & DATA</div><h2>系统运行与数据同步</h2><p class="muted">所有数据源展示真实状态，缺少数据或尚未验收时明确说明。</p></div><button id="refresh-status">刷新状态</button></div>
+<div class="body"><div id="operation-status" class="status">等待数据状态…</div>
+<div id="system-health" class="health-grid"><div class="muted">正在读取索引与接口健康状态…</div></div>
+<p class="muted">北京时间：上班前 08:50/08:55/09:00，店铺美东零点后 13:15/13:20/13:25，下班前 15:45/15:50/15:55（客户/订单/邮件）。</p>
+<p class="muted">Gmail历史补录继续从现有断点运行，不重新全量抓取Shopify客户。RFM来自当前已保存历史快照；全历史退款净额审计后再切换为正式口径。</p></div></section>
 <p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
 </main></div>
 <dialog id="customer-dialog"><div class="dialog-content">
@@ -124,6 +247,16 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <section class="panel" style="margin-top:19px;padding:17px">
 <h2>客户生命历程 · 时间分析</h2>
 <p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
+<div class="timeline-tools" role="group" aria-label="客户事件时间范围">
+<button type="button" data-range="30">30天</button><button type="button" data-range="60">60天</button>
+<button type="button" data-range="180" class="active">180天</button><button type="button" data-range="360">360天</button>
+<button type="button" data-range="all">全部</button><button type="button" data-range="custom">自定义</button><button type="button" id="timeline-zoom-in" title="缩小时间范围">＋ 放大</button><button type="button" id="timeline-zoom-out" title="扩大时间范围">－ 缩小</button>
+<span id="timeline-custom" class="toolbar" hidden>
+<label class="muted">开始 <input id="timeline-start" type="date"></label>
+<label class="muted">结束 <input id="timeline-end" type="date"></label>
+<button id="timeline-apply" class="primary" type="button">应用</button>
+</span></div>
+<p class="chart-hint" id="timeline-window-label">当前显示最近180天。鼠标移至图表滚动缩放，可用上方按钮重置。</p>
 <div class="metric-checks" id="journey-metrics">
 <label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
 <label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
@@ -158,6 +291,8 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
 <div id="events" class="event-list"></div>
 </div></dialog>
+<script src="/bi/timeline-range.js"></script>
+<script src="/bi/workbench-modules.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
@@ -167,6 +302,7 @@ const money=(v,currency="USD")=>typeof v==="number"&&Number.isFinite(v)?(currenc
 const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
 const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
 const state={token:"",page:1,busy:false,rows:[],total:0};
+let modules=null;
 async function request(path,params={},authenticated=true){
  const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
  const url=path+(search.size?"?"+search:"");
@@ -233,6 +369,7 @@ async function load(){
   $("export").disabled=false;
   $("top-status").textContent="已连接客户索引";
   $("login").hidden=true;
+  if(!modules&&window.KBIWorkbenchModules){modules=window.KBIWorkbenchModules.initialize({$,request,state,load,esc,n,money,fmt,safeUrl});modules.start()}
  }catch(e){
   const pending=e.message==="crm_index_not_ready";
   $("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:32px;text-align:center">'+
@@ -262,69 +399,107 @@ function chartLine(rows,mapX,mapY,color,label){
  const line=values.length>1?'<path d="'+values.map((p,i)=>(i?"L":"M")+xmlNumber(p.x)+" "+xmlNumber(p.y)).join(" ")+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linejoin="round"/>':"";
  return line+values.map(p=>'<circle cx="'+xmlNumber(p.x)+'" cy="'+xmlNumber(p.y)+'" r="4.4" fill="'+color+'"><title>'+svgEsc(label+": "+p.value+" · "+fmt(p.at))+'</title></circle>').join("");
 }
+const timelineState={preset:"180",view:null,customStart:"",customEnd:""};
+function setTimelineRange(preset){
+ const T=window.KBITimeline;
+ if(!T)return;
+ timelineState.preset=preset;
+ const events=customerView.events||[];
+ timelineState.view=T.timeWindow(events,preset,Date.now(),timelineState.customStart,timelineState.customEnd);
+ document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range===preset));
+ $("timeline-custom").hidden=preset!=="custom";
+ drawJourneyChart();
+}
+function chartPath(points,xFn,yFn,color,meta="",dashed=false){
+ if(!points.length)return "";
+ const cleaned=points.filter(p=>Number.isFinite(Date.parse(p.at))&&Number.isFinite(p.value))
+  .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ if(!cleaned.length)return "";
+ const line=cleaned.map((p,i)=>(i?"L":"M")+xmlNumber(xFn(p))+" "+xmlNumber(yFn(p))).join(" ");
+ let result=cleaned.length>1?'<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"'+(dashed?' stroke-dasharray="5 4"':"")+'/>':"";
+ result+=cleaned.slice(-400).map(p=>'<circle cx="'+xmlNumber(xFn(p))+'" cy="'+xmlNumber(yFn(p))+'" r="4.4" fill="'+color+'" stroke="#fff" stroke-width="1.5"><title>'+
+   esc(meta+" · "+fmt(p.at)+" · "+p.value)+'</title></circle>').join("");
+ return result;
+}
 function drawJourneyChart(){
- const checked=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
- const events=customerView.events.filter(e=>e.at&&Number.isFinite(Date.parse(e.at)));
- const orders=customerView.orders.filter(e=>e.validForReview);
+ const T=window.KBITimeline,svg=$("journey-svg");
+ if(!T){svg.innerHTML='<text x="20" y="50">时间轴模块尚未加载</text>';return;}
+ const events=customerView.events.filter(e=>e.at&&T.millis(e.at)!==null);
+ const view=timelineState.view||T.timeWindow(events,timelineState.preset,Date.now(),
+  timelineState.customStart,timelineState.customEnd);
+ timelineState.view=view;
+ const selected=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
+ const inWindow=T.filterEvents(events,view);
+ $("timeline-window-label").textContent="范围："+fmt(view.start)+" — "+fmt(view.end)+" · 当前可见"+inWindow.length+
+  "条事件。鼠标滚轮在图表内以指针所在位置缩放；点击30/60/180/360/全部可重置。";
+ const orders=events.filter(e=>e.kind==="order"&&e.validForReview).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
  const touch=events.filter(e=>e.kind==="acquisition_visit");
- const emails=events.filter(e=>e.kind==="communication");
- const paidUSD=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount)))
-  .slice().sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
- let spent=0;
- const aovSeries=paidUSD.map((o,i)=>({at:o.at,value:Math.round((spent+=Number(o.amount))/(i+1)*100)/100}));
+ const email=events.filter(e=>e.kind==="communication");
+ let total=0,count=0;
+ const aov=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount))).map(o=>{
+  total+=Number(o.amount);count++;
+  return {at:o.at,value:total/count,raw:o};
+ });
+ const quantity=orders.map(o=>({at:o.at,value:(o.products||[]).reduce((sum,p)=>sum+(Number(p.quantity)||0),0),raw:o}));
+ const channelSeries={};
+ for(const e of touch){
+  const key=chartColors[e.channel]?e.channel:"unknown";
+  (channelSeries[key]||(channelSeries[key]=[])).push(e);
+ }
  const groups=[
-  {key:"quantity",label:"购买件数 / 单次订单",kind:"number",data:orders.map(o=>({at:o.at,value:o.products.reduce((sum,p)=>sum+(Number(p.quantity)||0),0)})),color:chartColors.quantity},
-  {key:"orderValue",label:"累计平均客单价 / USD",kind:"number",data:aovSeries,color:chartColors.orderValue},
-  {key:"channel",label:"已记录的来源触点",kind:"touch",data:touch},
-  {key:"email",label:"邮件沟通记录",kind:"email",data:emails}
- ].filter(g=>checked.has(g.key));
- const svg=$("journey-svg");
- const from=Math.min(...events.map(e=>Date.parse(e.at))),to=Math.max(...events.map(e=>Date.parse(e.at)));
- if(!groups.length){svg.setAttribute("viewBox","0 0 850 130");svg.innerHTML='<text x="25" y="65" fill="#748478" font-size="14">请选择至少一项指标</text>';return}
- if(!events.length||!Number.isFinite(from)){svg.setAttribute("viewBox","0 0 850 140");svg.innerHTML='<text x="25" y="60" fill="#748478" font-size="13">暂无可追溯的客户事件</text>';return}
- const width=850,left=145,right=26,laneHeight=118,top=22,bottom=55;
- const height=top+groups.length*laneHeight+bottom;
+  {id:"quantity",title:"购买产品件数",type:"numeric",series:[{name:"购买件数",color:chartColors.quantity,rows:quantity}]},
+  {id:"orderValue",title:"累计客单价 · USD",type:"numeric",series:[{name:"累计AOV",color:chartColors.orderValue,rows:aov}]},
+  {id:"channel",title:"来源触点累计次数",type:"count",series:Object.entries(channelSeries).map(([key,rows])=>({
+   name:({meta:"Meta",google:"Google",email:"Email",pinterest:"Pinterest",organic:"自然访问",unknown:"未注明"}[key]||key),
+   color:chartColors[key]||chartColors.unknown,rows:T.cumulativeSeries(rows,()=>1)
+  }))},
+  {id:"email",title:"邮件往来累计次数",type:"count",series:[
+   {name:"客户来信",color:"#238a64",rows:T.cumulativeSeries(email.filter(e=>e.direction!=="outbound"),()=>1)},
+   {name:"客服回复",color:"#78c9a8",rows:T.cumulativeSeries(email.filter(e=>e.direction==="outbound"),()=>1),dashed:true}
+  ]}
+ ].filter(g=>selected.has(g.id));
+ const left=160,right=26,top=25,lane=126,bottom=65,width=960;
+ const height=Math.max(145,top+groups.length*lane+bottom);
  svg.setAttribute("viewBox","0 0 "+width+" "+height);
- const maxT=to>from?to:from+86400000,minT=to>from?from:from-86400000;
- const x=t=>left+(t-minT)/(maxT-minT)*(width-left-right);
- let out='';
- for(let i=0;i<=4;i++){
-  const xx=left+i*(width-left-right)/4;
-  const date=new Date(minT+i*(maxT-minT)/4).toISOString().slice(0,10);
-  out+='<line x1="'+xmlNumber(xx)+'" y1="'+top+'" x2="'+xmlNumber(xx)+'" y2="'+(height-bottom)+'" stroke="#edf1ed"/>';
-  out+='<text x="'+xmlNumber(xx)+'" y="'+(height-24)+'" text-anchor="middle" font-size="11" fill="#7e9282">'+date+'</text>';
+ svg.setAttribute("aria-label","客户生命周期数据图 · "+fmt(view.start)+" 至 "+fmt(view.end));
+ if(!groups.length){svg.innerHTML='<text x="30" y="65" fill="#6e8575" font-size="15">请选择至少一项时间轴指标</text>';return;}
+ if(!inWindow.length){svg.innerHTML='<text x="30" y="65" fill="#6e8575" font-size="15">该时间范围暂无已记录事件。可切换「全部」或缩小时间范围。</text>';return;}
+ const extent=Math.max(T.DAY,view.end-view.start);
+ const x=p=>left+(T.millis(p.at)-view.start)/extent*(width-left-right);
+ let result='';
+ for(let tick=0;tick<=6;tick++){
+  const t=view.start+extent*tick/6,tx=left+(width-left-right)*tick/6;
+  result+='<line x1="'+xmlNumber(tx)+'" y1="'+top+'" x2="'+xmlNumber(tx)+'" y2="'+(height-bottom)+'" stroke="#e9eeeb"/>'+
+   '<text x="'+xmlNumber(tx)+'" y="'+(height-34)+'" fill="#718479" font-size="11" text-anchor="middle">'+
+   esc(new Date(t).toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai",year:"2-digit",month:"2-digit",day:"2-digit"}))+'</text>';
  }
  for(let i=0;i<groups.length;i++){
-  const g=groups[i],yStart=top+i*laneHeight,yBottom=yStart+91;
-  out+='<rect x="'+left+'" y="'+yStart+'" width="'+(width-left-right)+'" height="91" fill="'+(i%2?"#f9fbf8":"#fff")+'"/>';
-  out+='<text x="12" y="'+(yStart+23)+'" font-size="12" fill="#405b49" font-weight="600">'+svgEsc(g.label)+'</text>';
-  out+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#dce8dd"/>';
-  if(g.kind==="number"){
-   const max=Math.max(1,...g.data.map(e=>e.value));
-   const scale=v=>yBottom-(Math.max(0,v)/max)*66;
-   out+='<text x="'+(left-13)+'" y="'+(yBottom-64)+'" fill="#7d8e80" font-size="10" text-anchor="end">'+svgEsc(max.toFixed(g.key==="orderValue"?0:0))+'</text>';
-   out+='<text x="'+(left-13)+'" y="'+yBottom+'" fill="#7d8e80" font-size="10" text-anchor="end">0</text>';
-   out+=chartLine(g.data,x,scale,g.color,g.label);
-   if(!g.data.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">该指标暂无足够已核验数据</text>';
-  }else{
-   const values=g.data;
-   const y0=yStart+51;
-   out+=values.map((e,index)=>{
-    const channel=g.kind==="touch"?(e.channel||"unknown"):(e.direction==="outbound"?"email":"email");
-    const color=chartColors[channel]||chartColors.unknown;
-    const yy=y0+(index%3-1)*8;
-    const subtitle=g.kind==="touch"?channel+(e.utm?.campaign?" / "+e.utm.campaign:""):(e.direction==="outbound"?"客服回复":"客户来信")+" / "+e.title;
-    return '<circle cx="'+xmlNumber(x(Date.parse(e.at)))+'" cy="'+yy+'" r="'+(g.kind==="email"?5:5.4)+'" fill="'+color+'" stroke="#fff" stroke-width="1.6"><title>'+svgEsc(subtitle+" · "+fmt(e.at))+'</title></circle>';
-   }).join("");
-   if(!values.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">尚无已记录的触达事件</text>';
+  const g=groups[i],y0=top+i*lane,yBottom=y0+94;
+  result+='<rect x="'+left+'" y="'+y0+'" width="'+(width-left-right)+'" height="94" fill="'+(i%2?"#f8faf8":"#fff")+'"/>';
+  result+='<text x="12" y="'+(y0+25)+'" fill="#344d3d" font-weight="600" font-size="13">'+esc(g.title)+'</text>';
+  result+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#d9e5dc"/>';
+  const series=g.series.map(serie=>({...serie,visible:serie.rows.filter(r=>T.millis(r.at)>=view.start&&T.millis(r.at)<=view.end)}));
+  const max=Math.max(1,...series.flatMap(z=>z.visible.map(row=>row.value)));
+  const y=row=>yBottom-Math.max(0,row.value)/max*67;
+  result+='<text x="'+(left-15)+'" y="'+(yBottom-65)+'" font-size="11" fill="#819287" text-anchor="end">'+Math.ceil(max)+'</text>'+
+   '<text x="'+(left-15)+'" y="'+yBottom+'" font-size="11" fill="#819287" text-anchor="end">0</text>';
+  for(const serie of series){
+   result+=chartPath(serie.visible,x,y,serie.color,serie.name,serie.dashed);
   }
+  if(series.every(z=>z.visible.length===0))result+='<text x="'+(left+12)+'" y="'+(y0+54)+'" font-size="12" fill="#9baa9d">该指标在当前时间段暂无记录</text>';
  }
- out+='<text x="'+(width-right)+'" y="'+(height-7)+'" text-anchor="end" fill="#8c9d8f" font-size="11">时间（北京时间按日期展示）</text>';
- svg.innerHTML=out;
- $("chart-legend").innerHTML=Object.entries({meta:"Meta广告",google:"Google广告",email:"邮件往来",pinterest:"Pinterest",organic:"自然/直接访问",unknown:"来源未明"}).map(([key,label])=>
-  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("");
- $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。客单价为截至该订单的累计平均订单总额；未知币种不进行美元换算。";
+ result+='<text x="'+(width-right)+'" y="'+(height-11)+'" fill="#788b7d" font-size="11" text-anchor="end">时间（北京时间日期）</text>';
+ svg.innerHTML=result;
+ $("chart-legend").innerHTML=Object.entries({meta:"Meta · 蓝色",google:"Google · 黄色",email:"邮件触达 · 绿色",
+  pinterest:"Pinterest",organic:"自然/直接",unknown:"其他/未注明"}).map(([key,label])=>
+  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("")+
+  '<span><i class="chart-dot" style="background:'+chartColors.quantity+'"></i>购买数量</span>'+
+  '<span><i class="chart-dot" style="background:'+chartColors.orderValue+'"></i>累计客单价</span>';
+ $("chart-explanation").textContent="当前时段："+inWindow.filter(e=>e.kind==="order").length+"笔订单、"+
+  inWindow.filter(e=>e.kind==="acquisition_visit").length+"次来源触点、"+
+  inWindow.filter(e=>e.kind==="communication").length+"条邮件；4条指标轨道均为连续线段。触点累计次数只计算真实记录，不推断广告曝光；美元客单价不混算其他币种。";
 }
+
 function showProducts(tag=""){
  const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
  $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
@@ -409,6 +584,7 @@ async function saveCustomerNote(){
 
 async function profile(c){
  const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
+ timelineState.view=null;timelineState.preset="180";document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range==="180"));$("timeline-custom").hidden=true;
  if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
  const facts=[["等级（历史快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
@@ -482,8 +658,45 @@ $("next").onclick=()=>{if(state.page*Number($("size").value)<state.total){state.
 $("size").onchange=()=>{state.page=1;load()};
 document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{const key=th.dataset.sort;
  $("dir").value=$("sort").value===key&&$("dir").value==="desc"?"asc":"desc";$("sort").value=key;state.page=1;load()}));
-$("refresh-status").onclick=baseline;$("close-dialog").onclick=()=>$("customer-dialog").close();
+$("refresh-status").onclick=()=>{baseline();modules?.health?.()};$("close-dialog").onclick=()=>$("customer-dialog").close();
 document.querySelectorAll("#journey-metrics input").forEach(input=>input.onchange=drawJourneyChart);
+document.querySelectorAll("[data-range]").forEach(b=>b.onclick=()=>{
+ if(b.dataset.range==="custom"){$("timeline-custom").hidden=false;document.querySelectorAll("[data-range]").forEach(x=>x.classList.toggle("active",x===b));return;}
+ setTimelineRange(b.dataset.range);
+});
+$("timeline-apply").onclick=()=>{
+ const begin=$("timeline-start").value,end=$("timeline-end").value;
+ if(!begin||!end||end<begin){$("timeline-window-label").textContent="请输入有效日期范围（开始日期不晚于结束日期）。";return;}
+ timelineState.customStart=begin;timelineState.customEnd=end;setTimelineRange("custom");
+};
+function timelineZoom(delta,ratio=.5){
+ if(!window.KBITimeline||!customerView.events.length)return;
+ const T=window.KBITimeline;
+ timelineState.view=T.zoom(timelineState.view||T.timeWindow(customerView.events,
+  timelineState.preset,Date.now(),timelineState.customStart,timelineState.customEnd),delta,ratio,
+  T.allBounds(customerView.events,Date.now()));
+ timelineState.preset="zoom";
+ document.querySelectorAll("[data-range]").forEach(x=>x.classList.remove("active"));
+ $("timeline-custom").hidden=true;drawJourneyChart();
+}
+$("timeline-zoom-in").onclick=()=>timelineZoom(-100);
+$("timeline-zoom-out").onclick=()=>timelineZoom(100);
+$("journey-svg").addEventListener("wheel",e=>{
+ if(!customerView.events.length||!window.KBITimeline)return;
+ e.preventDefault();
+ const rect=$("journey-svg").getBoundingClientRect();
+ const ratio=Math.max(.03,Math.min(.97,(e.clientX-rect.left)/Math.max(1,rect.width)));
+ const T=window.KBITimeline;
+ const bounds=T.allBounds(customerView.events,Date.now());
+ const current=timelineState.view||T.timeWindow(customerView.events,timelineState.preset,Date.now(),
+  timelineState.customStart,timelineState.customEnd);
+ timelineState.view=T.zoom(current,e.deltaY,ratio,bounds);
+ timelineState.preset="zoom";
+ document.querySelectorAll("[data-range]").forEach(x=>x.classList.remove("active"));
+ $("timeline-custom").hidden=true;
+ drawJourneyChart();
+},{passive:false});
+
 $("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
 $("customer-note-save").onclick=saveCustomerNote;
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});

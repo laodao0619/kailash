@@ -5,16 +5,16 @@ on:
       - 'api/bi-*.js'
       - 'lib/kbi-*.js'
       - 'tests/kbi-*.test.js'
-      - 'public/bi/index.html'
+      - 'public/bi/**'
       - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
   push:
-    branches: ['main','feat/kbi-production-readonly-qa']
+    branches: ['main','feat/kbi-production-readonly-qa','feat/kbi-v3-all-modules-timeline-ux']
     paths:
       - 'api/bi-*.js'
       - 'lib/kbi-*.js'
       - 'tests/kbi-*.test.js'
-      - 'public/bi/index.html'
+      - 'public/bi/**'
       - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
 permissions:
@@ -37,5 +37,7 @@ jobs:
           done
           node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const a=s.indexOf("<script>");const b=s.indexOf("</script>",a);if(a<0||b<0)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",s.slice(a+8,b));'
           node --check /tmp/kbi-workbench.js
+          node --check public/bi/timeline-range.js
+          node --check public/bi/workbench-modules.js
       - name: Execute all synthetic BI tests
         run: node --test tests/kbi-*.test.js
