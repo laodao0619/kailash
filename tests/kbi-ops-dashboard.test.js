@@ -84,3 +84,19 @@ test("landing dashboard has actionable live operations/calendar/audience UIs",()
  assert(js.includes('"/api/bi-audience-sync"'));
  assert(html.includes('"/bi/ops-center.js"'));
 });
+
+test("Shopify audience mutation is not acknowledged when alias result is missing or has userErrors",()=>{
+ const {missingOrFailedAliases}=require("../api/bi-audience-sync");
+ const ids=["1001","1002","1003"];
+ const result={b0:{userErrors:[]},b1:{userErrors:[{message:"missing scope"}]}};
+ assert.deepEqual(missingOrFailedAliases(ids,result),["1002","1003"]);
+ assert.deepEqual(missingOrFailedAliases(["1001"],{b0:{userErrors:[]}}),[]);
+});
+test("executive insight and Kailash brand campaign draft are wired, without fabricated send status",()=>{
+ const html=fs.readFileSync(path.join(__dirname,"../public/bi/index.html"),"utf8");
+ const js=fs.readFileSync(path.join(__dirname,"../public/bi/ops-center.js"),"utf8");
+ assert(html.includes('id="ops-executive-brief"'));
+ assert(html.includes('id="calendar-brand-template"'));
+ assert(js.includes('$("calendar-brand-template").onclick'));
+ assert(js.includes('const recent7=historic.slice(-7)'));
+});
