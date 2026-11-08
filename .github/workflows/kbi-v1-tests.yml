@@ -5,11 +5,13 @@ on:
       - 'api/bi-journey.js'
       - 'api/bi-customers.js'
       - 'api/bi-overview.js'
+      - 'api/bi-ingestion-status.js'
       - 'lib/crm-shopify.js'
       - 'lib/crm-gmail.js'
       - 'tests/kbi-journey.test.js'
       - 'tests/kbi-customers.test.js'
       - 'tests/kbi-overview.test.js'
+      - 'tests/kbi-ingestion-status.test.js'
       - 'tests/kbi-rfm.test.js'
       - 'lib/kbi-rfm.js'
       - 'lib/kbi-ledger-adapter.js'
@@ -24,11 +26,13 @@ on:
       - 'api/bi-journey.js'
       - 'api/bi-customers.js'
       - 'api/bi-overview.js'
+      - 'api/bi-ingestion-status.js'
       - 'lib/crm-shopify.js'
       - 'lib/crm-gmail.js'
       - 'tests/kbi-journey.test.js'
       - 'tests/kbi-customers.test.js'
       - 'tests/kbi-overview.test.js'
+      - 'tests/kbi-ingestion-status.test.js'
       - 'tests/kbi-rfm.test.js'
       - 'lib/kbi-rfm.js'
       - 'lib/kbi-ledger-adapter.js'
@@ -53,6 +57,7 @@ jobs:
           node --check api/bi-journey.js
           node --check api/bi-customers.js
           node --check api/bi-overview.js
+          node --check api/bi-ingestion-status.js
           node --check lib/kbi-rfm.js
           node --check lib/kbi-ledger-adapter.js
           node --check lib/kbi-customer-profile.js
@@ -61,11 +66,12 @@ jobs:
           node --check tests/kbi-journey.test.js
           node --check tests/kbi-customers.test.js
           node --check tests/kbi-overview.test.js
+          node --check tests/kbi-ingestion-status.test.js
           node --check tests/kbi-rfm.test.js
           node --check tests/kbi-ledger-adapter.test.js
           node --check tests/kbi-customer-profile.test.js
       - name: Run zero-secret unit tests
-        run: node --test tests/kbi-journey.test.js tests/kbi-customers.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js tests/kbi-customer-profile.test.js tests/kbi-overview.test.js
+        run: node --test tests/kbi-journey.test.js tests/kbi-customers.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js tests/kbi-customer-profile.test.js tests/kbi-overview.test.js tests/kbi-ingestion-status.test.js
       - name: Validate inline workbench JavaScript
         run: |
           node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const a=s.indexOf("<script>");const b=s.indexOf("</script>",a);if(a<0||b<0)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",s.slice(a+8,b));'
