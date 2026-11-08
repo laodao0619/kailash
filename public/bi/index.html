@@ -137,6 +137,15 @@ async function baseline(){
   const daily=data.daily_incremental||{};
   const label=x=>!x?.started?"未验收首轮":x.completed?"上次已完成":"进行中 / 待续";
   $("operation-status").textContent="客户增量："+label(daily.customers)+"；订单增量："+label(daily.orders)+"；Gmail增量："+label(daily.gmail)+"。";
+  try{
+   const health=await request("/api/bi-index-health",{},false);
+   if(health.ready&&health.snapshot){
+    $("stat-index").textContent=n(health.snapshot.total);
+    $("index-date").textContent="客户索引 "+fmt(health.snapshot.generatedAt);
+   }
+   const qa=health.productionQA;
+   $("operation-status").textContent+=" 生产真实查询验收："+(qa?.ready?"已通过":qa?"有未通过项目":"尚未完成")+"。";
+  }catch(_){$("operation-status").textContent+=" 当前无法验证客户索引状态。";}
  }catch(_){$("operation-status").textContent="当前无法读取生产同步状态。";}
 }
 function filterParams(){
