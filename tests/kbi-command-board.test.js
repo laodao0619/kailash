@@ -20,7 +20,7 @@ test('board enforces auth, preserves concurrent edits with etag, allows edit/del
  // Exported SDK uses accessor properties; inject a module into require cache for isolated handler testing.
  const sdkPath=require.resolve('@vercel/blob'),original=require.cache[sdkPath].exports;
  let stored=null,etag='1',writes=0;
- require.cache[sdkPath].exports={get:async()=>stored?{statusCode:200,blob:{etag},stream:[Buffer.from(JSON.stringify(stored))]}:null,put:async(path,value,options)=>{
+ require.cache[sdkPath].exports={get:async()=>stored?{statusCode:200,blob:{etag:'W/'+etag},stream:[Buffer.from(JSON.stringify(stored))]}:null,put:async(path,value,options)=>{
   if(stored)assert.equal(options.ifMatch,etag);else assert.equal(options.allowOverwrite,false);
   writes++;stored=JSON.parse(value);etag=String(Number(etag)+1);
  }};

@@ -27,7 +27,7 @@ function initialize(ctx){
  }
  async function load(){
   if(!state.token)return;
-  try{board=await request('/api/bi-ops-board');render();$('board-status').textContent='已读取云端目标与事项';}
+  try{board=await request('/api/bi-ops-board');render();if(latest)suggestions(latest);$('board-status').textContent='已读取云端目标与事项';}
   catch(_){$('board-status').textContent='目标与事项暂不可用，请重新读取';}
  }
  function suggestions(d){
@@ -59,7 +59,7 @@ function initialize(ctx){
    const d=await request('/api/bi-email-source');
    const names=(d.fields||[]).map(f=>f.name||f.field_name).filter(Boolean);
    $('email-source-table').innerHTML='<table><thead><tr>'+names.map(n=>'<th>'+esc(n)+'</th>').join('')+'</tr></thead><tbody>'+d.records.map(r=>'<tr>'+names.map(n=>'<td>'+esc(cell(r.fields?.[n]))+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
-   $('email-source-status').textContent='飞书原始排期 '+d.records.length+' 条 · '+(d.partial?'部分记录 · ':'')+'读取于 '+new Date(d.readAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})+'。本区为只读来源，下面的BI计划独立保存。';
+   $('email-source-status').textContent=(d.cached?'已核对飞书快照 · 实时连接暂不可用 · ':'飞书实时原始排期 · ')+d.records.length+' 条 · '+(d.partial?'部分记录 · ':'')+'读取于 '+new Date(d.readAt).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai'})+'。本区为只读来源，下面的BI计划独立保存。';
   }catch(_){$('email-source-status').textContent='暂时无法读取飞书排期。可点击原表查看；需要飞书应用拥有该表的读取权限。';}
  }
  $('email-source-refresh').onclick=loadSource;

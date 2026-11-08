@@ -13,7 +13,7 @@ module.exports=async(req,res)=>{
   if(r){const chunks=[];for await(const c of r.stream)chunks.push(c);data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
   if(req.method==='GET')return res.status(200).json({ok:true,...data});
   const b=typeof req.body==='string'?JSON.parse(req.body):req.body||{};
-  if(b.expectedVersion!==data.version)return res.status(409).json({ok:false,error:'board_version_changed'});
+  if(b.expectedVersion!==data.version)return res.status(409).json({ok:false,error:'board_version_changed',version:data.version});
   if(b.action==='save'){
    if(!validItem(b.item))return res.status(400).json({ok:false,error:'invalid_item'});
    const x=b.item;
@@ -24,9 +24,10 @@ module.exports=async(req,res)=>{
   }else if(b.action==='delete'){data.items=data.items.filter(i=>i.id!==b.id);}
   else return res.status(400).json({ok:false,error:'invalid_action'});
   data.version++;data.updatedAt=new Date().toISOString();
-  await put(PATH,JSON.stringify(data),{access:'private',addRandomSuffix:false,allowOverwrite:!!r,contentType:'application/json',...(r?{ifMatch:r.blob.etag}:{})});
+  await put(PATH,JSON.stringify(data),{access:'private',addRandomSuffix:false,allowOverwrite:!!r,contentType:'application/json',...(r?{ifMatch:r.blob.etag.replace(/^W\//,'')}:{})});
   return res.status(200).json({ok:true,...data});
  }catch(e){
+  console.error('KBI_BOARD_WRITE',e.constructor.name,String(e.message).slice(0,160));
   const conflict=/precondition|already exists/i.test(e.message)||e.constructor.name==='BlobPreconditionFailedError';
   return res.status(conflict?409:503).json({ok:false,error:conflict?'board_version_changed':'board_storage_unavailable'});
  }
