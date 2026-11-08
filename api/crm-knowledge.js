@@ -142,3 +142,6 @@ module.exports=async(req,res)=>{
   return res.status(200).json({ok:true,slug,title:spec.title,created,added,expected:spec.lines.length,node_token:node.node_token,url:"https://ycnic6l8vkfx.feishu.cn/wiki/"+node.node_token});
  }catch(e){return res.status(502).json({ok:false,error:e.message});}
 };
+
+// Source-of-truth descriptions reused by the approved V2 formatting migrator.
+module.exports.DOCS=DOCS;
