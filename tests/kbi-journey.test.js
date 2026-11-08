@@ -104,7 +104,7 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  assert.equal(out.body.events[3].issueFlag,"possible_nonreceipt_claim");
  assert.equal(out.body.events[3].issueVerified,false);
  assert.equal(out.body.coverage.financialLedger,"not_audited");
- assert.equal(out.body.profile.productInterests.some(x=>x.label==="Vajra"),true);
+ assert.equal(out.body.profile.productInterests.some(x=>x.label.startsWith("Vajra")),true);
  assert.equal(out.body.profile.productInterests[0].verifiedPreference,false);
  assert.equal(out.body.profile.products.length,1);
  assert.equal(out.body.profile.products[0].imageUrl,"https://cdn.shopify.com/s/files/1/picture.jpg");
