@@ -7,6 +7,7 @@
 - Starts an asynchronous Shopify Bulk Operation, polls by its ID and archives the completed JSONL response into a private Vercel Blob. Operation state and raw export use versioned keys separate from existing 180-day snapshot and reconciliation.
 - The Bulk operation is designed to export every available historical order (no 180-day date filter), line-item sale-time prices and current product metadata. Deleted products may have null metadata; this must not remove the historical order line.
 - The raw archive is **not yet a validated financial ledger**. `totalRefundedSet` is only one raw aggregate; do not infer item-level net revenue by subtracting it from a merchandise subtotal. The next phase must reconcile refunds/transactions, currencies, cancellation, test orders and customer IDs before updating final M/F/R or LTV.
+- `api/crm-orders-bulk-audit.js` separately scans the private JSONL export, deduplicates order IDs, checks child-parent linkage, excludes invalid orders, and flags discrepancies between successful refund transactions and Shopify's refunded total. This report is intentionally audit-only and may be incomplete for multi-currency/custom refunds; it never changes Feishu CRM customer fields.
 - The Vercel cron is every 20 minutes; completed jobs are idempotently reported and not relaunched. Failed/cancelled jobs require investigation and do not silently restart.
 
 ## Gmail efficiency

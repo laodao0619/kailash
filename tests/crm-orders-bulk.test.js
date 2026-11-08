@@ -6,7 +6,7 @@ const {BULK_QUERY,start,poll,downloadUrl}=require("../lib/crm-orders-bulk");
 test("bulk export includes all orders, customer IDs and product facts without a date filter",()=>{
  assert.match(BULK_QUERY,/orders\(sortKey: PROCESSED_AT\)/);
  assert.doesNotMatch(BULK_QUERY,/query:|processed_at:>=|first:\s*50/);
- for(const field of ["customer { id }","totalRefundedSet","currentSubtotalPriceSet","lineItems","vendor tags description","cancelledAt","test"])
+ for(const field of ["customer { id }","totalRefundedSet","currentSubtotalPriceSet","transactions { id kind status amountSet","lineItems","vendor tags description","cancelledAt","test"])
   assert.ok(BULK_QUERY.includes(field),field);
 });
 test("bulk start rejects API user errors",async()=>{
