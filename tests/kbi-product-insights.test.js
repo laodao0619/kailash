@@ -42,5 +42,5 @@ test("mail summary groups one customer thread and never marks a possible issue a
  assert.equal(x.messages,3);assert.equal(x.threads,2);
  assert.equal(x.inbound,2);assert.equal(x.outbound,1);assert.equal(x.possibleIssues,1);
  assert.equal(x.conversations[1].issues,1);
- assert.match(x.conversations[1].summary,/人工核实/);
+ assert.match(x.conversations[1].summary,/人工核验/);
 });
