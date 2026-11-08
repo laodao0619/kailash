@@ -1,6 +1,12 @@
 "use strict";
 const crypto=require("node:crypto");
-const {tenantToken,request}=require("../lib/crm-feishu");
+const {tenantToken}=require("../lib/crm-feishu");
+async function request(t,path){
+ const r=await fetch("https://open.feishu.cn/open-apis"+path,{headers:{Authorization:"Bearer "+t}});
+ const j=await r.json().catch(()=>({}));
+ if(!r.ok||j.code!==0)throw Error("Feishu read failed");
+ return j.data||{};
+}
 const APP="Y7VvbgreAasoLtsYdhrcmmDUn5d";
 const CUSTOMER="tblbk7Ju6fcM1BXF", CONTACTS="tblNi7C5q5FYlG06";
 const SIZE=50;
