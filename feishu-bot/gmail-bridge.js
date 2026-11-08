@@ -12,6 +12,60 @@ function createGmailBridge({
 } = {}) {
   const allowed = new Set(allowedOpenIds.split(',').map((s) => s.trim()).filter(Boolean));
 
+  async function archivedCases(limit) {
+    const destination = new URL(url);
+    if (destination.protocol !== 'https:') return null;
+    destination.pathname = '/api/crm-cases';
+    destination.search = '';
+    destination.searchParams.set('limit', String(limit));
+    const timestamp = String(Date.now());
+    const signature = crypto.createHmac('sha256', secret)
+      .update(`${timestamp}\n/api/crm-cases\n${limit}`).digest('hex');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
+    try {
+      const response = await fetch(destination, {
+        headers: { 'x-kailash-timestamp': timestamp, 'x-kailash-signature': `sha256=${signature}`, accept: 'application/json' },
+        signal: controller.signal, redirect: 'error',
+      });
+      if (!response.ok) return null;
+      const data = await response.json();
+      return Array.isArray(data.cases) && data.cases.length ? data : null;
+    } catch { return null; }
+    finally { clearTimeout(timer); }
+  }
+
+  function formatCases(data) {
+    const groups = ['未收到货','退回寄件人','商品售后','尺寸售后','退款退货','支付争议','物流询单','订单修改','订单咨询','其他客户咨询'];
+    const rows = data.cases || [];
+    const output = [
+      '# 📮 客户 Case 跟进台',
+      `**云端事件样本** ${data.scannedEvents} 条｜**归并 Case** ${data.caseCountWithinScan} 件｜**展示** ${rows.length} 件`,
+      '⚠️ Case 为待核验工作候选，客服已回复不等于问题已解决；此处不是全邮箱未处理总量。',
+    ];
+    let index = 0;
+    for (const group of groups) {
+      const selected = rows.filter(c => c.category === group);
+      if (!selected.length) continue;
+      output.push(`\n## ${group} · ${selected.length} 件`);
+      for (const c of selected) {
+        index++;
+        const level = c.priority === 'P0' ? '🔴 紧急' : c.priority === 'P1' ? '🟠 优先' : '🔵 常规';
+        output.push(`**${index}. ${level}｜${c.crmVerified ? c.crmGrade : '待核验'}｜${c.customerName || c.customerEmail}**`);
+        output.push(`**Case：** ${c.caseId}｜**订单：** ${c.orderNumber || '待核对'}｜**邮件：** ${c.messageCount} 封`);
+        output.push(`**主题：** ${c.subject || '无'}｜**时间：** ${String(c.receivedAt||'').replace('T',' ').slice(0,16)}`);
+        output.push(`**问题摘要：** ${c.summary || '需人工确认'}`);
+        output.push(`**回复状态：** ${c.replyStatus || '待核验'}｜**任务状态：** ${c.status || '待分配'}`);
+        output.push(`**建议处理：** ${c.nextAction || '人工复核'} `);
+        const body = String(c.originalExcerpt || '暂无摘录').replace(/\s+/g,' ').trim();
+        output.push(`**客户原文：** “${body.slice(0,350)}${body.length>350?'…（原文较长）':''}”`);
+        output.push(`**关联邮箱：** ${(c.emails||[c.customerEmail]).join('、')}`);
+      }
+    }
+    output.push('**注：** 客服任务分配与最终处理结果尚未回写，不能将已回复误判为已解决。');
+    return output.filter(Boolean).join('\n').slice(0,7800);
+  }
+
   async function pendingCustomerEmails(args = {}, context = {}) {
     if (context.chatType !== 'p2p') return 'Gmail涉及客户隐私，请在飞书授权单聊中查询。';
     if (!context.senderOpenId || !allowed.has(context.senderOpenId)) {
@@ -19,6 +73,8 @@ function createGmailBridge({
     }
     if (!secret) return 'Gmail桥接签名配置缺失，请管理员检查FEISHU_APP_SECRET。';
     const limit = Math.min(Math.max(Number.parseInt(args.limit, 10) || 10, 1), 20);
+    const ledger = await archivedCases(limit);
+    if (ledger) return formatCases(ledger);
     const destination = new URL(url);
     if (destination.protocol !== 'https:') return 'Gmail桥接地址必须使用HTTPS。';
     destination.searchParams.set('limit', String(limit));
