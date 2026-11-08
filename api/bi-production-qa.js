@@ -3,6 +3,7 @@ const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
+const noteHandler=require("./bi-customer-note");
 const INDEX="kbi-index/v2/current.json";
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
@@ -41,14 +42,14 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
- const report={version:1,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
+ const report={version:2,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(previous.version===2&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
@@ -70,8 +71,19 @@ module.exports=async(req,res)=>{
     profile.data.customer?.id==="gid://shopify/Customer/"+sample.id&&Array.isArray(profile.data.events);
    report.metrics.timelineEvents=report.checks.customer360?profile.data.events.length:null;
    report.metrics.mailCoverage=report.checks.customer360?profile.data.coverage?.email||"unknown":null;
+   report.checks.productHistory=report.checks.customer360&&
+    Array.isArray(profile.data.profile?.products)&&
+    Array.isArray(profile.data.profile?.productInterests)&&
+    Array.isArray(profile.data.profile?.productSummary);
+   report.checks.mailSummary=report.checks.customer360&&
+    typeof profile.data.mailSummary?.messages==="number"&&
+    Array.isArray(profile.data.mailSummary?.conversations);
+   const note=await call(noteHandler,{id:sample.id});
+   report.checks.noteRead=note.code===200&&note.data?.ok===true&&
+    typeof note.data.text==="string"&&Number.isSafeInteger(note.data.version);
   }else{
    report.checks.search=false;report.checks.customer360=false;
+   report.checks.productHistory=false;report.checks.mailSummary=false;report.checks.noteRead=false;
   }
   report.ready=Object.values(report.checks).every(Boolean);
   await save(report);

@@ -36,6 +36,28 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 .dialog-content{padding:24px}.dialog-top{border-bottom:1px solid #e8eee8;padding-bottom:18px}.profile-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:17px 0}
 .profile-kpis>div{background:#f5f8f5;border-radius:9px;padding:13px}.profile-kpis small{display:block;font-size:11px;color:#718575;margin-bottom:7px}.profile-kpis strong{font-size:15px}
 .event-list{border-left:1px solid #d7e5d9;margin:18px 0 0 7px;padding-left:24px}.event{position:relative;margin-bottom:20px}.event:before{content:"";position:absolute;left:-29px;top:4px;width:10px;height:10px;border-radius:50%;background:#7f9d82;box-shadow:0 0 0 3px #eff6ef}.event time{font-size:11px;color:#8d9d90}.event b{display:block;font-size:13px;margin:6px 0}.event p{margin:0;font-size:11px;color:#778b7b;white-space:normal}
+
+.journey-chart{width:100%;min-height:210px;display:block;background:#fcfdfb;border:1px solid #e4ece5;border-radius:12px}
+.metric-checks{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.metric-checks label{display:flex;align-items:center;gap:6px;border:1px solid #dfeae2;background:#fff;border-radius:8px;padding:7px 10px;font-size:12px;color:#435a48}
+.metric-checks input{min-height:auto;accent-color:#2a593d}
+.chart-legend{display:flex;flex-wrap:wrap;gap:13px;padding:8px 0;font-size:11px;color:#627969}
+.chart-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.products-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}
+.product-card{border:1px solid #e4ece5;border-radius:10px;overflow:hidden;background:#fff;min-width:0}
+.product-card img{width:100%;aspect-ratio:4/3;object-fit:cover;background:#f2f5f1;display:block}
+.product-info{padding:11px}
+.product-info b{font-size:12px;line-height:1.5;display:block;min-height:33px}
+.product-info p{font-size:11px;color:#758579;line-height:1.5;margin:7px 0;max-height:48px;overflow:hidden}
+.product-info a{font-size:11px;color:#2c684a;text-decoration:underline}
+.interest-button{border:1px solid #cfe0d2;border-radius:20px;background:#edf7ef;padding:7px 11px}
+.interest-button.active{background:#224b37;color:white}
+.note-field{display:block;min-height:120px;resize:vertical;width:100%;border:1px solid #d6e5d8;border-radius:8px;padding:12px;color:#344c3b;background:#fff;font:13px/1.6 system-ui}
+.note-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.mail-thread{padding:12px 0;border-bottom:1px solid #e7eee7}
+.mail-thread strong{font-size:12px}
+.mail-thread p{margin:5px 0;font-size:12px;color:#607563;line-height:1.6;white-space:normal}
+@media(max-width:620px){.products-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.dialog-content{padding:16px}}
 [hidden]{display:none!important}
 @media(max-width:920px){.layout{grid-template-columns:1fr}aside{padding:12px;gap:10px}nav{display:flex;overflow:auto}nav a{white-space:nowrap}aside .foot{display:none}main{padding:19px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
 @media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
@@ -99,8 +121,41 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <dialog id="customer-dialog"><div class="dialog-content">
 <div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><button id="close-dialog">关闭</button></div>
 <div class="profile-kpis" id="profile-kpis"></div>
-<h2>已观察到的商品兴趣</h2><p class="muted">从已购商品标题提取，保留证据；不代表客户自述偏好。</p><div id="profile-tags" class="toolbar"></div>
-<h2 style="margin-top:24px">客户生命历程</h2><p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
+<section class="panel" style="margin-top:19px;padding:17px">
+<h2>客户生命历程 · 时间分析</h2>
+<p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
+<div class="metric-checks" id="journey-metrics">
+<label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
+<label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
+<label><input type="checkbox" value="channel" checked> 订单来源与触达</label>
+<label><input type="checkbox" value="email" checked> 邮件沟通</label>
+</div>
+<div id="chart-legend" class="chart-legend"></div>
+<svg id="journey-svg" class="journey-chart" role="img" aria-label="客户购买和触达时间序列" viewBox="0 0 850 230" preserveAspectRatio="xMidYMid meet"></svg>
+<p class="muted" id="chart-explanation">加载真实订单与邮件后生成时间图。</p>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>历史购买产品与偏好画像</h2><p class="muted">展示已返回历史订单中的商品图、成交时单价、数量、商品类别、描述和网站链接；当前产品售价可能与成交价不同。</p>
+<div id="product-narrative" class="status" style="margin:12px 0">正在整理客户购买偏好…</div>
+<div id="product-categories" class="muted" style="margin:8px 0"></div>
+<div id="profile-tags" class="toolbar"></div>
+<div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span><button id="product-clear" type="button">显示全部产品</button></div>
+<div id="profile-products" class="products-grid"></div>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>邮件沟通摘要</h2>
+<p class="muted">按真实邮件线程整理主题、双向回复及疑似售后问题；摘要基于邮件主题与记录，不是对全文的AI语义判断。</p>
+<div id="mail-summary" class="status"></div><div id="mail-threads"></div>
+</section>
+<section class="panel" style="margin-top:15px;padding:17px">
+<h2>客户专属备注</h2>
+<p class="muted">与 Shopify 客户编号绑定，保存于受保护的云端私有存储，不会写入公开网页。请避免填写密码或支付卡信息。</p>
+<textarea id="customer-note-text" class="note-field" maxlength="10000" placeholder="记录客户沟通重点、喜好、售后处理进展、下一步跟进计划…"></textarea>
+<div class="note-actions"><button id="customer-note-save" class="primary" type="button">保存客户备注</button>
+<span id="customer-note-status" class="muted">尚未加载</span></div>
+</section>
+<h2 style="margin-top:23px">原始订单与沟通事件</h2>
+<p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
 <div id="events" class="event-list"></div>
 </div></dialog>
 <script>
@@ -187,34 +242,218 @@ async function load(){
   if(pending&&state.token)setTimeout(()=>{if(!state.busy)load()},30000);
  }finally{state.busy=false;}
 }
-async function profile(c){
- $("customer-dialog").showModal();
- $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
- const facts=[["等级（既有快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
- ["最近购买R",n(c.rDays)+" 天"],["历史累计消费",money(c.spendLifetime)],["历史订单",n(c.ordersLifetime)],
- ["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
- $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");
- $("profile-tags").textContent="正在读取已购商品…";$("events").textContent="正在读取客户历史…";
- $("journey-coverage").textContent="Shopify订单和Gmail沟通查询中…";
+
+const customerView={id:null,orders:[],events:[],products:[],insights:[],email:null,noteVersion:0,noteLoaded:false};
+const chartColors={quantity:"#2d664b",orderValue:"#8a5b9a",meta:"#3276d5",google:"#dfa527",
+ email:"#32a36c",pinterest:"#b35886",organic:"#84988b",unknown:"#8896a0"};
+const svgEsc=esc;
+const safeUrl=(value,type="web")=>{
  try{
-  const data=await request("/api/bi-journey",{id:c.id});
-  $("profile-tags").innerHTML=(data.profile?.productInterests||[]).map(t=>'<span class="pill">'+esc(t.label)+' · '+n(t.evidenceCount)+'笔</span>').join("")||'<span class="muted">暂无足够证据</span>';
-  $("journey-coverage").textContent="Shopify订单："+(data.coverage?.orders==="all_returned_orders"?"当前已返回全部":"超过300笔，仍有未加载订单")+
-   "；Gmail："+({sample_up_to_50:"双向沟通当前已返回",partial_more_messages:"还有未加载邮件",gmail_backend_unavailable:"Gmail暂不可用",ambiguous_customer_email:"客户邮箱不唯一，已保护隐私"}[data.coverage?.email]||data.coverage?.email||"未知")+"。来源记录不等同因果归因。";
-  const events=[...(data.events||[])].reverse();
-  $("events").innerHTML=events.map(e=>{
-   const extra=e.kind==="order"?
-    [e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
-    e.kind==="acquisition_visit"?"广告/自然触点 · "+[e.utm?.source,e.utm?.medium,e.utm?.campaign].filter(Boolean).join("/"):
-    e.kind==="communication"?"客户沟通 · "+(e.issueFlag?"疑似售后问题待核实":"邮件记录"):"客户建档";
-   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><p>'+esc(extra)+'</p></div>';
-  }).join("")||'<div class="muted">当前没有可追溯的事件。</div>';
+  const u=new URL(String(value||""));
+  if(u.protocol!=="https:")return "";
+  if(type==="product"&&!/(\.|^)kailashenergy\.com$/i.test(u.hostname))return "";
+  return u.href;
+ }catch(_){return ""}
+};
+function xmlNumber(n){return Number(n).toFixed(2)}
+function chartLine(rows,mapX,mapY,color,label){
+ if(!rows.length)return "";
+ const values=rows.map(row=>({x:mapX(new Date(row.at).getTime()),y:mapY(row.value),at:row.at,value:row.value}));
+ const line=values.length>1?'<path d="'+values.map((p,i)=>(i?"L":"M")+xmlNumber(p.x)+" "+xmlNumber(p.y)).join(" ")+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linejoin="round"/>':"";
+ return line+values.map(p=>'<circle cx="'+xmlNumber(p.x)+'" cy="'+xmlNumber(p.y)+'" r="4.4" fill="'+color+'"><title>'+svgEsc(label+": "+p.value+" · "+fmt(p.at))+'</title></circle>').join("");
+}
+function drawJourneyChart(){
+ const checked=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
+ const events=customerView.events.filter(e=>e.at&&Number.isFinite(Date.parse(e.at)));
+ const orders=customerView.orders.filter(e=>e.validForReview);
+ const touch=events.filter(e=>e.kind==="acquisition_visit");
+ const emails=events.filter(e=>e.kind==="communication");
+ const paidUSD=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount)))
+  .slice().sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ let spent=0;
+ const aovSeries=paidUSD.map((o,i)=>({at:o.at,value:Math.round((spent+=Number(o.amount))/(i+1)*100)/100}));
+ const groups=[
+  {key:"quantity",label:"购买件数 / 单次订单",kind:"number",data:orders.map(o=>({at:o.at,value:o.products.reduce((sum,p)=>sum+(Number(p.quantity)||0),0)})),color:chartColors.quantity},
+  {key:"orderValue",label:"累计平均客单价 / USD",kind:"number",data:aovSeries,color:chartColors.orderValue},
+  {key:"channel",label:"已记录的来源触点",kind:"touch",data:touch},
+  {key:"email",label:"邮件沟通记录",kind:"email",data:emails}
+ ].filter(g=>checked.has(g.key));
+ const svg=$("journey-svg");
+ const from=Math.min(...events.map(e=>Date.parse(e.at))),to=Math.max(...events.map(e=>Date.parse(e.at)));
+ if(!groups.length){svg.setAttribute("viewBox","0 0 850 130");svg.innerHTML='<text x="25" y="65" fill="#748478" font-size="14">请选择至少一项指标</text>';return}
+ if(!events.length||!Number.isFinite(from)){svg.setAttribute("viewBox","0 0 850 140");svg.innerHTML='<text x="25" y="60" fill="#748478" font-size="13">暂无可追溯的客户事件</text>';return}
+ const width=850,left=145,right=26,laneHeight=118,top=22,bottom=55;
+ const height=top+groups.length*laneHeight+bottom;
+ svg.setAttribute("viewBox","0 0 "+width+" "+height);
+ const maxT=to>from?to:from+86400000,minT=to>from?from:from-86400000;
+ const x=t=>left+(t-minT)/(maxT-minT)*(width-left-right);
+ let out='';
+ for(let i=0;i<=4;i++){
+  const xx=left+i*(width-left-right)/4;
+  const date=new Date(minT+i*(maxT-minT)/4).toISOString().slice(0,10);
+  out+='<line x1="'+xmlNumber(xx)+'" y1="'+top+'" x2="'+xmlNumber(xx)+'" y2="'+(height-bottom)+'" stroke="#edf1ed"/>';
+  out+='<text x="'+xmlNumber(xx)+'" y="'+(height-24)+'" text-anchor="middle" font-size="11" fill="#7e9282">'+date+'</text>';
+ }
+ for(let i=0;i<groups.length;i++){
+  const g=groups[i],yStart=top+i*laneHeight,yBottom=yStart+91;
+  out+='<rect x="'+left+'" y="'+yStart+'" width="'+(width-left-right)+'" height="91" fill="'+(i%2?"#f9fbf8":"#fff")+'"/>';
+  out+='<text x="12" y="'+(yStart+23)+'" font-size="12" fill="#405b49" font-weight="600">'+svgEsc(g.label)+'</text>';
+  out+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#dce8dd"/>';
+  if(g.kind==="number"){
+   const max=Math.max(1,...g.data.map(e=>e.value));
+   const scale=v=>yBottom-(Math.max(0,v)/max)*66;
+   out+='<text x="'+(left-13)+'" y="'+(yBottom-64)+'" fill="#7d8e80" font-size="10" text-anchor="end">'+svgEsc(max.toFixed(g.key==="orderValue"?0:0))+'</text>';
+   out+='<text x="'+(left-13)+'" y="'+yBottom+'" fill="#7d8e80" font-size="10" text-anchor="end">0</text>';
+   out+=chartLine(g.data,x,scale,g.color,g.label);
+   if(!g.data.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">该指标暂无足够已核验数据</text>';
+  }else{
+   const values=g.data;
+   const y0=yStart+51;
+   out+=values.map((e,index)=>{
+    const channel=g.kind==="touch"?(e.channel||"unknown"):(e.direction==="outbound"?"email":"email");
+    const color=chartColors[channel]||chartColors.unknown;
+    const yy=y0+(index%3-1)*8;
+    const subtitle=g.kind==="touch"?channel+(e.utm?.campaign?" / "+e.utm.campaign:""):(e.direction==="outbound"?"客服回复":"客户来信")+" / "+e.title;
+    return '<circle cx="'+xmlNumber(x(Date.parse(e.at)))+'" cy="'+yy+'" r="'+(g.kind==="email"?5:5.4)+'" fill="'+color+'" stroke="#fff" stroke-width="1.6"><title>'+svgEsc(subtitle+" · "+fmt(e.at))+'</title></circle>';
+   }).join("");
+   if(!values.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">尚无已记录的触达事件</text>';
+  }
+ }
+ out+='<text x="'+(width-right)+'" y="'+(height-7)+'" text-anchor="end" fill="#8c9d8f" font-size="11">时间（北京时间按日期展示）</text>';
+ svg.innerHTML=out;
+ $("chart-legend").innerHTML=Object.entries({meta:"Meta广告",google:"Google广告",email:"邮件往来",pinterest:"Pinterest",organic:"自然/直接访问",unknown:"来源未明"}).map(([key,label])=>
+  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("");
+ $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。客单价为截至该订单的累计平均订单总额；未知币种不进行美元换算。";
+}
+function showProducts(tag=""){
+ const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
+ $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
+ $("profile-products").innerHTML=shown.length?shown.map(p=>{
+  const count=p.purchases.filter(x=>x.validForReview).reduce((s,x)=>s+Number(x.quantity||0),0);
+  const purchase=p.purchases.find(x=>x.validForReview)||p.purchases[0]||{};
+  const href=safeUrl(p.productUrl,"product"),image=safeUrl(p.imageUrl,"image");
+  return '<article class="product-card">'+(image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':'<div style="height:140px;background:#f2f5f1;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
+   '<div class="product-info"><b>'+esc(p.title)+'</b><span class="pill">'+esc(p.productType)+'</span>'+
+   '<p>'+esc((p.description||"").slice(0,160)||"暂无商品描述")+'</p>'+
+   '<div class="muted">已购买 '+n(count)+' 件 · '+n(p.validOrders)+'笔有效订单</div>'+
+   '<div class="muted">订单记录单价：'+(purchase.unitPrice!==null?money(purchase.unitPrice,purchase.currency||"USD"):"未记录")+'</div>'+
+   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">查看网站商品原始页</a>':'<span class="muted">商品可能已下架 / 无公开链接</span>')+
+   '</div></article>';
+ }).join(""):'<p class="muted">当前筛选没有可匹配的历史商品。</p>';
+}
+function displayProductInsights(data){
+ const p=data.profile||{};
+ customerView.products=p.products||[];
+ customerView.insights=p.productInterests||[];
+ $("product-narrative").textContent=p.productPreferenceNarrative||"暂时缺少可以总结的历史购买证据";
+ $("product-categories").textContent=(p.productSummary||[]).length?
+  "购买类型："+p.productSummary.slice(0,7).map(x=>x.label+" "+x.quantity+"件").join(" · "):
+  "暂无足够的有效历史订单总结";
+ const tags=p.productInterests||[];
+ $("profile-tags").innerHTML=tags.map((t,i)=>
+  '<button type="button" class="interest-button" data-tag="'+i+'">'+esc(t.label)+" · "+n(t.quantity)+"件</button>").join("")||
+  '<span class="muted">暂无足够的购买偏好证据</span>';
+ document.querySelectorAll("#profile-tags button[data-tag]").forEach(button=>button.onclick=()=>{
+  const tag=tags[Number(button.dataset.tag)]?.label;
+  document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));
+  if(tag){button.classList.add("active");showProducts(tag)}
+ });
+ showProducts();
+}
+function showEmailSummary(mail){
+ $("mail-summary").textContent="已检索到 "+n(mail?.messages||0)+" 条客户相关邮件，覆盖 "+
+ n(mail?.threads||0)+" 个对话线程 · 客户来信 "+n(mail?.inbound||0)+
+ " · 客服回复 "+n(mail?.outbound||0)+
+ " · 含疑似售后问题线程 "+n(mail?.possibleIssues||0)+"（均待人工核对）";
+ const entries=mail?.conversations||[];
+ $("mail-threads").innerHTML=entries.length?entries.map(t=>
+ '<div class="mail-thread"><strong>'+esc(t.subject||"未注明主题")+'</strong>'+
+ '<p>'+esc(t.summary||"")+'</p><p>客户最近内容：'+esc(t.lastCustomerPreview||"未记录")+'</p><p>客服最近回复：'+esc(t.lastServicePreview||"尚未记录")+'</p>'+
+ '<p>来信 '+n(t.inbound)+' / 回复 '+n(t.outbound)+' · '+esc(fmt(t.lastAt))+'</p>'+
+ (safeUrl(t.gmailUrl)?'<a href="'+esc(safeUrl(t.gmailUrl))+'" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2b6346;text-decoration:underline">查看原始邮件线程</a>':"")+'</div>'
+ ).join(""):'<p class="muted">当前没有可核验的邮件对话。</p>';
+}
+async function loadCustomerNote(id){
+ customerView.noteLoaded=false;customerView.noteVersion=0;
+ $("customer-note-text").value="";$("customer-note-save").disabled=true;
+ $("customer-note-status").textContent="读取私有备注中…";
+ try{
+  const note=await request("/api/bi-customer-note",{id});
+  if(customerView.id!==id)return;
+  $("customer-note-text").value=note.text||"";
+  customerView.noteVersion=note.version||0;customerView.noteLoaded=true;
+  $("customer-note-status").textContent=note.updatedAt?"上次保存："+fmt(note.updatedAt):"暂无备注，可开始填写";
+  $("customer-note-save").disabled=false;
+ }catch(e){if(customerView.id===id)$("customer-note-status").textContent="备注加载失败："+e.message}
+}
+async function saveCustomerNote(){
+ if(!customerView.id||!customerView.noteLoaded)return;
+ $("customer-note-save").disabled=true;
+ $("customer-note-status").textContent="正在保存到私有云端…";
+ try{
+  const r=await fetch("/api/bi-customer-note?id="+encodeURIComponent(customerView.id),{
+   method:"PUT",cache:"no-store",
+   headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
+   body:JSON.stringify({text:$("customer-note-text").value,version:customerView.noteVersion})
+  });
+  const d=await r.json();
+  if(!r.ok||!d.ok){
+   if(r.status===409){$("customer-note-status").textContent="备注在其他页面已更改，请先复制当前内容，再重新打开客户以避免覆盖。";return}
+   throw Error(d.error||"保存失败");
+  }
+  customerView.noteVersion=d.version;
+  $("customer-note-status").textContent="已保存 · "+fmt(d.updatedAt);
+ }catch(e){$("customer-note-status").textContent="保存失败："+e.message}
+ finally{$("customer-note-save").disabled=false}
+}
+
+async function profile(c){
+ const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
+ if(!$("customer-dialog").open)$("customer-dialog").showModal();
+ $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
+ const facts=[["等级（历史快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
+ ["最近购买 R",Number.isFinite(c.rDays)?n(c.rDays)+" 天":"—"],["历史累计消费",money(c.spendLifetime)],
+ ["历史订单",n(c.ordersLifetime)],["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
+ $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");
+ for(const key of ["profile-tags","profile-products","product-categories","mail-summary","events"])$(key).textContent="正在读取客户记录…";
+ $("mail-threads").textContent="";$("journey-svg").innerHTML="";$("product-narrative").textContent="正在生成基于订单的偏好总结…";
+ $("journey-coverage").textContent="正在查询 Shopify 订单与 Gmail 记录…";
+ $("chart-explanation").textContent="正在生成客户时间图…";
+ loadCustomerNote(id);
+ try{
+  const data=await request("/api/bi-journey",{id});
+  if(customerView.id!==id)return;
+  customerView.events=data.events||[];
+  customerView.orders=customerView.events.filter(e=>e.kind==="order");
+  displayProductInsights(data);showEmailSummary(data.mailSummary||{});drawJourneyChart();
+  const cov=data.coverage||{};
+  const orderText=cov.orders==="all_returned_orders"?"当前可访问订单已全部返回":"超过300笔订单，历史仍有未加载部分";
+  const mailText=({
+   sample_up_to_50:"Gmail当前查询已返回部分双向记录",partial_more_messages:"仍有未加载的邮件",
+   gmail_backend_unavailable:"Gmail后端暂不可用",ambiguous_customer_email:"邮箱归属有歧义，已保护私人邮件",
+   no_customer_email:"无客户邮箱",customer_identity_check_failed:"邮箱归属校验失败"
+  })[cov.email]||cov.email||"未知";
+  $("journey-coverage").textContent=orderText+"；"+mailText+"；商品："+
+   (cov.products==="partial_line_items"?"部分订单商品超过单页30件":"本次订单范围内的历史记录")+
+   "。广告来源仅代表已记录触点，RFM净额仍待正式审计。";
+  $("events").innerHTML=customerView.events.slice().reverse().map(e=>{
+   const extra=e.kind==="order"?[e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
+    e.kind==="acquisition_visit"?"来源："+(e.channel||"unknown")+" · "+[e.utm?.source,e.utm?.medium,e.utm?.campaign].filter(Boolean).join(" / "):
+    e.kind==="communication"?(e.direction==="outbound"?"客服回复":"客户来信")+" · "+(e.preview||""):
+    "客户建档（不等于首次订阅）";
+   const url=e.kind==="communication"?safeUrl(e.gmailUrl):"";
+   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><p>'+esc(extra)+'</p>'+
+    (url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" style="color:#2b6346;font-size:11px">查看原始邮件</a>':"")+'</div>';
+  }).join("")||'<p class="muted">暂无可追溯事件</p>';
  }catch(e){
-  $("profile-tags").textContent="暂时无法加载已购产品兴趣";
-  $("journey-coverage").textContent="实时数据接口暂不可用："+e.message;
-  $("events").textContent="客户M/F/R历史快照仍可查看；实时订单与沟通需检查后台接口。";
+  if(customerView.id!==id)return;
+  $("journey-coverage").textContent="实时客户历史暂时无法读取："+e.message;
+  $("profile-tags").textContent="暂无可核验的商品兴趣";$("profile-products").textContent="商品详情暂不可用";
+  $("mail-summary").textContent="邮件摘要暂不可用";$("events").textContent="暂无可完整核验的事件";
+  drawJourneyChart();
  }
 }
+
 $("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;$("refresh").disabled=false;load()};
 $("secret").onkeydown=e=>{if(e.key==="Enter")$("connect").click()};
 $("apply").onclick=()=>{state.page=1;load()};
@@ -244,6 +483,9 @@ $("size").onchange=()=>{state.page=1;load()};
 document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{const key=th.dataset.sort;
  $("dir").value=$("sort").value===key&&$("dir").value==="desc"?"asc":"desc";$("sort").value=key;state.page=1;load()}));
 $("refresh-status").onclick=baseline;$("close-dialog").onclick=()=>$("customer-dialog").close();
+document.querySelectorAll("#journey-metrics input").forEach(input=>input.onchange=drawJourneyChart);
+$("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
+$("customer-note-save").onclick=saveCustomerNote;
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
 readiness();baseline();
 })();
