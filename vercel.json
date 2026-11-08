@@ -37,6 +37,10 @@
     {
       "path": "/api/crm-orders-reconcile",
       "schedule": "9-59/10 * * * *"
+    },
+    {
+      "path": "/api/crm-milestones",
+      "schedule": "6-59/10 * * * *"
     }
   ]
 }
