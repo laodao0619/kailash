@@ -121,6 +121,8 @@ module.exports=async(req,res)=>{
    note:"Marketing touches are recorded observations, not causal attribution. Customer email is matched by verified sender."
   });
  }catch(e){
+  // Unit-test-only diagnostics; never expose private data or stack in HTTP responses.
+  if(process.env.KBI_TEST_DIAGNOSTICS==="1")console.error("KBI TEST:",e?.stack||e);
   const s=String(e?.message||"");
   return res.status(502).json({ok:false,error:s.includes("Shopify")?"shopify_unavailable":"source_unavailable"});
  }
