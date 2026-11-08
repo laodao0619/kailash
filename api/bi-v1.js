@@ -23,7 +23,7 @@ function scalar(v){
  if(v&&typeof v==="object"&&"text"in v)return String(v.text||"");
  return v??null;
 }
-function number(v){const x=Number(scalar(v));return Number.isFinite(x)?x:null;}
+function number(v){const raw=scalar(v);if(raw===null||raw===""||raw===undefined)return null;const x=Number(raw);return Number.isFinite(x)?x:null;}
 function customer(x){
  const f=x.fields||{};
  return {id:String(scalar(f["Shopify客户ID"])||""),
@@ -39,6 +39,16 @@ function customer(x){
    nextAction:scalar(f["下一步行动"])||null,
    quality:scalar(f["客户数据状态"])||null,
    syncedAt:number(f["数据最后同步时间"])};
+}
+let customerCache=null;
+let customerCachePromise=null;
+async function cachedCustomers(token){
+ if(customerCache&&Date.now()-customerCache.at<90000)return customerCache.data;
+ if(!customerCachePromise)customerCachePromise=pages(token,CUSTOMER).then(data=>{
+  if(data.complete)customerCache={at:Date.now(),data};
+  return data;
+ }).finally(()=>{customerCachePromise=null;});
+ return customerCachePromise;
 }
 async function pages(token,table,maxPages=100){
  let cursor;const all=[];
@@ -83,7 +93,7 @@ module.exports=async(req,res)=>{
   const mode=String(req.query?.mode||"customers");
   const t=await tenantToken();
   if(mode==="customers"){
-   const result=await pages(t,CUSTOMER);
+   const result=await cachedCustomers(t);
    if(!result.complete)return res.status(503).json({ok:false,error:"incomplete_customer_scan"});
    const q=String(req.query?.q||"").trim().toLowerCase().slice(0,100);
    const tier=String(req.query?.tier||"").trim();
