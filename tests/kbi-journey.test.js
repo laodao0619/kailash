@@ -36,7 +36,7 @@ function shopOrder(){
     utmParameters:{source:"facebook",medium:"cpc",campaign:"test_campaign"}},
    lastVisit:null}};
 }
-function setupFetch({duplicate=false,ambiguous=false,extraPage=false,outbound=false,financialStatus="PAID",mailDate="2026-11-08T08:51:12Z"}={}){
+function setupFetch({duplicate=false,ambiguous=false,extraPage=false,extraLines=false,mailPages=false,mailFailure=false,outbound=false,financialStatus="PAID",mailDate="2026-11-08T08:51:12Z"}={}){
  let calls=[];
  global.fetch=async(url,options={})=>{
   calls.push(String(url));
@@ -45,6 +45,8 @@ function setupFetch({duplicate=false,ambiguous=false,extraPage=false,outbound=fa
     {id:"gid://shopify/Customer/12345678901",defaultEmailAddress:{emailAddress:EMAIL}},
     ...(ambiguous?[{id:"gid://shopify/Customer/22222222222",defaultEmailAddress:{emailAddress:EMAIL}}]:[])
    ]}}});
+  if(String(url).includes("/admin/api/")&&JSON.parse(options.body||"{}").query?.includes("KbiLineItemPage"))
+   return response({data:{node:{lineItems:{pageInfo:{hasNextPage:false,endCursor:null},nodes:[{...shopOrder().lineItems.nodes[0],id:"gid://shopify/LineItem/999",title:"Lotus bracelet",quantity:2}]}}}});
   if(String(url).includes("/admin/api/")&&JSON.parse(options.body||"{}").query?.includes("KbiOrderPage"))
    return response({data:{customer:{orders:{pageInfo:{hasNextPage:false,endCursor:null},
     nodes:[{...shopOrder(),id:"gid://shopify/Order/101",name:"7003",processedAt:"2026-11-04T13:00:00Z"}]}}}});
@@ -52,9 +54,19 @@ function setupFetch({duplicate=false,ambiguous=false,extraPage=false,outbound=fa
    id:"gid://shopify/Customer/12345678901",firstName:"Sample",lastName:"Customer",createdAt:"2026-10-02T00:00:00Z",
    numberOfOrders:extraPage?"2":"1",defaultEmailAddress:{emailAddress:EMAIL,marketingState:"SUBSCRIBED"},
    orders:{pageInfo:{hasNextPage:extraPage,endCursor:extraPage?"next-order-cursor":null},
-    nodes:[{...shopOrder(),displayFinancialStatus:financialStatus}]}}}});
+    nodes:[{...shopOrder(),displayFinancialStatus:financialStatus,
+     lineItems:{...shopOrder().lineItems,pageInfo:{hasNextPage:extraLines,endCursor:extraLines?"line-cursor":null}}}]}}}});
   if(String(url).includes("oauth2.googleapis.com/token"))return response({access_token:"test-oauth"});
-  if(String(url).includes("/messages?"))return response({messages:[{id:"mail-1"},...(outbound?[{id:"mail-2"}]:[])]});
+  if(String(url).includes("/messages?")){
+   const second=String(url).includes("pageToken=");
+   return response({messages:second?[{id:"mail-3"}]:[{id:"mail-1"},...(outbound?[{id:"mail-2"}]:[])],
+    nextPageToken:mailPages&&!second?"gmail-second-page":undefined});
+  }
+  if(String(url).includes("messages/mail-3"))return mailFailure?response({},403):response({
+   id:"mail-3",threadId:"thread-3",snippet:"Please update my order",labelIds:["INBOX"],
+   internalDate:String(new Date("2026-11-07T09:30:00Z").getTime()),
+   payload:{headers:[{name:"From",value:EMAIL},{name:"To",value:"service@example.test"},
+    {name:"Subject",value:"Order change request"},{name:"Date",value:"2026-11-07T09:30:00Z"}]}});
   if(String(url).includes("messages/mail-2"))return response({
    id:"mail-2",threadId:"thread-1",snippet:"We are checking your delivery status.",
    labelIds:["SENT"],internalDate:String(new Date("2026-11-08T09:30:00Z").getTime()),
@@ -140,6 +152,33 @@ test("Customer 360 joins outgoing service replies only within customer-originate
  assert.equal(messages[1].evidenceType,"service_reply_in_customer_thread");
  assert.equal(out.body.mailSummary.outbound,1);
  assert.equal(out.body.mailSummary.threads,1);
+});
+test("order with over 30 line items fetches remaining Shopify page and updates product interest",async()=>{
+ setEnvironment();const calls=setupFetch({extraLines:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200,JSON.stringify(out.body));
+ const order=out.body.events.find(e=>e.kind==="order");
+ assert.equal(order.products.length,2);
+ assert.equal(order.productsComplete,true);
+ assert.equal(out.body.coverage.lineItemExtraPages,1);
+ assert.equal(out.body.coverage.products,"returned_order_line_items");
+ assert(calls.filter(x=>x.includes("myshopify.com")).length===3);
+});
+test("Gmail communication follows next-page tokens without losing the second thread",async()=>{
+ setEnvironment();const calls=setupFetch({mailPages:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200,JSON.stringify(out.body));
+ assert.equal(out.body.events.filter(x=>x.kind==="communication").length,2);
+ assert.equal(out.body.coverage.email,"retrieved_all_query_matches");
+ assert.equal(out.body.coverage.mailScanned,2);
+ assert(calls.filter(x=>x.includes("/messages?")).length===2);
+});
+test("inaccessible Gmail message reports incomplete rather than claiming total coverage",async()=>{
+ setEnvironment();setupFetch({mailPages:true,mailFailure:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200);
+ assert.equal(out.body.coverage.email,"partial_mail_fetch_errors");
+ assert.equal(out.body.coverage.mailFailed,1);
 });
 test("a fully refunded order stays on timeline but cannot create interest tags",async()=>{
  setEnvironment();setupFetch({financialStatus:"REFUNDED"});const out=res();
