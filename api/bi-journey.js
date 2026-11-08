@@ -3,6 +3,7 @@
 const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
 const gmail=require("../lib/crm-gmail");
+const {productTags}=require("../lib/kbi-customer-profile");
 const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!){
  customer(id:$id){
   id createdAt firstName lastName numberOfOrders
@@ -154,6 +155,7 @@ module.exports=async(req,res)=>{
   ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),
+   profile:{productInterests:productTags(orders),method:"observed_order_title_evidence_only"},
    customer:{id:c.id,firstName:c.firstName||"",lastName:c.lastName||"",
     email:email||null,ordersReported:c.numberOfOrders??null,
     marketingState:c.defaultEmailAddress?.marketingState||null},
