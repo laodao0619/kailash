@@ -44,5 +44,5 @@ jobs:
         run: node --test tests/kbi-journey.test.js tests/kbi-customers.test.js
       - name: Validate inline workbench JavaScript
         run: |
-          node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const m=s.match(/<script>([\\s\\S]*?)<\\/script>/);if(!m)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",m[1]);'
+          node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const a=s.indexOf("<script>");const b=s.indexOf("</script>",a);if(a<0||b<0)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",s.slice(a+8,b));'
           node --check /tmp/kbi-workbench.js
