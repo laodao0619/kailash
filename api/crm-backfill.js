@@ -47,9 +47,11 @@ module.exports=async(req,res)=>{
   const token=await feishu.tenantToken();
   await quality.ensureFields(token);
   if(state.viewSetVersion!=="v2"){
-   stats.views=await organizeViews(token);
-   state.viewSetVersion="v2";
-   await saveState(state);
+   try{
+    stats.views=await organizeViews(token);
+    state.viewSetVersion="v2";
+    await saveState(state);
+   }catch(viewError){stats.views_warning=String(viewError.message||viewError).slice(0,140);}
   }
   if(!state.qualityCleanupFinished){
    const cleanup=await quality.cleanExisting(token,state);
