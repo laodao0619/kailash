@@ -1,297 +1,232 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Kailash BI · 客户智能工作台</title>
+<meta name="robots" content="noindex,nofollow"><title>Kailash BI · 经营与客户智能工作台</title>
 <style>
-:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#222d2a;background:#f6f7f5}
-*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}
-.layout{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
-aside{background:#172923;color:#eff5f0;padding:29px 18px;display:flex;flex-direction:column;gap:36px}
-.brand{font-family:Georgia,serif;letter-spacing:.09em;font-size:17px;padding:4px 10px}.sub{font:10px/1.8 ui-sans-serif;letter-spacing:.14em;color:#9eb8ac}
-.menu{display:grid;gap:7px}.menu a{color:#b3c7bd;text-decoration:none;padding:12px;border-radius:9px;font-size:13px;display:flex;gap:10px;align-items:center}.menu a.selected{background:#2b463a;color:white}.menu a[aria-disabled=true]{opacity:.45}.bottom{margin-top:auto;color:#8ca99b;font-size:11px;line-height:1.8;padding:8px}
-main{padding:30px 36px;min-width:0;max-width:1540px;width:100%;margin:auto}
-.top{display:flex;justify-content:space-between;align-items:start;gap:12px}h1{font-family:Georgia,serif;letter-spacing:-.04em;font-weight:500;font-size:34px;margin:0}p{margin:7px 0;color:#74847a;font-size:13px}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:#64816f;font-weight:750;margin-bottom:6px}
-.pill{display:inline-block;font-size:11px;background:#eaf0ea;border:1px solid #d8e5db;border-radius:100px;color:#41634f;padding:5px 9px}
-.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin:27px 0}
-.card,.panel{background:white;border:1px solid #e5ebe5;border-radius:14px;box-shadow:0 2px 15px #132e1905}
-.card{padding:20px}.card small{color:#77877b;display:block;font-size:12px}.card strong{display:block;font-size:27px;font-weight:650;letter-spacing:-.03em;margin-top:13px}.card span{color:#8b978e;font-size:11px}
-.panel{overflow:hidden}.panel-head{padding:22px 24px;border-bottom:1px solid #edf0ed;display:flex;justify-content:space-between;gap:20px;align-items:center;flex-wrap:wrap}
-h2{font-size:17px;margin:0;font-weight:640}.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}input,select{border:1px solid #dce5dc;border-radius:8px;padding:10px 12px;background:#fff;color:#26342c;font-size:12px;min-height:38px}input{min-width:210px}button{border:1px solid #dce5dc;background:white;border-radius:8px;padding:9px 13px;color:#24392c;font-size:12px}button.primary{background:#234838;border-color:#234838;color:#fff}button:disabled{opacity:.4;cursor:not-allowed}
-.scroll{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}th{font-weight:600;color:#829086;background:#fafbf9}th,td{padding:15px 20px;border-bottom:1px solid #f0f2f0;white-space:nowrap}tbody tr:hover{background:#f8fbf8;cursor:pointer}td:first-child{font-weight:600}.fine{color:#75877c;font-weight:400;font-size:11px}.empty{text-align:center;padding:40px;color:#839087}.pager{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;gap:10px;color:#839087;font-size:12px}.stat{display:flex;gap:6px;align-items:center}.dot{width:7px;height:7px;border-radius:50%;background:#bf9963}.notice{margin:15px 0 20px;background:#f1f4ee;border:1px solid #e1e9da;border-radius:9px;padding:12px 15px;font-size:12px;color:#667768}
-dialog{border:0;padding:0;border-radius:17px;width:min(800px,95vw);max-height:90vh;box-shadow:0 20px 100px #14292035}dialog::backdrop{background:#14211dc0}.detail{padding:26px}.detail-head{display:flex;justify-content:space-between;align-items:start;gap:12px;border-bottom:1px solid #e9ede9;padding-bottom:20px}.detail h2{font-family:Georgia,serif;font-size:28px;font-weight:500}.timeline{border-left:1px solid #d7e3d9;margin:20px 0 12px 7px;padding-left:25px}.event{position:relative;margin:0 0 22px}.event:before{content:"";position:absolute;left:-30px;top:6px;width:9px;height:9px;border:2px solid white;background:#6d9777;box-shadow:0 0 0 1px #9cb7a0;border-radius:50%}.event time{font-size:11px;color:#8b998e}.event b{display:block;margin:4px 0;font-size:13px}.event small{font-size:11px;color:#7c8c81}.detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}.detail-grid div{background:#f6f9f6;padding:14px;border-radius:10px}.detail-grid small{display:block;color:#88988c;margin-bottom:8px}.detail-grid strong{font-size:16px}
-#auth{background:#fff7e5;border-color:#eee0bd;color:#776446}#auth input{width:min(360px,100%);margin:7px 8px 0 0}
-footer{color:#9aaba0;font-size:11px;margin-top:18px}
-@media(max-width:850px){.layout{grid-template-columns:1fr}aside{padding:15px 18px;gap:10px}.menu{display:flex;overflow:auto}.menu a{white-space:nowrap}.bottom{display:none}main{padding:20px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.panel-head{padding:18px}.detail-grid{grid-template-columns:1fr 1fr}.top{flex-wrap:wrap}}
-</style></head>
-<body><div class="layout">
-<aside><div class="brand">KAILASH <span class="sub">ENERGY</span><div class="sub">经营智能管理平台</div></div>
-<nav class="menu"><a class="selected" href="#overview">◈　经营总览</a><a href="#customers">▦　客户智能</a><a href="#rfm">◷　客户分层</a><a href="#operations">◎　运营协作</a></nav>
-<div class="bottom">KBI V1 · 内部正式工作台<br>数据源：Shopify 优先 / 飞书备用<br>分层：以 2026-11-08 规则为准</div></aside>
+:root{font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#23342c;background:#f6f8f6}*{box-sizing:border-box}
+body{margin:0}button,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}
+a{color:inherit;text-decoration:none}.layout{display:grid;grid-template-columns:222px minmax(0,1fr);min-height:100vh}
+aside{background:#172d25;color:#f1f6f2;padding:26px 14px;display:flex;flex-direction:column;gap:36px}
+.brand{font-family:Georgia,serif;letter-spacing:.06em;font-size:18px;margin:0 11px}.brand small{font:10px/2 system-ui;letter-spacing:.14em;color:#a2c0ac;display:block}
+nav{display:grid;gap:6px}nav a{font-size:13px;color:#bed2c5;padding:12px 13px;border-radius:8px}nav a:hover,nav a.active{background:#315141;color:white}
+aside .foot{margin-top:auto;color:#a2b8ac;font-size:11px;line-height:1.8;padding:10px}
+main{padding:27px 32px;min-width:0;max-width:1640px;margin:0 auto;width:100%}
+.top{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:21px}.eyebrow{font-size:11px;letter-spacing:.11em;font-weight:700;color:#738e7b;text-transform:uppercase}h1{font-family:Georgia,"Songti SC",serif;font-size:31px;font-weight:500;letter-spacing:-.03em;margin:4px 0}h2{font-size:16px;font-weight:650;margin:0}h3{font-size:13px;margin:0 0 8px}
+.muted{font-size:12px;color:#74877b;line-height:1.65}.pill{font-size:11px;background:#edf4ed;border:1px solid #dce9de;border-radius:18px;color:#456b50;padding:4px 9px;white-space:nowrap}
+.panel,.card{background:#fff;border:1px solid #e2eae3;border-radius:14px;box-shadow:0 2px 9px #1b402507}
+.card{padding:17px 20px}.card small{font-size:11px;color:#718476}.card strong{display:block;font-size:27px;letter-spacing:-.05em;margin:9px 0}.card em{font-style:normal;font-size:11px;color:#87978b}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:17px}
+.panel{overflow:hidden;margin-bottom:17px}.head{padding:18px 21px;border-bottom:1px solid #eef2ee;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.body{padding:19px 21px}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+input,select{border:1px solid #d9e5dc;border-radius:8px;min-height:38px;padding:9px 10px;font-size:12px;max-width:100%;background:#fff;color:#304538}
+input[type=number]{width:118px}input[type=search]{min-width:260px;flex:1}
+button{border:1px solid #d3dfd6;background:#fff;padding:9px 13px;border-radius:8px;font-size:12px;color:#37513d}
+button:hover{background:#f2f8f3}button.primary{color:#fff;background:#29523b;border-color:#29523b}button.primary:hover{background:#1c3c2b}
+.filters{padding:17px 20px;display:grid;gap:12px;border-bottom:1px solid #eff3ef;background:#fcfdfc}
+.filter-row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.filter-row label{font-size:11px;color:#768b7a;display:grid;gap:4px}
+.filter-row select{min-width:116px}.number-box{width:115px}.meta{font-size:11px;color:#87978b;line-height:1.7}
+.scroll{overflow:auto}table{border-collapse:collapse;text-align:left;width:100%;font-size:12px}th,td{border-bottom:1px solid #eff2ef;padding:12px 13px;white-space:nowrap}
+th{font-size:11px;font-weight:650;color:#778d7d;background:#fafcf9;user-select:none}th[data-sort]{cursor:pointer}th[data-sort]:hover{color:#244b35}
+tbody tr[data-id]{cursor:pointer}tbody tr[data-id]:hover{background:#f4f9f5}td .fine{font-size:11px;color:#8c9a90;font-weight:400;margin-top:3px}
+.warn{background:#fff8eb;color:#8d6f30;border:1px solid #f0e3c6;border-radius:9px;padding:12px 14px;font-size:12px;line-height:1.7}
+.status{background:#f3f7f3;border:1px solid #e1eae1;border-radius:8px;padding:12px 14px;color:#62776a;font-size:12px;line-height:1.8}
+.pager{padding:13px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;color:#748b7a}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93vh;overflow:auto;box-shadow:0 24px 90px #0a251f55}dialog::backdrop{background:#0c211cb8}
+.dialog-content{padding:24px}.dialog-top{border-bottom:1px solid #e8eee8;padding-bottom:18px}.profile-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:17px 0}
+.profile-kpis>div{background:#f5f8f5;border-radius:9px;padding:13px}.profile-kpis small{display:block;font-size:11px;color:#718575;margin-bottom:7px}.profile-kpis strong{font-size:15px}
+.event-list{border-left:1px solid #d7e5d9;margin:18px 0 0 7px;padding-left:24px}.event{position:relative;margin-bottom:20px}.event:before{content:"";position:absolute;left:-29px;top:4px;width:10px;height:10px;border-radius:50%;background:#7f9d82;box-shadow:0 0 0 3px #eff6ef}.event time{font-size:11px;color:#8d9d90}.event b{display:block;font-size:13px;margin:6px 0}.event p{margin:0;font-size:11px;color:#778b7b;white-space:normal}
+[hidden]{display:none!important}
+@media(max-width:920px){.layout{grid-template-columns:1fr}aside{padding:12px;gap:10px}nav{display:flex;overflow:auto}nav a{white-space:nowrap}aside .foot{display:none}main{padding:19px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+@media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
+</style></head><body>
+<div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
+<nav><a href="#overview" class="active">经营总览</a><a href="#customers">客户管理</a><a href="#rfm">客户分层</a><a href="#operations">运营与同步</a></nav>
+<div class="foot">Kailash BI · 内部业务工作台<br>已有客户基线 + CRM 物化索引<br>2026年11月8日标准</div></aside>
 <main>
-<div class="top"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE / 经营管理</div><h1>经营数据与客户工作台</h1><p>从公司经营状态到单个客户历程，基于真实数据与可追溯证据辅助决策。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
-<section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" aria-label="内部访问凭证" placeholder="请输入 KBI 内部访问凭证"><button class="primary" id="connect">连接只读数据</button></div></section>
-<section id="overview" class="cards" aria-label="经营数据总览">
-<div class="card"><small>Shopify 客户总数</small><strong id="kpi-total">—</strong><span id="kpi-total-note">包含待清洗记录；不等于有效CRM客户数</span></div>
-<div class="card"><small>当前查询结果</small><strong id="kpi-match">—</strong><span>当前页面人数，未核算时不推算全量</span></div>
-<div class="card"><small>当前数据来源</small><strong id="kpi-source" style="font-size:17px">尚未连接</strong><span id="kpi-source-note">优先连接 Shopify 实时数据</span></div>
-<div class="card"><small>客户分层数据</small><strong style="font-size:17px">待核验</strong><span>不使用2026-10-23旧等级覆盖</span></div>
+<div class="top" id="overview"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE</div><h1>经营与客户智能工作台</h1><div class="muted">客户价值、历史沟通与订单生命周期。所有指标均显示来源及数据覆盖范围。</div></div><span class="pill" id="top-status">正在检查系统连接</span></div>
+<section id="login" class="panel"><div class="body">
+<h2 id="login-title">内部身份验证</h2><p id="login-msg" class="muted">请输入专用KBI访问凭证。不要输入Shopify或Gmail密钥。</p>
+<div class="toolbar" id="login-control"><input id="secret" type="password" autocomplete="off" aria-label="访问凭证" placeholder="内部访问凭证"><button id="connect" class="primary">进入工作台</button></div>
+</div></section>
+<section class="kpis">
+<div class="card"><small>历史客户基线</small><strong id="stat-master">—</strong><em>Shopify 已扫描原始客户</em></div>
+<div class="card"><small>有效客户索引</small><strong id="stat-index">—</strong><em id="index-date">客户画像物化索引</em></div>
+<div class="card"><small>近180天有效订单快照</small><strong id="stat-orders">—</strong><em>历史阶段结果，非全历史净账本</em></div>
+<div class="card"><small>历史沟通已归档</small><strong id="stat-mail">—</strong><em id="mail-note">Gmail历史补录继续运行</em></div>
 </section>
-<section class="panel" style="margin-bottom:18px" aria-label="历史数据与经营基线">
-<div class="panel-head"><div><div class="eyebrow">01 / 数据基线</div><h2>现有历史数据 · 无需重复抓取</h2></div><button id="refresh-baseline">刷新数据</button></div>
-<div class="cards" style="margin:0;padding:18px;grid-template-columns:repeat(3,minmax(0,1fr))">
-<div class="card"><small>历史客户扫描</small><strong id="base-customers">—</strong><span>Shopify原始基线 · 11月8日</span></div>
-<div class="card"><small>近180天有效订单</small><strong id="base-orders">—</strong><span>订单快照 · 待财务净额核对</span></div>
-<div class="card"><small>Gmail已归档沟通</small><strong id="base-mails">—</strong><span id="mail-progress">历史邮件继续断点补录</span></div>
+<section id="customers" class="panel">
+<div class="head"><div><div class="eyebrow">客户管理 / 全量筛选</div><h2>客户列表与分群</h2></div>
+<div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="refresh" disabled>刷新客户索引</button></div></div>
+<div class="warn" style="margin:15px 20px 0" id="data-caveat">CRM等级及180天M/F/R来自今天既有历史回写；在完整退款/全历史财务审计完成前，不代表最终已核验账本。</div>
+<div class="filters">
+<div class="filter-row"><input type="search" id="q" placeholder="搜索客户姓名、邮箱、编号、地区或跟进备注">
+<label>CRM等级<select id="tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
+<label>国家 / 地区<select id="country"><option value="">全部国家/地区</option></select></label>
+<label>邮件订阅<select id="subscription"><option value="">全部状态</option></select></label>
+<label>数据质量<select id="quality"><option value="">全部状态</option></select></label></div>
+<div class="filter-row"><label>180天消费≥USD<input id="minM" class="number-box" type="number" min="0" step="1" placeholder="不限"></label>
+<label>历史消费≥USD<input id="minLifetime" class="number-box" type="number" min="0" step="1" placeholder="不限"></label>
+<label>180天订单≥<input id="minF" class="number-box" type="number" min="0" step="1" placeholder="不限"></label>
+<label>最近购买≤天<input id="maxR" class="number-box" type="number" min="0" step="1" placeholder="不限"></label>
+<label>历史订单≥<input id="minOrders" class="number-box" type="number" min="0" step="1" placeholder="不限"></label>
+<label>排序<select id="sort"><option value="lastOrderAt">最近下单</option><option value="m180">180天消费</option><option value="spendLifetime">历史消费</option><option value="f180">180天订单</option><option value="ordersLifetime">历史订单</option><option value="rDays">活跃天数R</option><option value="aov">客单价</option><option value="name">姓名</option><option value="country">国家</option><option value="syncedAt">同步时间</option></select></label>
+<label>方向<select id="dir"><option value="desc">降序</option><option value="asc">升序</option></select></label>
+<button class="primary" id="apply">应用筛选</button><button id="reset">清除条件</button></div>
 </div>
-<p id="snapshot-at" style="margin:0 20px 16px">正在获取生产数据断点…</p></section>
-<section class="panel" id="ingestion" style="margin-bottom:18px">
- <div class="panel-head"><div><div class="eyebrow">数据同步 / 授权核验</div><h2>数据抓取状态</h2></div>
- <button id="check-ingestion" disabled>检查授权与抓取状态</button></div>
- <div class="notice" id="ingestion-status" style="margin:14px 22px">连接内部数据源后，可检查 Shopify 历史订单权限与最近导出任务；此状态与 ChatGPT 连接授权相互独立。</div>
-</section>
-<section class="panel" id="customers"><div class="panel-head"><div><div class="eyebrow">01 / 客户管理</div><h2>客户工作台</h2></div>
-<div class="filters"><input id="search" placeholder="搜索姓名 / 邮箱 / Shopify ID" aria-label="搜索客户"><select id="tier" aria-label="客户等级"><option value="">全部客户等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>沉睡</option></select><button id="apply" class="primary">筛选</button><button id="clear">重置</button></div></div>
-<div class="notice" style="margin:16px 22px" id="data-note">当前显示飞书现有数据镜像；客户分层需要等待2026年11月8日标准下的全历史订单财务核验。对未知数据不推断。</div>
-<div class="scroll"><table><thead><tr><th>客户</th><th>客户编号</th><th>等级</th><th>历史消费参考</th><th>历史订单数</th><th>国家/地区</th><th>数据状态</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="empty">等待后台连接，暂未加载客户数据</td></tr></tbody></table></div>
-<div class="pager"><div id="page-label">暂无数据</div><div><button id="prev" disabled>上一页</button> <button id="next" disabled>下一页</button></div></div></section>
-<section class="panel" id="rfm" style="margin-top:18px">
-<div class="panel-head"><div><div class="eyebrow">03 / 客户分层 · 2026-11-08</div><h2>RFM规则与数据验证</h2></div><span class="pill" id="rfm-check">等级待财务核验</span></div>
-<p style="margin:17px 22px">等级按近180天净消费M、距最近有效订单天数R、近180天有效订单F三项<strong>同时满足</strong>计算，按S+、S、A、B从高到低取最高符合等级。缺失全历史/退款数据时，不输出正式等级。</p>
-<div class="scroll"><table><thead><tr><th>等级</th><th>近180天净消费 M</th><th>最近购买 R</th><th>近180天订单 F</th></tr></thead><tbody>
-<tr><td>S+</td><td>≥ $3,000</td><td>≤ 45天</td><td>≥ 5笔</td></tr>
-<tr><td>S</td><td>≥ $1,500</td><td>≤ 90天</td><td>≥ 3笔</td></tr>
-<tr><td>A</td><td>≥ $800</td><td>≤ 180天</td><td>≥ 2笔</td></tr>
-<tr><td>B</td><td>＞ $0</td><td>≤ 180天</td><td>≥ 1笔</td></tr>
+<div class="scroll"><table><thead><tr>
+<th>客户 / 邮箱</th><th>国家/地区</th><th data-sort="tier">等级</th>
+<th data-sort="m180">180天消费</th><th data-sort="f180">180天订单</th>
+<th data-sort="rDays">R（天）</th><th data-sort="spendLifetime">历史累计</th><th data-sort="ordersLifetime">历史订单</th>
+<th>邮件订阅</th><th data-sort="lastOrderAt">最近订单</th><th>状态</th></tr></thead><tbody id="customer-rows">
+<tr><td colspan="11" class="muted" style="text-align:center;padding:36px">登录后加载全量客户索引</td></tr>
 </tbody></table></div>
-<div class="notice" style="margin:14px 20px">另区分基础客户、沉睡客户和从未购买；客单价$400高低分组是独立维度。现有等级回写属于历史处理结果，正式口径仍需净额审计。</div>
+<div class="pager"><span id="paging-label">暂无数据</span><div class="toolbar">
+<label>每页 <select id="size"><option>25</option><option selected>50</option><option>100</option></select></label>
+<button id="prev" disabled>上一页</button><button id="next" disabled>下一页</button></div></div>
 </section>
-<section class="panel" id="operations" style="margin-top:18px">
-<div class="panel-head"><div><div class="eyebrow">04 / 运营协作</div><h2>每日自动同步与团队执行</h2></div><span class="pill">北京时间</span></div>
-<div class="scroll"><table><thead><tr><th>阶段</th><th>客户更新</th><th>订单与退款</th><th>Gmail新增</th></tr></thead><tbody>
-<tr><td>上班前</td><td>08:50</td><td>08:55</td><td>09:00</td></tr>
-<tr><td>美东店铺归零后</td><td>13:15</td><td>13:20</td><td>13:25</td></tr>
-<tr><td>下班前</td><td>15:45</td><td>15:50</td><td>15:55</td></tr>
-</tbody></table></div>
-<div class="notice" id="operation-state" style="margin:14px 20px">正在获取今天的增量任务状态…</div>
-<div style="padding:0 20px 20px"><span class="fine">客服与Gmail历史事件需要按来源核对；AI建议均须人工确认。未来接入部门广告、商品及财务经营数据后可扩展归因分析。</span></div>
-</section>
-<footer>仅供内部使用 · 本页面不发送营销邮件 · 客户资料不会写入公开网页文件</footer>
+<div class="grid2">
+<section id="rfm" class="panel"><div class="head"><h2>客户等级规则</h2><span class="pill">11月8日标准</span></div><div class="body">
+<p class="muted">S+：M≥$3,000、R≤45天、F≥5笔；S：M≥$1,500、R≤90天、F≥3笔；A：M≥$800、R≤180天、F≥2笔；B：M＞$0、R≤180天、F≥1笔。</p>
+<div class="warn">每个等级须同时满足M/R/F三项。当前列表显示既有快照回写等级；全历史净额审计尚未完成，正式评级仍需复核。</div>
+</div></section>
+<section id="operations" class="panel"><div class="head"><h2>数据同步与运营状态</h2><button id="refresh-status">刷新状态</button></div><div class="body">
+<div class="status" id="operation-status">等待数据状态…</div>
+<p class="muted">北京时间：08:50客户 / 08:55订单 / 09:00邮件；13:15 / 13:20 / 13:25；15:45 / 15:50 / 15:55。历史 Gmail 继续独立断点补录。</p></div></section>
+</div>
+<p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
 </main></div>
-<dialog id="profile"><div class="detail"><div class="detail-head"><div><div class="eyebrow">客户全景 · 360°</div><h2 id="profile-name"></h2><p id="profile-email"></p></div><button id="close">关闭</button></div><div class="detail-grid" id="profile-data"></div>
-<h2 style="font:600 17px system-ui;margin-top:29px">已观察到的商品兴趣</h2><p class="fine">依据客户已购商品标题生成，属于行为证据，不等同于客户本人确认的喜好。</p><div id="interest-tags" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px"></div><h2 style="font:600 17px system-ui;margin-top:29px">客户生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
+<dialog id="customer-dialog"><div class="dialog-content">
+<div class="row dialog-top"><div><div class="eyebrow">CUSTOMER 360° · 客户关系全景</div><h1 id="customer-name">客户资料</h1><div class="muted" id="customer-email"></div></div><button id="close-dialog">关闭</button></div>
+<div class="profile-kpis" id="profile-kpis"></div>
+<h2>已观察到的商品兴趣</h2><p class="muted">从已购商品标题提取，保留证据；不代表客户自述偏好。</p><div id="profile-tags" class="toolbar"></div>
+<h2 style="margin-top:24px">客户生命历程</h2><p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
+<div id="events" class="event-list"></div>
+</div></dialog>
 <script>
 (()=>{"use strict";
-const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,items=[],cursor=null,cursorStack=[],nextCursor=null,source="shopify";
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const money=(n,currency="USD")=>typeof n==="number"?(currency==="USD"?"$":(currency||"")+" ")+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
-const fmt=n=>n?new Date(n).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"}):"—";
-const orderStatus=s=>({
- PAID:"已付款",PARTIALLY_PAID:"部分付款",PENDING:"待付款",AUTHORIZED:"已授权",
- REFUNDED:"已退款",PARTIALLY_REFUNDED:"部分退款",VOIDED:"已撤销",
- FULFILLED:"已发货",UNFULFILLED:"未发货",PARTIALLY_FULFILLED:"部分发货",
- ON_HOLD:"暂缓发货",IN_PROGRESS:"处理中",SCHEDULED:"计划发货"
-})[String(s||"").toUpperCase()]||s||"未知";
-const sourceStatus=s=>({
- "Shopify verified identity":"Shopify 身份已核验",
- "有效":"有效客户","未核验":"尚未核验"
-})[s]||s||"待核查";
-async function api(params){
- const query=new URLSearchParams(params);
- const r=await fetch("/api/bi-v1?"+query,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
- const json=await r.json();
- if(!r.ok||!json.ok)throw Error(json.error||"request_failed");
- return json;
-}
-async function refreshBaseline(){
- try{
-  const r=await fetch("/api/crm-status",{cache:"no-store"});
-  if(!r.ok)throw Error("snapshot_unavailable");
-  const d=await r.json();
-  if(!d.ok)throw Error("status_invalid");
-  const ints=x=>Number.isInteger(x)?x.toLocaleString("zh-CN"):"—";
-  $("base-customers").textContent=ints(d.imports?.shopify?.totals?.processed);
-  $("base-orders").textContent=ints(d.imports?.orders_180d?.totals?.eligible);
-  $("base-mails").textContent=ints(d.imports?.gmail?.totals?.created);
-  $("mail-progress").textContent=d.imports?.gmail?.completed?"历史导入已完成":"历史邮件正在继续按断点补录";
-  $("snapshot-at").textContent="最后运行记录："+fmt(d.updated_at)+" · 原始基线不重复导入 · 数据源：生产CRM断点";
-  const daily=d.daily_incremental||{};
-  const status=x=>!x?.started?"待首轮验证":x.completed?"最近一轮已完成":"最近一轮进行中";
-  $("operation-state").textContent="客户增量："+status(daily.customers)+"；订单增量："+status(daily.orders)+"；Gmail增量："+status(daily.gmail)+"。所有状态来自真实生产断点。";
-  $("rfm-check").textContent=d.imports?.crm_grading?.completed?
-    "既有评级已回写，待最终审计":"评级尚未完成";
- }catch(_){
-  $("snapshot-at").textContent="暂无法访问历史数据断点；不显示猜测值。";
-  $("operation-state").textContent="生产同步状态暂不可读，请稍后刷新。";
- }
-}
-async function apiOverview(){
- const r=await fetch("/api/bi-overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
- const json=await r.json();
- if(!r.ok||!json.ok)throw Error(json.error||"overview_unavailable");
- return json;
-}
-async function refreshOverview(){
- try{
-  const data=await apiOverview();
-  const c=data.customers;
-  $("kpi-total").textContent=c.precision==="EXACT"&&Number.isInteger(c.count)?
-   c.count.toLocaleString("zh-CN"):"待核验";
-  $("kpi-total-note").textContent="Shopify "+(c.precision==="EXACT"?"精确原始总数":"近似总数")+"；含待质检账户";
- }catch(_){
-  $("kpi-total").textContent="—";
-  $("kpi-total-note").textContent="尚未获得可核验的客户总数";
- }
-}
-async function shopifyCustomers(params){
- const query=new URLSearchParams(params);
- const r=await fetch("/api/bi-customers?"+query,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
- const json=await r.json();
- if(!r.ok||!json.ok)throw Error(json.error||"shopify_not_ready");
- return json;
-}
-async function load(){
- if(busy||!token)return;
- busy=true;$("rows").innerHTML='<tr><td colspan="7" class="empty">正在查询云端数据…</td></tr>';
- try{
-  let data;
-  try{
-   data=await shopifyCustomers({q:$("search").value,cursor:cursor||""});
-   source="shopify";
-  }catch(shopifyError){
-   // If live Shopify is not available, try the existing CRM Feishu mirror.
-   // Never invent missing RFM tiers or treat stale mirror rows as audited.
-   data=await api({mode:"customers",page,q:$("search").value,tier:""});
-   source="feishu";
-  }
-  items=data.customers;total=data.total??null;
-  nextCursor=source==="shopify"?data.nextCursor:null;
-  if(source==="feishu")$("kpi-total-note").textContent="仅展示飞书镜像，不作为Shopify有效客户数";
-  $("kpi-match").textContent=source==="shopify"?items.length+"+":[total?.toLocaleString()||"—"].join("");
-  $("sync").textContent=(source==="shopify"?"Shopify 实时数据":"飞书历史镜像")+" · "+fmt(data.asOf);
-  $("kpi-source").textContent=source==="shopify"?"Shopify 实时":"飞书镜像";
-  $("kpi-source-note").textContent=source==="shopify"?"客户资料实时读取；RFM 待核验":"过渡数据，非独立财务账本";
-  $("page-label").textContent="第 "+page+" 页 · "+(source==="shopify"?"每页最多40位；总数未核算":"当前匹配 "+total.toLocaleString()+" 位客户");
-  $("prev").disabled=page===1;
-  $("next").disabled=source==="shopify"?!nextCursor:page*50>=total;
-  $("tier").disabled=true;
-  $("tier").title="等级筛选待11月8日全历史净额账本审计完成后开放";
-  $("data-note").textContent=source==="shopify"?
-   "当前数据直接读取 Shopify。客户姓名、邮箱、历史订单数等为实时来源；全部客户数据质检和 S+/S/A/B 评级待净额审计。":
-   "当前为飞书过渡镜像，并非已核验的全历史订单账本，暂不执行正式等级分层。";
-  $("rows").innerHTML=items.length?items.map((c,i)=>'<tr data-i="'+i+'"><td>'+esc(c.name||"未填写姓名")+'<div class="fine">'+esc(c.email)+'</div></td><td>'+esc(c.id)+'</td><td><span class="pill">'+esc(c.tier||"未验证")+'</span></td><td>'+money(c.lifetimeSpend)+'</td><td>'+esc(c.lifetimeOrders??"—")+'</td><td>'+esc(c.country||"—")+'</td><td>'+esc(sourceStatus(c.quality))+'</td></tr>').join(""):'<tr><td colspan="7" class="empty">没有符合条件的客户</td></tr>';
-  document.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>profile(items[Number(tr.dataset.i)])));
-  $("auth").hidden=true;
-  $("check-ingestion").disabled=false;
-  refreshOverview();
-  checkIngestion();
- }catch(e){$("rows").innerHTML='<tr><td colspan="7" class="empty">无法读取数据：'+esc(e.message)+'</td></tr>';$("sync").textContent="连接异常";}
- finally{busy=false;}
-}
-async function checkIngestion(){
- if(!token)return;
- $("check-ingestion").disabled=true;
- $("ingestion-status").textContent="正在核查后台授权及订单抓取任务…";
- try{
-  const response=await fetch("/api/bi-ingestion-status",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
-  const data=await response.json();
-  if(!response.ok||!data.ok)throw Error(data.error||"ingestion_unavailable");
-  const sp=data.shopify||{};
-  const ready=sp.fullHistoryReady===true;
-  const recent=(sp.bulk||[]).slice(0,3).map(x=>
-   (x.status==="RUNNING"?"运行中":x.status==="COMPLETED"?"已完成":x.status||"未知")+
-   " · "+(x.createdAt?fmt(x.createdAt):"时间未知")).join("；");
-  $("ingestion-status").textContent=
-   (sp.configured?"Shopify 后台已配置":"Shopify 后台未配置")+
-   "；全历史订单授权："+(ready?"已具备":"尚未核验/缺少必要权限")+
-   "；最近批量导出："+(recent||"未发现记录")+
-   "；Gmail后台："+(data.gmail?.configured?"已配置":"未配置")+
-   "。注意：导出完成不等于财务和 RFM 核验完成。";
- }catch(e){
-  $("ingestion-status").textContent="无法获取后台同步状态："+e.message+"。请检查访问权限。";
- }finally{$("check-ingestion").disabled=false;}
-}
-async function apiJourney(id){
- const r=await fetch("/api/bi-journey?id="+encodeURIComponent(id),{
-  headers:{Authorization:"Bearer "+token},cache:"no-store"});
- const data=await r.json();
- if(!r.ok||!data.ok)throw Error(data.error||"journey_not_ready");
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=v=>v&&Number.isFinite(new Date(v).getTime())?new Date(v).toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai"}):"—";
+const money=(v,currency="USD")=>typeof v==="number"&&Number.isFinite(v)?(currency==="USD"?"$":currency+" ")+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
+const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
+const state={token:"",page:1,busy:false,rows:[],total:0};
+async function request(path,params={},authenticated=true){
+ const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
+ const url=path+(search.size?"?"+search:"");
+ const response=await fetch(url,{cache:"no-store",headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
+ let data={};try{data=await response.json()}catch(_){}
+ if(!response.ok||!data.ok)throw Error(data.error||"http_"+response.status);
  return data;
 }
-async function profile(c){
- $("profile").showModal();$("profile-name").textContent=c.name||"未填写姓名";$("profile-email").textContent=c.email||"无邮箱";
- $("profile-data").innerHTML=[["CRM等级",c.tier||"未验证"],["历史消费参考",money(c.lifetimeSpend,c.currency)],["历史订单数",c.lifetimeOrders??"—"],["国家/地区",c.country||"—"],["最近订单",c.lastOrder||"未回填"],["数据更新时间",fmt(c.syncedAt)]].map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1])+'</strong></div>').join("");
- $("coverage").textContent="正在读取客户沟通历史…";$("timeline").innerHTML="";$("interest-tags").textContent="正在分析已购商品…";
+async function readiness(){
+ try{const r=await request("/api/bi-readiness",{},false);
+  if(!r.accessReady){$("login-title").textContent="后台访问认证尚未配置";$("login-control").hidden=true;$("login-msg").textContent="请联系系统管理员在Vercel完成安全凭证配置。";}
+  else if(!r.customerSourceReady){$("login-title").textContent="后台客户数据源未配置";$("login-control").hidden=true;}
+  $("top-status").textContent=r.accessReady?"等待登录":"后台待配置";
+ }catch(_){$("top-status").textContent="连接状态未知";}
+}
+async function baseline(){
  try{
-  // Live Shopify order events and verified inbound Gmail messages take precedence.
-  const data=await apiJourney(c.id);
-  const coverage=data.coverage||{};
-  const tags=data.profile?.productInterests||[];
-  $("interest-tags").innerHTML=tags.length?tags.slice(0,12).map(x=>'<span class="pill" title="来自已购商品标题，不代表客户自述喜好">'+esc(x.label)+' · '+esc(x.evidenceCount)+'笔订单</span>').join(""):'<span class="fine">暂无足够的已购商品证据。</span>';
-  $("coverage").textContent="真实来源：Shopify订单 + Gmail收件。订单覆盖："+(coverage.orders==="all_returned_orders"?"当前可查订单":"前50笔（更多待分页）")+"；邮件覆盖："+(coverage.email==="sample_up_to_50"?"当前样本":"未完整接入")+"。RFM净额未审计，不做因果归因。";
-  const events=(data.events||[]).slice().reverse();
-  $("timeline").innerHTML=events.length?events.map(e=>{
-   const d=e.kind==="order"?[
-     e.currency&&e.amount!==null?e.currency+" "+e.amount:"",
-     orderStatus(e.status),orderStatus(e.fulfillment),
-     (e.products||[]).map(x=>x.title+" ×"+x.quantity).join("、")
-   ].filter(Boolean).join(" · "):e.kind==="communication"?
-     (e.issueFlag?"客户反馈疑似未收到包裹 · 待人工核实":"客户邮件 · 可追溯原始记录"):
-     e.kind==="acquisition_visit"?"店铺访问与广告触点":"客户首次建档";
-   const visit=e.kind==="order"?e.attribution?.firstVisit:null;
-   const utm=visit?.utm;
-   const visitUtm=e.kind==="acquisition_visit"?e.utm:null;
-   const attr=visit?'<div class="fine" style="margin-top:6px">已记录首访：'+esc([utm?.source,utm?.medium,utm?.campaign].filter(Boolean).join(" / ")||visit.source||"来源未注明")+'</div>':
-    e.kind==="acquisition_visit"?'<div class="fine" style="margin-top:6px">记录来源：'+esc([visitUtm?.source,visitUtm?.medium,visitUtm?.campaign].filter(Boolean).join(" / ")||e.visitSource||"未知")+'（仅为触点，不是增量因果归因）</div>':'';
-   const origin=e.kind==="communication"&&e.gmailUrl?'<a href="'+esc(e.gmailUrl)+'" target="_blank" rel="noopener noreferrer">查看原始邮件</a>':"";
-   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(d)+' · '+esc(e.source)+'</small>'+attr+'<div>'+origin+'</div></div>';
-  }).join(""):'<div class="fine">当前还没有可追溯的事件。</div>';
+  const data=await request("/api/crm-status",{},false);
+  $("stat-master").textContent=n(data.imports?.shopify?.totals?.processed);
+  $("stat-orders").textContent=n(data.imports?.orders_180d?.totals?.eligible);
+  $("stat-mail").textContent=n(data.imports?.gmail?.totals?.created);
+  $("mail-note").textContent=data.imports?.gmail?.completed?"历史归档已完成":"历史邮件继续从断点补录";
+  const daily=data.daily_incremental||{};
+  const label=x=>!x?.started?"未验收首轮":x.completed?"上次已完成":"进行中 / 待续";
+  $("operation-status").textContent="客户增量："+label(daily.customers)+"；订单增量："+label(daily.orders)+"；Gmail增量："+label(daily.gmail)+"。";
+ }catch(_){$("operation-status").textContent="当前无法读取生产同步状态。";}
+}
+function filterParams(){
+ const p={page:state.page};
+ for(const key of qs)p[key]=$(key).value.trim();
+ return p;
+}
+function fillOptions(id,values){
+ const el=$(id),previous=el.value;
+ el.innerHTML='<option value="">全部'+(id==="country"?"国家/地区":id==="subscription"?"订阅状态":"数据质量")+'</option>'+
+ (values||[]).slice(0,id==="country"?150:40).filter(x=>x.value!=="未注明").map(x=>
+ '<option value="'+esc(x.value)+'">'+esc(x.value)+' ('+n(x.count)+')</option>').join("");
+ el.value=previous;
+}
+async function load(){
+ if(!state.token||state.busy)return;
+ state.busy=true;$("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:30px;text-align:center">正在查询完整客户数据…</td></tr>';
+ try{
+  const data=await request("/api/bi-customers-v2",filterParams());
+  state.rows=data.customers;state.total=data.total;
+  $("stat-index").textContent=n(data.masterTotal);
+  $("index-date").textContent="数据索引 "+fmt(data.asOf);
+  $("match-count").textContent="匹配 "+n(data.total)+" 位客户";
+  $("paging-label").textContent="第"+data.page+" / "+Math.max(1,data.pageCount)+"页 · 共"+n(data.total)+"位";
+  $("prev").disabled=data.page<=1;$("next").disabled=data.page>=data.pageCount;
+  for(const key of ["country","subscription","quality"])if(!$(key).dataset.filled){fillOptions(key,data.facets?.[key==="country"?"countries":key==="subscription"?"subscriptions":"quality"]);$(key).dataset.filled="1";}
+  $("customer-rows").innerHTML=state.rows.length?state.rows.map((c,i)=>
+   '<tr data-i="'+i+'" data-id="'+esc(c.id)+'">'+
+   '<td><b>'+esc(c.name||"未填写姓名")+'</b><div class="fine">'+esc(c.email||"无邮箱")+'</div></td>'+
+   '<td>'+esc(c.country||"—")+'</td>'+
+   '<td><span class="pill">'+esc(c.tier||"待核验")+'</span></td>'+
+   '<td>'+money(c.m180)+'</td><td>'+n(c.f180)+'</td><td>'+n(c.rDays)+'</td>'+
+   '<td>'+money(c.spendLifetime)+'</td><td>'+n(c.ordersLifetime)+'</td>'+
+   '<td>'+esc(c.subscription||"未知")+'</td><td>'+fmt(c.lastOrderAt)+'</td>'+
+   '<td>'+esc(c.customerStatus||c.quality||"—")+'</td></tr>').join("")
+   :'<tr><td colspan="11" style="padding:32px;text-align:center" class="muted">没有符合条件的客户。请清除筛选条件重试。</td></tr>';
+  document.querySelectorAll("tr[data-i]").forEach(row=>row.addEventListener("click",()=>profile(state.rows[Number(row.dataset.i)])));
+  $("refresh").disabled=false;
+  $("top-status").textContent="已连接客户索引";
+  $("login").hidden=true;
  }catch(e){
-  $("interest-tags").textContent="暂时无法读取已购商品兴趣。";
-  $("coverage").textContent="实时历史尚未接通（"+e.message+"），尝试读取现有CRM沟通镜像。";
-  try{
-   const data=await api({mode:"customer",id:c.id});
-   $("timeline").innerHTML=data.events.length?data.events.map(e=>'<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(e.channel)+" · "+esc(e.source)+'</small></div>').join(""):'<div class="fine">当前没有可核验的沟通记录。</div>';
-  }catch(_){$("timeline").textContent="尚未获取客户事件。";}
- }
+  const pending=e.message==="crm_index_not_ready";
+  $("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:32px;text-align:center">'+
+    (pending?"客户索引正在从已有云端CRM数据建立，暂未完成。无需重新抓取Shopify历史。":"客户数据读取失败："+esc(e.message))+'</td></tr>';
+  $("top-status").textContent=pending?"索引初始化中":"客户数据异常";
+ }finally{state.busy=false;}
 }
-async function checkReadiness(){
+async function profile(c){
+ $("customer-dialog").showModal();
+ $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
+ const facts=[["等级（既有快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
+ ["最近购买R",n(c.rDays)+" 天"],["历史累计消费",money(c.spendLifetime)],["历史订单",n(c.ordersLifetime)],
+ ["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
+ $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");
+ $("profile-tags").textContent="正在读取已购商品…";$("events").textContent="正在读取客户历史…";
+ $("journey-coverage").textContent="Shopify订单和Gmail沟通查询中…";
  try{
-  const response=await fetch("/api/bi-readiness",{cache:"no-store"});
-  const data=await response.json();
-  if(!response.ok||!data.ok)throw Error("status_unavailable");
-  if(!data.accessReady||!data.customerSourceReady){
-   $("auth-title").textContent="后台尚未完成安全连接";
-   $("auth-note").textContent=
-     (!data.accessReady?"内部访问验证尚未配置。":"")+
-     (!data.customerSourceReady?"Shopify / 飞书数据源尚未配置。":"")+
-     "这是服务器配置问题，不需要输入 Shopify/Gmail 密钥。管理员完成安全部署后刷新本页。";
-   $("auth-fields").hidden=true;
-   $("sync").textContent="后台待配置";
-  }else{
-   $("auth-title").textContent="管理员访问验证";
-   $("auth-note").textContent="请使用 KBI 专用内部凭证。不要输入 Shopify、Gmail 或 Vercel 密钥。";
-   $("auth-fields").hidden=false;
-   $("sync").textContent="等待身份验证";
-  }
- }catch(_){
-  $("auth-title").textContent="连接状态暂时无法确认";
-  $("auth-note").textContent="系统状态查询失败。请管理员检查Vercel预览部署。";
-  $("auth-fields").hidden=true;
-  $("sync").textContent="配置检查失败";
+  const data=await request("/api/bi-journey",{id:c.id});
+  $("profile-tags").innerHTML=(data.profile?.productInterests||[]).map(t=>'<span class="pill">'+esc(t.label)+' · '+n(t.evidenceCount)+'笔</span>').join("")||'<span class="muted">暂无足够证据</span>';
+  $("journey-coverage").textContent="Shopify订单："+(data.coverage?.orders==="all_returned_orders"?"当前已返回全部":"超过50笔，仍有未加载订单")+
+   "；Gmail："+(data.coverage?.email||"未知")+"。来源记录不等同因果归因。";
+  const events=[...(data.events||[])].reverse();
+  $("events").innerHTML=events.map(e=>{
+   const extra=e.kind==="order"?
+    [e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
+    e.kind==="acquisition_visit"?"广告/自然触点 · "+[e.utm?.source,e.utm?.medium,e.utm?.campaign].filter(Boolean).join("/"):
+    e.kind==="communication"?"客户沟通 · "+(e.issueFlag?"疑似售后问题待核实":"邮件记录"):"客户建档";
+   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><p>'+esc(extra)+'</p></div>';
+  }).join("")||'<div class="muted">当前没有可追溯的事件。</div>';
+ }catch(e){
+  $("profile-tags").textContent="暂时无法加载已购产品兴趣";
+  $("journey-coverage").textContent="实时数据接口暂不可用："+e.message;
+  $("events").textContent="客户M/F/R历史快照仍可查看；实时订单与沟通需检查后台接口。";
  }
 }
-$("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;cursor=null;cursorStack=[];load()};
-checkReadiness();
-refreshBaseline();
-$("refresh-baseline").onclick=refreshBaseline;
-document.querySelectorAll(".menu a[href]").forEach(a=>a.addEventListener("click",()=>{document.querySelectorAll(".menu a").forEach(x=>x.classList.remove("selected"));a.classList.add("selected")}));
-$("apply").onclick=()=>{page=1;cursor=null;cursorStack=[];load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;cursor=null;cursorStack=[];load()};
-$("search").onkeydown=e=>{if(e.key==="Enter"){page=1;cursor=null;cursorStack=[];load()}};
-$("prev").onclick=()=>{if(page>1){page--;if(source==="shopify")cursor=cursorStack.pop()||null;load()}};
-$("next").onclick=()=>{
- if(source==="shopify"&&nextCursor){cursorStack.push(cursor);cursor=nextCursor;page++;load()}
- else if(source==="feishu"&&page*50<total){page++;load()}
-};
-$("check-ingestion").onclick=checkIngestion;
-$("close").onclick=()=>$("profile").close();
+$("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;load()};
+$("secret").onkeydown=e=>{if(e.key==="Enter")$("connect").click()};
+$("apply").onclick=()=>{state.page=1;load()};
+$("reset").onclick=()=>{for(const id of ["q","minM","minLifetime","minF","maxR","minOrders"])$(id).value="";
+ for(const id of ["tier","country","subscription","quality"])$(id).value="";
+ $("sort").value="lastOrderAt";$("dir").value="desc";state.page=1;load()};
+$("q").onkeydown=e=>{if(e.key==="Enter"){$("apply").click()}};
+$("refresh").onclick=()=>load();
+$("prev").onclick=()=>{if(state.page>1){state.page--;load()}};
+$("next").onclick=()=>{if(state.page*Number($("size").value)<state.total){state.page++;load()}};
+$("size").onchange=()=>{state.page=1;load()};
+document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{const key=th.dataset.sort;
+ $("dir").value=$("sort").value===key&&$("dir").value==="desc"?"asc":"desc";$("sort").value=key;state.page=1;load()}));
+$("refresh-status").onclick=baseline;$("close-dialog").onclick=()=>$("customer-dialog").close();
+document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
+readiness();baseline();
 })();
 </script></body></html>
