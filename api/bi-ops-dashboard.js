@@ -24,7 +24,7 @@ function secretMatch(given,expected){
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- const access=String(req.headers?.authorization||"").replace(/^Bearer\\s+/i,"");
+ const access=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  const isCron=secretMatch(access,process.env.CRON_SECRET);
  const isUser=secretMatch(access,process.env.KBI_ACCESS_TOKEN);
  if(!isCron&&!isUser)return res.status(401).json({ok:false,error:"unauthorized"});
