@@ -16,7 +16,7 @@ test("first sync runs a 49-hour bounded lookback, not a historical import",()=>{
  const v=cycle(null,new Date(start));
  assert.equal(v.day,"2026-11-08");
  assert.equal(v.slot,"before_work");
- assert.equal(v.windowStart,"2026-11-06T23:50:00.000Z");
+ assert.equal(v.windowStart,"2026-11-05T23:50:00.000Z");
  assert.equal(v.cursor,null);
  assert.equal(v.completed,false);
 });
