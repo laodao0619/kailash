@@ -1,5 +1,8 @@
 const API="https://open.feishu.cn/open-apis";
-module.exports=async(req,res)=>{\n const expected=process.env.REPORT_GATEWAY_TOKEN||"";\n const got=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");\n if(!expected||got!==expected)return res.status(401).json({ok:false,error:"Unauthorized"});
+module.exports=async(req,res)=>{
+ const expected=process.env.REPORT_GATEWAY_TOKEN||"";
+ const got=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
+ if(!expected||got!==expected)return res.status(401).json({ok:false,error:"Unauthorized"});
  try{
  const ar=await fetch(API+"/auth/v3/tenant_access_token/internal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({app_id:process.env.FEISHU_APP_ID,app_secret:process.env.FEISHU_APP_SECRET})});
  const a=await ar.json(); if(!ar.ok||a.code!==0) throw new Error(a.msg||"auth failed");
