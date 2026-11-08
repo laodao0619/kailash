@@ -94,10 +94,14 @@ async function profile(c){
      e.currency&&e.amount!==null?e.currency+" "+e.amount:"",
      e.status||"",e.fulfillment||"",
      (e.products||[]).map(x=>x.title+" ×"+x.quantity).join("、")
-   ].filter(Boolean).join(" · "):e.kind==="communication"?"客户来信 · 邮件原始证据":"客户建档";
+   ].filter(Boolean).join(" · "):e.kind==="communication"?
+     (e.issueFlag?"客户反馈疑似未收到包裹 · 待人工核实":"客户来信 · 邮件原始证据"):
+     e.kind==="acquisition_visit"?"Shopify记录的广告/自然访问触点":"客户建档";
    const visit=e.kind==="order"?e.attribution?.firstVisit:null;
    const utm=visit?.utm;
-   const attr=visit?'<div class="fine" style="margin-top:6px">已记录首访：'+esc([utm?.source,utm?.medium,utm?.campaign].filter(Boolean).join(" / ")||visit.source||"来源未注明")+'</div>':'';
+   const visitUtm=e.kind==="acquisition_visit"?e.utm:null;
+   const attr=visit?'<div class="fine" style="margin-top:6px">已记录首访：'+esc([utm?.source,utm?.medium,utm?.campaign].filter(Boolean).join(" / ")||visit.source||"来源未注明")+'</div>':
+    e.kind==="acquisition_visit"?'<div class="fine" style="margin-top:6px">记录来源：'+esc([visitUtm?.source,visitUtm?.medium,visitUtm?.campaign].filter(Boolean).join(" / ")||e.visitSource||"未知")+'（仅为触点，不是增量因果归因）</div>':'';
    const origin=e.kind==="communication"&&e.gmailUrl?'<a href="'+esc(e.gmailUrl)+'" target="_blank" rel="noopener noreferrer">查看原始邮件</a>':"";
    return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(d)+' · '+esc(e.source)+'</small>'+attr+'<div>'+origin+'</div></div>';
   }).join(""):'<div class="fine">当前还没有可追溯的事件。</div>';
