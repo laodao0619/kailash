@@ -52,7 +52,7 @@ module.exports=async(req,res)=>{
    }));
    // Write the page before advancing the checkpoint. A retry overwrites
    // the same page path rather than counting records twice in storage.
-   const pagePath=state.ROOT+"/orders/"+checkpoint.day+"/page-"+checkpoint.counters.pages+".json";
+   const pagePath=state.ROOT+"/orders/"+checkpoint.day+"/"+(checkpoint.slot||"legacy")+"/page-"+checkpoint.counters.pages+".json";
    await state.save(pagePath,{asOf:new Date().toISOString(),windowStart:checkpoint.windowStart,orders:records});
    checkpoint.counters.scanned+=records.length;
    checkpoint.counters.accepted+=records.length;
