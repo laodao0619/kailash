@@ -6,8 +6,10 @@ on:
       - 'api/bi-customers.js'
       - 'api/bi-customers-v2.js'
       - 'api/bi-customers-export.js'
-      - 'tests/kbi-csv-export.test.js'
+      - 'tests/kbi-csv-export.test.js tests/kbi-production-qa.test.js'
       - 'api/bi-index-build.js'
+      - 'api/bi-production-qa.js'
+      - 'tests/kbi-production-qa.test.js'
       - 'tests/kbi-full-index.test.js'
       - 'tests/kbi-bootstrap.test.js'
       - 'vercel.json'
@@ -36,6 +38,8 @@ on:
       - 'api/bi-customers-export.js'
       - 'tests/kbi-csv-export.test.js'
       - 'api/bi-index-build.js'
+      - 'api/bi-production-qa.js'
+      - 'tests/kbi-production-qa.test.js'
       - 'tests/kbi-full-index.test.js'
       - 'tests/kbi-bootstrap.test.js'
       - 'vercel.json'
@@ -76,6 +80,8 @@ jobs:
           node --check api/bi-customers-export.js
           node --check tests/kbi-csv-export.test.js
           node --check api/bi-index-build.js
+          node --check api/bi-production-qa.js
+          node --check tests/kbi-production-qa.test.js
           node --check tests/kbi-full-index.test.js tests/kbi-bootstrap.test.js tests/kbi-csv-export.test.js
           node --check tests/kbi-bootstrap.test.js
           node --check api/bi-overview.js
