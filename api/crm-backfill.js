@@ -1,6 +1,7 @@
 "use strict";
 const crypto=require("crypto");
 const {get,put}=require("@vercel/blob");
+const {mark}=require("../lib/crm-task-log");
 const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
@@ -30,7 +31,7 @@ module.exports=async(req,res)=>{
  let state={},stats={new:0,updated:0,pages:0,failed:0};
  try{
   state=await readState();
-  if(state.shopifyCycleComplete)return res.status(200).json({ok:true,completed:true,totals:state.shopifyTotals||{},lastUpdate:state.updatedAt});
+  if(state.shopifyCycleComplete){await mark("T06","done","Shopify customer historical backfill finished: "+(state.shopifyTotals?.processed||0));return res.status(200).json({ok:true,completed:true,totals:state.shopifyTotals||{},lastUpdate:state.updatedAt});}
   const token=await feishu.tenantToken();
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
   // Each page is committed separately. The cursor advances only after its Feishu writes succeed.
@@ -57,9 +58,11 @@ module.exports=async(req,res)=>{
    await saveState(state);
    if(state.shopifyCycleComplete)break;
   }
+  await mark("T06",state.shopifyCycleComplete?"done":"in_progress","Shopify historical customers processed "+(state.shopifyTotals?.processed||0));
   return res.status(200).json({ok:true,completed:!!state.shopifyCycleComplete,run:stats,totals:state.shopifyTotals||{},note:"Only Shopify customer source fields imported. RFM requires order reconciliation."});
  }catch(e){
   stats.failed++;
+  await mark("T06","retry",String(e.message||e).slice(0,140));
   return res.status(502).json({ok:false,retryable:true,run:stats,error:String(e.message||e).slice(0,220)});
  }
 };
