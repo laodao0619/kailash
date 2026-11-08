@@ -29,6 +29,10 @@
     {
       "path": "/api/crm-gmail-stage",
       "schedule": "3-59/10 * * * *"
+    },
+    {
+      "path": "/api/crm-orders-stage",
+      "schedule": "5-59/10 * * * *"
     }
   ]
 }
