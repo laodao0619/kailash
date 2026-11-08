@@ -4,13 +4,13 @@ function initialize(ctx){
  const {$,request,state,esc,money}=ctx;
  let board={version:0,items:[]},busy=false,editing=null,latest=null;
  async function mutate(action,item){
-  if(busy)return;busy=true;render();
+  if(busy)return;busy=true;document.querySelectorAll('.command-item input,.command-item button,#board-save').forEach(el=>el.disabled=true);$('board-status').textContent='正在保存…';
   try{
    const r=await fetch('/api/bi-ops-board',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+state.token},body:JSON.stringify({action,expectedVersion:board.version,...(action==='save'?{item}:{id:item.id})})});
    const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error);
    board=d;editing=null;$('board-title').value='';$('board-notes').value='';render();if(latest)suggestions(latest);$('board-status').textContent='已保存到云端';
   }catch(e){$('board-status').textContent=e.message==='board_version_changed'?'其他人已更新，请重新读取后再保存。当前输入仍保留。':'保存失败，请重试';}
-  finally{busy=false;render();}
+  finally{busy=false;render();$('board-save').disabled=false;}
  }
  function render(){
   for(const kind of ['goal','opportunity','anomaly']){
