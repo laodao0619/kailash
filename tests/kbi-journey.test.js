@@ -46,6 +46,7 @@ function setupFetch({duplicate=false,mailDate="2026-11-08T08:51:12Z"}={}){
  return calls;
 }
 function setEnvironment(){
+ process.env.KBI_TEST_DIAGNOSTICS="1";
  process.env.KBI_ACCESS_TOKEN="the-secret-that-is-long-enough";
  process.env.SHOPIFY_SHOP_DOMAIN="fake.myshopify.com";
  process.env.SHOPIFY_ADMIN_ACCESS_TOKEN="test-shopify-admin-token";
