@@ -7,6 +7,10 @@
   },
   "crons": [
     {
+      "path": "/api/crm-case-private-preview",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/crm-worker",
       "schedule": "0 0 * * *"
     },
