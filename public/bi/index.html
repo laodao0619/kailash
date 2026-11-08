@@ -28,7 +28,7 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 <div class="bottom">KBI V1 · Read-only preview<br>来源：当前云端 CRM 镜像<br>分层：以 2026-11-08 规则为准</div></aside>
 <main>
 <div class="top"><div><div class="eyebrow">Customer Intelligence / 客户分析</div><h1>Understand every customer.</h1><p>统一客户资料、购买历史与沟通证据；所有未核验数据明确标注。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
-<section class="notice" id="auth"><b>访问验证</b><div>请输入管理员提供的 KBI 访问令牌。令牌仅保留在当前页面内存，不保存到浏览器。</div><input id="token" type="password" autocomplete="off" placeholder="KBI access token"><button class="primary" id="connect">连接只读数据</button></section>
+<section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" placeholder="KBI access token"><button class="primary" id="connect">连接只读数据</button></div></section>
 <section class="cards" aria-label="Data overview">
 <div class="card"><small>Current CRM customers</small><strong id="kpi-total">—</strong><span>云端有效客户记录</span></div>
 <div class="card"><small>Matched Customers</small><strong id="kpi-match">—</strong><span>当前筛选人数</span></div>
@@ -138,7 +138,34 @@ async function profile(c){
   }catch(_){$("timeline").textContent="尚未获取客户事件。";}
  }
 }
+async function checkReadiness(){
+ try{
+  const response=await fetch("/api/bi-readiness",{cache:"no-store"});
+  const data=await response.json();
+  if(!response.ok||!data.ok)throw Error("status_unavailable");
+  if(!data.accessReady||!data.customerSourceReady){
+   $("auth-title").textContent="预览环境尚未完成后台配置";
+   $("auth-note").textContent=
+     (!data.accessReady?"访问认证尚未配置。":"")+
+     (!data.customerSourceReady?"客户数据源尚未配置。":"")+
+     "这是服务器配置问题，不需要输入 Shopify/Gmail 密钥。管理员完成安全部署后刷新本页。";
+   $("auth-fields").hidden=true;
+   $("sync").textContent="后台待配置";
+  }else{
+   $("auth-title").textContent="管理员访问验证";
+   $("auth-note").textContent="请使用专用KBI访问凭证，不要输入Shopify或Gmail API密钥。";
+   $("auth-fields").hidden=false;
+   $("sync").textContent="等待身份验证";
+  }
+ }catch(_){
+  $("auth-title").textContent="连接状态暂时无法确认";
+  $("auth-note").textContent="系统状态查询失败。请管理员检查Vercel预览部署。";
+  $("auth-fields").hidden=true;
+  $("sync").textContent="配置检查失败";
+ }
+}
 $("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;cursor=null;cursorStack=[];load()};
+checkReadiness();
 $("apply").onclick=()=>{page=1;load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;load()};
 $("search").onkeydown=e=>{if(e.key==="Enter"){page=1;load()}};
 $("prev").onclick=()=>{if(page>1){page--;if(source==="shopify")cursor=cursorStack.pop()||null;load()}};
