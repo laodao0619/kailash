@@ -26,13 +26,14 @@ function shopOrder(){
     utmParameters:{source:"facebook",medium:"cpc",campaign:"test_campaign"}},
    lastVisit:null}};
 }
-function setupFetch({duplicate=false,mailDate="2026-11-08T08:51:12Z"}={}){
+function setupFetch({duplicate=false,ambiguous=false,mailDate="2026-11-08T08:51:12Z"}={}){
  let calls=[];
  global.fetch=async(url,options={})=>{
   calls.push(String(url));
   if(String(url).includes("/admin/api/")&&JSON.parse(options.body||"{}").query?.includes("KbiEmailOwners"))
    return response({data:{customers:{pageInfo:{hasNextPage:false},nodes:[
-    {id:"gid://shopify/Customer/12345678901",defaultEmailAddress:{emailAddress:EMAIL}}
+    {id:"gid://shopify/Customer/12345678901",defaultEmailAddress:{emailAddress:EMAIL}},
+    ...(ambiguous?[{id:"gid://shopify/Customer/22222222222",defaultEmailAddress:{emailAddress:EMAIL}}]:[])
    ]}}});
   if(String(url).includes("/admin/api/"))return response({data:{customer:{
    id:"gid://shopify/Customer/12345678901",firstName:"Sample",lastName:"Customer",createdAt:"2026-10-02T00:00:00Z",
@@ -91,6 +92,14 @@ test("a message from an unexpected sender is never linked",async()=>{
  await handler(req(),out);
  assert.equal(out.code,200);
  assert.equal(out.body.events.filter(x=>x.kind==="communication").length,0);
+});
+test("duplicate Shopify owners prevent all Gmail disclosure",async()=>{
+ setEnvironment();const calls=setupFetch({ambiguous:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200);
+ assert.equal(out.body.coverage.email,"ambiguous_customer_email");
+ assert.equal(out.body.events.some(e=>e.source==="Gmail"),false);
+ assert.equal(calls.some(x=>x.includes("gmail.googleapis.com")),false);
 });
 test("invalid customer ID is rejected before external API calls",async()=>{
  setEnvironment();const calls=setupFetch();const out=res();
