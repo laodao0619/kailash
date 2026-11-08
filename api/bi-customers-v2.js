@@ -136,3 +136,4 @@ module.exports=async(req,res)=>{
 module.exports.queryRows=queryRows;
 module.exports.facets=facets;
 module.exports.snapshot=snapshot;
+module.exports.liveCRMScan=liveCRMScan;
