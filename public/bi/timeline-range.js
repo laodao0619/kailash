@@ -53,7 +53,7 @@
   });
  }
  function polyline(items,x,y){
-  return (items||[]).map((item,i)=>(i?"L":"M")+x(item).toFixed(2)+" "+y(item).toFixed(2)).join(" ");
+  return (items||[]).map((item,i)=>(i?"L":"M")+x(item).toFixed(2)+" "+y(item).toFixed(2)).join("");
  }
  return {DAY,MIN,MAX,millis,clamp,allBounds,timeWindow,zoom,filterEvents,cumulativeSeries,polyline};
 });
