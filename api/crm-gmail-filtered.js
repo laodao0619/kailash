@@ -51,6 +51,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authorized(req))return res.status(401).json({ok:false});
+ if(process.env.CRM_FILTER_VERSION!=="v2-reviewed")return res.status(200).json({ok:true,paused:true,reason:"Awaiting valid customer screening and subscriptions fields"});
  if(!(process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET&&process.env.GMAIL_REFRESH_TOKEN))
   return res.status(200).json({ok:true,skipped:"gmail_oauth_not_configured"});
  const stats={seen:0,accepted:0,excluded_categories:0,excluded_auto:0,unmatched:0,ambiguous:0,duplicate_threads:0,created:0,pages:0};
