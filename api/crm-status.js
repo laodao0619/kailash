@@ -11,11 +11,12 @@ module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
   if(req.method!=="GET") return res.status(405).json({ok:false});
   try{
-    const [state,shopify,gmail,gmailStage]=await Promise.all([
+    const [state,shopify,gmail,gmailStage,ordersStage]=await Promise.all([
       readJson("crm-execution/tasks.json"),
       readJson("crm-execution/import-cursor.json"),
       readJson("crm-execution/gmail-filtered-cursor.json"),
-      readJson("crm-execution/gmail-stage-state.json")
+      readJson("crm-execution/gmail-stage-state.json"),
+      readJson("crm-execution/orders-stage-state.json")
     ]);
     if(!state)return res.status(503).json({ok:false,status:"not_initialized"});
     return res.status(200).json({
@@ -26,7 +27,8 @@ module.exports=async(req,res)=>{
       last_event_at:(state.log||[]).at(-1)?.at||null,
       imports:{
         shopify:{completed:!!shopify?.shopifyCycleComplete,totals:shopify?.shopifyTotals||null,quality_version:shopify?.qualityVersion||null,invalid_existing_removed:shopify?.qualityAudit?.existingRemoved||0,paid_suspicious_excluded_existing:shopify?.qualityAudit?.existingFlaggedPaid||0,subscription_views_configured:shopify?.viewSetVersion==="v2",last_checkpoint:shopify?.updatedAt||null},
-        gmail:{completed:!!gmail?.finished,totals:gmail?.totals||null,last_checkpoint:gmail?.updatedAt||null,filter:"365 days, human inbound only, matched customer, one record per thread",prescreen:{started:!!gmailStage,completed:!!gmailStage?.completed,pages:gmailStage?.page||0,totals:gmailStage?.totals||null,last_checkpoint:gmailStage?.updatedAt||null}}
+        gmail:{completed:!!gmail?.finished,totals:gmail?.totals||null,last_checkpoint:gmail?.updatedAt||null,filter:"365 days, human inbound only, matched customer, one record per thread",prescreen:{started:!!gmailStage,completed:!!gmailStage?.completed,pages:gmailStage?.page||0,totals:gmailStage?.totals||null,last_checkpoint:gmailStage?.updatedAt||null}},
+        orders_180d:{started:!!ordersStage,completed:!!ordersStage?.completed,pages:ordersStage?.page||0,totals:ordersStage?.totals||null,since:ordersStage?.since||null,last_checkpoint:ordersStage?.updatedAt||null}
       },
       source_connectors:{
         shopify_backend_authorized:!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET))),
