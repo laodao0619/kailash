@@ -124,6 +124,8 @@
   $("product-search").onkeydown=e=>{if(e.key==="Enter")products()};
   $("report-refresh").onclick=summary;
   $("report-export").onclick=()=>{$("export").click();};
+  $("marketing-find").onclick=()=>{const q=$("marketing-customer").value.trim();if(!q)return;$("q").value=q;state.page=1;load();go("customers")};
+  $("marketing-customer").onkeydown=e=>{if(e.key==="Enter")$("marketing-find").click()};
   $("report-rfm").onclick=()=>go("rfm");
   $("report-cases").onclick=()=>go("case-center");
   return {start:()=>Promise.allSettled([summary(),cases(),products(),health()]),summary,cases,products,health};
