@@ -5,6 +5,8 @@ const {mark}=require("../lib/crm-task-log");
 const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
+const quality=require("../lib/crm-quality-feishu");
+const {classify}=require("../lib/crm-customer-quality");
 const PATH="crm-execution/import-cursor.json";
 function authorized(req){
  const a=Buffer.from((req.headers.authorization||"").replace(/^Bearer\s+/i,""));
@@ -41,6 +43,12 @@ module.exports=async(req,res)=>{
    await saveState(state);
   }
   const token=await feishu.tenantToken();
+  await quality.ensureFields(token);
+  if(!state.qualityCleanupFinished){
+   const cleanup=await quality.cleanExisting(token,state);
+   await saveState(state);
+   stats.cleanup=cleanup;
+  }
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
   if(state.shopifyTotals?.initialImported==null){
    state.shopifyTotals=state.shopifyTotals||{created:0,updated:0,processed:0,pages:0};
@@ -59,20 +67,29 @@ module.exports=async(req,res)=>{
     await saveState(state);
     break;
    }
-   const result=await bulk.batchCustomers(token,page.nodes,index);
+   const valid=[];
+   const tally={subscribed:0,not_subscribed:0,excluded:0,excluded_paid:0,excluded_qq:0,excluded_robot:0};
+   for(const customer of page.nodes){
+    const q=classify(customer);
+    if(!q.eligible){tally.excluded++;if(q.paidManualReview)tally.excluded_paid++;if(q.reason==="QQ邮箱")tally.excluded_qq++;if(/机器人|测试|临时/.test(q.reason))tally.excluded_robot++;continue;}
+    valid.push(customer);
+    if(q.subscription==="已订阅")tally.subscribed++;else tally.not_subscribed++;
+   }
+   const result=await bulk.batchCustomers(token,valid,index);
    stats.new+=result.created;stats.updated+=result.updated;stats.pages++;
    state.shopifyTotals=state.shopifyTotals||{created:0,updated:0,processed:0,pages:0};
    state.shopifyTotals.created+=result.created;
    state.shopifyTotals.updated+=result.updated;
    state.shopifyTotals.processed+=page.nodes.length;
    state.shopifyTotals.pages++;
+   for(const [key,value] of Object.entries(tally))state.shopifyTotals[key]=(state.shopifyTotals[key]||0)+value;
    state.shopifyCursor=page.pageInfo.hasNextPage?page.pageInfo.endCursor:null;
    state.shopifyCycleComplete=!page.pageInfo.hasNextPage;
    await saveState(state);
    if(state.shopifyCycleComplete)break;
   }
   await mark("T06",state.shopifyCycleComplete?"done":"in_progress","Shopify historical customers processed "+(state.shopifyTotals?.processed||0));
-  return res.status(200).json({ok:true,completed:!!state.shopifyCycleComplete,run:stats,totals:state.shopifyTotals||{},note:"Only Shopify customer source fields imported. RFM requires order reconciliation."});
+  return res.status(200).json({ok:true,completed:!!state.shopifyCycleComplete,run:stats,totals:state.shopifyTotals||{},qualityAudit:state.qualityAudit||null,note:"Only valid source customers imported; Shopify marketingState used for subscription, not customer purchase activity. RFM requires order reconciliation."});
  }catch(e){
   stats.failed++;
   await mark("T06","retry",String(e.message||e).slice(0,140));
