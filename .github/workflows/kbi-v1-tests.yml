@@ -1,100 +1,41 @@
-name: KBI V1 read-only tests
+name: Kailash BI full CRM tests
 on:
   pull_request:
     paths:
-      - 'api/bi-journey.js'
-      - 'api/bi-customers.js'
-      - 'api/bi-customers-v2.js'
-      - 'api/bi-customers-export.js'
-      - 'tests/kbi-csv-export.test.js'
-      - 'api/bi-index-build.js'
-      - 'tests/kbi-full-index.test.js'
-      - 'tests/kbi-bootstrap.test.js'
-      - 'vercel.json'
-      - 'api/bi-overview.js'
-      - 'api/bi-ingestion-status.js'
-      - 'lib/crm-shopify.js'
-      - 'lib/crm-gmail.js'
-      - 'tests/kbi-journey.test.js'
-      - 'tests/kbi-customers.test.js'
-      - 'tests/kbi-overview.test.js'
-      - 'tests/kbi-ingestion-status.test.js'
-      - 'tests/kbi-rfm.test.js'
-      - 'lib/kbi-rfm.js'
-      - 'lib/kbi-ledger-adapter.js'
-      - 'lib/kbi-customer-profile.js'
-      - 'tests/kbi-customer-profile.test.js'
-      - 'tests/kbi-ledger-adapter.test.js'
+      - 'api/bi-*.js'
+      - 'lib/kbi-*.js'
+      - 'tests/kbi-*.test.js'
       - 'public/bi/index.html'
+      - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
   push:
-    branches: ['feat/kbi-v1-readonly','fix/kbi-uat-full-index-filters']
+    branches: ['main','feat/kbi-production-readonly-qa']
     paths:
-      - 'api/bi-journey.js'
-      - 'api/bi-customers.js'
-      - 'api/bi-customers-v2.js'
-      - 'api/bi-customers-export.js'
-      - 'tests/kbi-csv-export.test.js'
-      - 'api/bi-index-build.js'
-      - 'tests/kbi-full-index.test.js'
-      - 'tests/kbi-bootstrap.test.js'
-      - 'vercel.json'
-      - 'api/bi-overview.js'
-      - 'api/bi-ingestion-status.js'
-      - 'lib/crm-shopify.js'
-      - 'lib/crm-gmail.js'
-      - 'tests/kbi-journey.test.js'
-      - 'tests/kbi-customers.test.js'
-      - 'tests/kbi-overview.test.js'
-      - 'tests/kbi-ingestion-status.test.js'
-      - 'tests/kbi-rfm.test.js'
-      - 'lib/kbi-rfm.js'
-      - 'lib/kbi-ledger-adapter.js'
-      - 'lib/kbi-customer-profile.js'
-      - 'tests/kbi-customer-profile.test.js'
-      - 'tests/kbi-ledger-adapter.test.js'
+      - 'api/bi-*.js'
+      - 'lib/kbi-*.js'
+      - 'tests/kbi-*.test.js'
       - 'public/bi/index.html'
+      - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
 permissions:
   contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install runtime dependencies
+      - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Node syntax validation
+      - name: Verify JavaScript syntax
         run: |
-          node --check api/bi-journey.js
-          node --check api/bi-customers.js
-          node --check api/bi-customers-v2.js
-          node --check api/bi-customers-export.js
-          node --check tests/kbi-csv-export.test.js
-          node --check api/bi-index-build.js
-          node --check tests/kbi-full-index.test.js tests/kbi-bootstrap.test.js tests/kbi-csv-export.test.js
-          node --check tests/kbi-bootstrap.test.js
-          node --check api/bi-overview.js
-          node --check api/bi-ingestion-status.js
-          node --check lib/kbi-rfm.js
-          node --check lib/kbi-ledger-adapter.js
-          node --check lib/kbi-customer-profile.js
-          node --check lib/crm-shopify.js
-          node --check lib/crm-gmail.js
-          node --check tests/kbi-journey.test.js
-          node --check tests/kbi-customers.test.js
-          node --check tests/kbi-overview.test.js
-          node --check tests/kbi-ingestion-status.test.js
-          node --check tests/kbi-rfm.test.js
-          node --check tests/kbi-ledger-adapter.test.js
-          node --check tests/kbi-customer-profile.test.js
-      - name: Run zero-secret unit tests
-        run: node --test tests/kbi-journey.test.js tests/kbi-customers.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js tests/kbi-customer-profile.test.js tests/kbi-overview.test.js tests/kbi-ingestion-status.test.js tests/kbi-full-index.test.js
-      - name: Validate inline workbench JavaScript
-        run: |
+          for file in api/bi-*.js lib/kbi-*.js tests/kbi-*.test.js; do
+            node --check "$file"
+          done
           node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const a=s.indexOf("<script>");const b=s.indexOf("</script>",a);if(a<0||b<0)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",s.slice(a+8,b));'
           node --check /tmp/kbi-workbench.js
+      - name: Execute all synthetic BI tests
+        run: node --test tests/kbi-*.test.js
