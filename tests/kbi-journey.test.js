@@ -26,7 +26,7 @@ function shopOrder(){
     utmParameters:{source:"facebook",medium:"cpc",campaign:"test_campaign"}},
    lastVisit:null}};
 }
-function setupFetch({duplicate=false,ambiguous=false,financialStatus="PAID",mailDate="2026-11-08T08:51:12Z"}={}){
+function setupFetch({duplicate=false,ambiguous=false,extraPage=false,outbound=false,financialStatus="PAID",mailDate="2026-11-08T08:51:12Z"}={}){
  let calls=[];
  global.fetch=async(url,options={})=>{
   calls.push(String(url));
@@ -35,12 +35,22 @@ function setupFetch({duplicate=false,ambiguous=false,financialStatus="PAID",mail
     {id:"gid://shopify/Customer/12345678901",defaultEmailAddress:{emailAddress:EMAIL}},
     ...(ambiguous?[{id:"gid://shopify/Customer/22222222222",defaultEmailAddress:{emailAddress:EMAIL}}]:[])
    ]}}});
+  if(String(url).includes("/admin/api/")&&JSON.parse(options.body||"{}").query?.includes("KbiOrderPage"))
+   return response({data:{customer:{orders:{pageInfo:{hasNextPage:false,endCursor:null},
+    nodes:[{...shopOrder(),id:"gid://shopify/Order/101",name:"7003",processedAt:"2026-11-04T13:00:00Z"}]}}}});
   if(String(url).includes("/admin/api/"))return response({data:{customer:{
    id:"gid://shopify/Customer/12345678901",firstName:"Sample",lastName:"Customer",createdAt:"2026-10-02T00:00:00Z",
-   numberOfOrders:"1",defaultEmailAddress:{emailAddress:EMAIL,marketingState:"SUBSCRIBED"},
-   orders:{pageInfo:{hasNextPage:false},nodes:[{...shopOrder(),displayFinancialStatus:financialStatus}]}}}});
+   numberOfOrders:extraPage?"2":"1",defaultEmailAddress:{emailAddress:EMAIL,marketingState:"SUBSCRIBED"},
+   orders:{pageInfo:{hasNextPage:extraPage,endCursor:extraPage?"next-order-cursor":null},
+    nodes:[{...shopOrder(),displayFinancialStatus:financialStatus}]}}}});
   if(String(url).includes("oauth2.googleapis.com/token"))return response({access_token:"test-oauth"});
-  if(String(url).includes("/messages?"))return response({messages:[{id:"mail-1"}]});
+  if(String(url).includes("/messages?"))return response({messages:[{id:"mail-1"},...(outbound?[{id:"mail-2"}]:[])]});
+  if(String(url).includes("messages/mail-2"))return response({
+   id:"mail-2",threadId:"thread-1",snippet:"We are checking your delivery status.",
+   labelIds:["SENT"],internalDate:String(new Date("2026-11-08T09:30:00Z").getTime()),
+   payload:{headers:[{name:"From",value:"service@example.test"},{name:"To",value:EMAIL},
+    {name:"Subject",value:"Re: Order 7002, not received"},
+    {name:"Date",value:"2026-11-08T09:30:00Z"}]}});
   if(String(url).includes("messages/mail-1"))return response({
    id:"mail-1",threadId:"thread-1",snippet:"Did not receive order",labelIds:["INBOX"],internalDate:String(new Date(mailDate).getTime()),
    payload:{headers:[{name:"From",value:(duplicate?"another@example.test":EMAIL)},
@@ -94,6 +104,23 @@ test("a message from an unexpected sender is never linked",async()=>{
  await handler(req(),out);
  assert.equal(out.code,200);
  assert.equal(out.body.events.filter(x=>x.kind==="communication").length,0);
+});
+test("Customer 360 loads subsequent Shopify order pages instead of stopping after first page",async()=>{
+ setEnvironment();const calls=setupFetch({extraPage:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200);
+ assert.equal(out.body.events.filter(x=>x.kind==="order").length,2);
+ assert.equal(out.body.coverage.orders,"all_returned_orders");
+ assert.equal(calls.filter(x=>x.includes("myshopify.com")).length,3);
+});
+test("Customer 360 joins outgoing service replies only within customer-originated threads",async()=>{
+ setEnvironment();setupFetch({outbound:true});const out=res();
+ await handler(req(),out);
+ assert.equal(out.code,200);
+ const messages=out.body.events.filter(x=>x.kind==="communication");
+ assert.equal(messages.length,2);
+ assert.deepEqual(messages.map(x=>x.direction),["inbound","outbound"]);
+ assert.equal(messages[1].evidenceType,"service_reply_in_customer_thread");
 });
 test("a fully refunded order stays on timeline but cannot create interest tags",async()=>{
  setEnvironment();setupFetch({financialStatus:"REFUNDED"});const out=res();

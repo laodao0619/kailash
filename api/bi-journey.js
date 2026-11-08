@@ -4,11 +4,11 @@ const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
 const gmail=require("../lib/crm-gmail");
 const {productTags}=require("../lib/kbi-customer-profile");
-const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!){
+const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!,$cursor:String){
  customer(id:$id){
   id createdAt firstName lastName numberOfOrders
   defaultEmailAddress{emailAddress marketingState}
-  orders(first:50,sortKey:PROCESSED_AT,reverse:true){
+  orders(first:50,after:$cursor,sortKey:PROCESSED_AT,reverse:true){
    pageInfo{hasNextPage endCursor}
    nodes{
     id name processedAt test cancelledAt displayFinancialStatus displayFulfillmentStatus
@@ -22,6 +22,21 @@ const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!){
    }
   }
  }
+}`;
+const ORDER_PAGE_QUERY=`query KbiOrderPage($id:ID!,$cursor:String){
+ customer(id:$id){orders(first:50,after:$cursor,sortKey:PROCESSED_AT,reverse:true){
+  pageInfo{hasNextPage endCursor}
+  nodes{
+   id name processedAt test cancelledAt displayFinancialStatus displayFulfillmentStatus
+   currentSubtotalPriceSet{shopMoney{amount currencyCode}}
+   lineItems(first:12){pageInfo{hasNextPage} nodes{title quantity}}
+   customerJourneySummary{
+    ready
+    firstVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
+    lastVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
+   }
+  }
+ }}
 }`;
 const EMAIL_OWNERS_QUERY=`query KbiEmailOwners($filter:String!){
  customers(first:50,query:$filter){
@@ -75,30 +90,40 @@ function orderEvent(o){
 }
 async function mailEvents(email){
  const t=await gmail.token();
- const query=new URLSearchParams({q:'from:"'+email+'" -in:spam -in:trash -category:promotions -category:social -category:forums',maxResults:"50"});
- const response=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?"+query,{
-  headers:{Authorization:"Bearer "+t}
- });
- if(!response.ok)throw Error("gmail_list_failed");
- const result=await response.json();
+ // Both directions are needed for the actual customer relationship timeline.
+ const filter='{from:"'+email+'" to:"'+email+'"} -in:spam -in:trash -category:promotions -category:social -category:forums';
+ const results=await gmail.listMessages(t,{query:filter,maxResults:100});
+ const ids=(results.messages||[]).slice(0,100);
+ const matches=[];
+ for(let i=0;i<ids.length;i+=8){
+  const group=await Promise.all(ids.slice(i,i+8).map(async item=>{
+   try{return await gmail.message(t,item.id);}catch(_){return null;}
+  }));
+  for(const m of group){
+   if(!m||gmail.classifyMessage(m)!=="candidate")continue;
+   const c=gmail.compactMessage(m);
+   const from=address(c.from),to=address(c.to);
+   if(from!==email&&to!==email)continue;
+   matches.push({c,m,direction:from===email?"inbound":"outbound"});
+  }
+ }
+ // Only display outbound service replies belonging to an evidenced
+ // customer-originated thread. Unrelated outbound campaigns are excluded.
+ const knownThreads=new Set(matches.filter(x=>x.direction==="inbound").map(x=>x.c.threadId));
  const output=[];
- for(const item of (result.messages||[]).slice(0,50)){
-  const m=await gmail.message(t,item.id);
-  if(gmail.classifyMessage(m)!=="candidate")continue;
-  const c=gmail.compactMessage(m);
-  // Gmail search can match quoted threads unexpectedly; verify the actual sender.
-  if(address(c.from)!==email)continue;
+ for(const {c,m,direction} of matches){
+  if(direction==="outbound"&&!knownThreads.has(c.threadId))continue;
   const snippet=String(m.snippet||"").slice(0,250);
-  const claim=/\b(did not receive|not received|haven.t received|never received|package missing|order missing|not arrived|still waiting)\b/i.test(snippet);
+  const claim=direction==="inbound"&&/\b(did not receive|not received|haven.t received|never received|package missing|order missing|not arrived|still waiting)\b/i.test(snippet);
   output.push(event("gmail:"+c.id,"communication",c.date,c.subject||"Customer email","Gmail",{
-   threadId:c.threadId,channel:"email",evidenceType:"customer_message",
-   preview:snippet,
-   issueFlag:claim?"possible_nonreceipt_claim":null,
+   threadId:c.threadId,channel:"email",direction,
+   evidenceType:direction==="inbound"?"customer_message":"service_reply_in_customer_thread",
+   preview:snippet,issueFlag:claim?"possible_nonreceipt_claim":null,
    issueVerified:false,
    gmailUrl:"https://mail.google.com/mail/u/0/#all/"+encodeURIComponent(c.threadId)
   }));
  }
- return {events:output,complete:!result.nextPageToken};
+ return {events:output,complete:!results.nextPageToken,returned:matches.length};
 }
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
@@ -112,12 +137,22 @@ module.exports=async(req,res)=>{
     (process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET))))
   return res.status(503).json({ok:false,error:"shopify_backend_not_configured"});
  try{
-  const data=await shopify.queryShopify(CUSTOMER_QUERY,{id:"gid://shopify/Customer/"+customerId});
+  const gid="gid://shopify/Customer/"+customerId;
+  const data=await shopify.queryShopify(CUSTOMER_QUERY,{id:gid,cursor:null});
   const c=data.customer;
   if(!c)return res.status(404).json({ok:false,error:"customer_not_found"});
   const email=address(c.defaultEmailAddress?.emailAddress||"");
   const orders=(c.orders?.nodes||[]).map(orderEvent);
-  // Do not claim complete lifetime history from a single 50-order page.
+  let pageInfo=c.orders?.pageInfo||{hasNextPage:false,endCursor:null};
+  let pageCount=1;
+  // Read additional pages without guessing that first 50 orders are lifetime.
+  while(pageInfo.hasNextPage&&pageInfo.endCursor&&pageCount<6){
+   const next=await shopify.queryShopify(ORDER_PAGE_QUERY,{id:gid,cursor:pageInfo.endCursor});
+   const connection=next.customer?.orders;
+   if(!connection?.pageInfo||!Array.isArray(connection.nodes))throw Error("incomplete_order_page");
+   orders.push(...connection.nodes.map(orderEvent));
+   pageInfo=connection.pageInfo;pageCount++;
+  }
   let communications=[],mailCoverage="no_customer_email";
   if(email){
    // Never attach private Gmail correspondence to ambiguous customer identities.
@@ -164,7 +199,7 @@ module.exports=async(req,res)=>{
    customer:{id:c.id,firstName:c.firstName||"",lastName:c.lastName||"",
     email:email||null,ordersReported:c.numberOfOrders??null,
     marketingState:c.defaultEmailAddress?.marketingState||null},
-   events,coverage:{orders:c.orders?.pageInfo?.hasNextPage?"partial_first_50":"all_returned_orders",
+   events,coverage:{orders:pageInfo.hasNextPage?"partial_max_300":"all_returned_orders",
     email:mailCoverage,acquisition:"per_order_recorded_visits_only",
     financialLedger:"not_audited",rfm:"not_computed"},
    note:"Marketing touches are recorded observations, not causal attribution. Customer email is matched by verified sender."
