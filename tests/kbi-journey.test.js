@@ -30,6 +30,10 @@ function setupFetch({duplicate=false,mailDate="2026-11-08T08:51:12Z"}={}){
  let calls=[];
  global.fetch=async(url,options={})=>{
   calls.push(String(url));
+  if(String(url).includes("/admin/api/")&&JSON.parse(options.body||"{}").query?.includes("KbiEmailOwners"))
+   return response({data:{customers:{pageInfo:{hasNextPage:false},nodes:[
+    {id:"gid://shopify/Customer/12345678901",defaultEmailAddress:{emailAddress:EMAIL}}
+   ]}}});
   if(String(url).includes("/admin/api/"))return response({data:{customer:{
    id:"gid://shopify/Customer/12345678901",firstName:"Sample",lastName:"Customer",createdAt:"2026-10-02T00:00:00Z",
    numberOfOrders:"1",defaultEmailAddress:{emailAddress:EMAIL,marketingState:"SUBSCRIBED"},
@@ -80,6 +84,7 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  assert.equal(out.body.events[3].issueVerified,false);
  assert.equal(out.body.coverage.financialLedger,"not_audited");
  assert.equal(calls.filter(x=>x.includes("gmail.googleapis.com")).length,2);
+ assert.equal(calls.filter(x=>x.includes("myshopify.com")).length,2);
 });
 test("a message from an unexpected sender is never linked",async()=>{
  setEnvironment();const calls=setupFetch({duplicate:true});const out=res();
