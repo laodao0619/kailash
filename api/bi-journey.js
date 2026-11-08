@@ -3,7 +3,7 @@
 const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
 const gmail=require("../lib/crm-gmail");
-const {productTags}=require("../lib/kbi-customer-profile");
+const {productHistory,mailSummary,channelOf}=require("../lib/kbi-product-insights");
 const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!,$cursor:String){
  customer(id:$id){
   id createdAt firstName lastName numberOfOrders
@@ -13,7 +13,15 @@ const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!,$cursor:String){
    nodes{
     id name processedAt test cancelledAt displayFinancialStatus displayFulfillmentStatus
     currentSubtotalPriceSet{shopMoney{amount currencyCode}}
-    lineItems(first:12){pageInfo{hasNextPage} nodes{title quantity}}
+    currentTotalPriceSet{shopMoney{amount currencyCode}}
+    lineItems(first:30){pageInfo{hasNextPage} nodes{
+     id title quantity
+     originalUnitPriceSet{shopMoney{amount currencyCode}}
+     discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount currencyCode}}
+     image{url altText}
+     product{id title handle productType description onlineStoreUrl}
+     variant{id title}
+    }}
     customerJourneySummary{
      ready
      firstVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
@@ -29,7 +37,15 @@ const ORDER_PAGE_QUERY=`query KbiOrderPage($id:ID!,$cursor:String){
   nodes{
    id name processedAt test cancelledAt displayFinancialStatus displayFulfillmentStatus
    currentSubtotalPriceSet{shopMoney{amount currencyCode}}
-   lineItems(first:12){pageInfo{hasNextPage} nodes{title quantity}}
+    currentTotalPriceSet{shopMoney{amount currencyCode}}
+   lineItems(first:30){pageInfo{hasNextPage} nodes{
+     id title quantity
+     originalUnitPriceSet{shopMoney{amount currencyCode}}
+     discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount currencyCode}}
+     image{url altText}
+     product{id title handle productType description onlineStoreUrl}
+     variant{id title}
+    }}
    customerJourneySummary{
     ready
     firstVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
@@ -65,6 +81,7 @@ function event(id,kind,at,title,source,extra={}){
 }
 function orderEvent(o){
  const money=o.currentSubtotalPriceSet?.shopMoney;
+ const orderTotal=o.currentTotalPriceSet?.shopMoney||money;
  // A timeline can show every order, but the observed product-interest
  // calculation must not count unpaid, test, cancelled or refunded orders.
  const financiallyEligible=["PAID","PARTIALLY_PAID","PARTIALLY_REFUNDED"].includes(o.displayFinancialStatus);
@@ -78,8 +95,18 @@ function orderEvent(o){
   orderId:o.id,orderName:o.name,
   status:o.displayFinancialStatus||"UNKNOWN",fulfillment:o.displayFulfillmentStatus||"UNKNOWN",
   validForReview:valid,
-  amount:money?.amount??null,currency:money?.currencyCode||null,
-  products:(o.lineItems?.nodes||[]).map(x=>({title:x.title,quantity:x.quantity})),
+  amount:orderTotal?.amount??null,currency:orderTotal?.currencyCode||null,
+  products:(o.lineItems?.nodes||[]).map(x=>{
+   const itemPrice=x.discountedUnitPriceAfterAllDiscountsSet?.shopMoney||
+    x.originalUnitPriceSet?.shopMoney||null;
+   return {title:x.title,quantity:x.quantity,lineId:x.id,
+    productId:x.product?.id||null,variantId:x.variant?.id||null,
+    description:String(x.product?.description||"").slice(0,2200),
+    productType:x.product?.productType||"",
+    imageUrl:x.image?.url||null,productUrl:x.product?.onlineStoreUrl||null,
+    unitPrice:itemPrice?.amount==null?null:Number(itemPrice.amount),
+    currency:itemPrice?.currencyCode||null};
+  }),
   productsComplete:!o.lineItems?.pageInfo?.hasNextPage,
   attribution:{
    status:!j?"unknown":!j.ready?"pending":!first&&!last?"unknown":"recorded_visit",
@@ -184,6 +211,7 @@ module.exports=async(req,res)=>{
     visits.push(event("visit:"+o.orderId+":"+which,"acquisition_visit",visit.at,
       "Recorded "+which+" pre-order visit","Shopify",{
        relatedOrderId:o.orderId,visitSource:visit.source,utm:visit.utm||null,
+       channel:channelOf(visit),
        landingPage:visit.landingPage||null,
        attributionMethod:"recorded_touch_not_incrementality"
     }));
@@ -193,14 +221,19 @@ module.exports=async(req,res)=>{
    event("shopify:"+c.id+":created","customer_created",c.createdAt,"Customer account created","Shopify"),
    ...visits,...orders,...communications
   ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  const purchaseInsights=productHistory(orders);
+  const communicationSummary=mailSummary(communications);
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),
-   profile:{productInterests:productTags(orders),method:"observed_order_title_evidence_only"},
+   profile:{productInterests:purchaseInsights.preferences,productSummary:purchaseInsights.categories,
+    products:purchaseInsights.products,method:"observed_purchased_product_and_catalog_description"},
+   mailSummary:communicationSummary,
    customer:{id:c.id,firstName:c.firstName||"",lastName:c.lastName||"",
     email:email||null,ordersReported:c.numberOfOrders??null,
     marketingState:c.defaultEmailAddress?.marketingState||null},
    events,coverage:{orders:pageInfo.hasNextPage?"partial_max_300":"all_returned_orders",
     email:mailCoverage,acquisition:"per_order_recorded_visits_only",
+    products:orders.some(o=>!o.productsComplete)?"partial_line_items":"returned_order_line_items",
     financialLedger:"not_audited",rfm:"not_computed"},
    note:"Marketing touches are recorded observations, not causal attribution. Customer email is matched by verified sender."
   });
