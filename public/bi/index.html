@@ -247,6 +247,16 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <section class="panel" style="margin-top:19px;padding:17px">
 <h2>客户生命历程 · 时间分析</h2>
 <p class="muted">横轴为时间；不同单位分轨显示。渠道点仅代表 Shopify 已记录的访问触点，不代表所有广告曝光或真实因果归因。</p>
+<div class="timeline-tools" role="group" aria-label="客户事件时间范围">
+<button type="button" data-range="30">30天</button><button type="button" data-range="60">60天</button>
+<button type="button" data-range="180" class="active">180天</button><button type="button" data-range="360">360天</button>
+<button type="button" data-range="all">全部</button><button type="button" data-range="custom">自定义</button>
+<span id="timeline-custom" class="toolbar" hidden>
+<label class="muted">开始 <input id="timeline-start" type="date"></label>
+<label class="muted">结束 <input id="timeline-end" type="date"></label>
+<button id="timeline-apply" class="primary" type="button">应用</button>
+</span></div>
+<p class="chart-hint" id="timeline-window-label">当前显示最近180天。鼠标移至图表滚动缩放，可用上方按钮重置。</p>
 <div class="metric-checks" id="journey-metrics">
 <label><input type="checkbox" value="quantity" checked> 购买产品数量</label>
 <label><input type="checkbox" value="orderValue" checked> 订单金额 / 单笔客单</label>
@@ -281,6 +291,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <p class="muted" id="journey-coverage">正在连接 Shopify 与 Gmail…</p>
 <div id="events" class="event-list"></div>
 </div></dialog>
+<script src="/bi/timeline-range.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
