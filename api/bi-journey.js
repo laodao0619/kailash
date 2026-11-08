@@ -69,8 +69,13 @@ async function mailEvents(email){
   const c=gmail.compactMessage(m);
   // Gmail search can match quoted threads unexpectedly; verify the actual sender.
   if(address(c.from)!==email)continue;
+  const snippet=String(m.snippet||"").slice(0,250);
+  const claim=/\\b(did not receive|not received|haven.t received|never received|package missing|order missing|not arrived|still waiting)\\b/i.test(snippet);
   output.push(event("gmail:"+c.id,"communication",c.date,c.subject||"Customer email","Gmail",{
    threadId:c.threadId,channel:"email",evidenceType:"customer_message",
+   preview:snippet,
+   issueFlag:claim?"possible_nonreceipt_claim":null,
+   issueVerified:false,
    gmailUrl:"https://mail.google.com/mail/u/0/#all/"+encodeURIComponent(c.threadId)
   }));
  }
@@ -106,9 +111,26 @@ module.exports=async(req,res)=>{
     }catch(_){mailCoverage="gmail_backend_unavailable";}
    }
   }
+  // Preserve the pre-order marketing visit as an evidence-backed event.
+  const visits=[];
+  const seenVisits=new Set();
+  for(const o of orders){
+   for(const [which,visit] of [["first",o.attribution?.firstVisit],["last",o.attribution?.lastVisit]]){
+    if(!visit?.at)continue;
+    const key=[o.orderId,visit.at,visit.source||"",JSON.stringify(visit.utm||{})].join("|");
+    if(seenVisits.has(key))continue;
+    seenVisits.add(key);
+    visits.push(event("visit:"+o.orderId+":"+which,"acquisition_visit",visit.at,
+      "Recorded "+which+" pre-order visit","Shopify",{
+       relatedOrderId:o.orderId,visitSource:visit.source,utm:visit.utm||null,
+       landingPage:visit.landingPage||null,
+       attributionMethod:"recorded_touch_not_incrementality"
+    }));
+   }
+  }
   const events=[
    event("shopify:"+c.id+":created","customer_created",c.createdAt,"Customer account created","Shopify"),
-   ...orders,...communications
+   ...visits,...orders,...communications
   ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),
