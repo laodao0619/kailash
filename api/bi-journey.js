@@ -225,7 +225,7 @@ module.exports=async(req,res)=>{
   const communicationSummary=mailSummary(communications);
   return res.status(200).json({
    ok:true,asOf:new Date().toISOString(),
-   profile:{productInterests:purchaseInsights.preferences,productSummary:purchaseInsights.categories,
+   profile:{productPreferenceNarrative:purchaseInsights.narrative,productInterests:purchaseInsights.preferences,productSummary:purchaseInsights.categories,
     products:purchaseInsights.products,method:"observed_purchased_product_and_catalog_description"},
    mailSummary:communicationSummary,
    customer:{id:c.id,firstName:c.firstName||"",lastName:c.lastName||"",
