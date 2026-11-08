@@ -1,0 +1,1 @@
+{"dependencies":{"@larksuiteoapi/node-sdk":"^1.76.0"},"description":"Feishu bot via official SDK WebSocket long connection (no public URL needed)","engines":{"node":">=18"},"main":"server.js","name":"feishu-longconn-bot","private":true,"scripts":{"start":"node server.js"},"version":"1.0.0"}
