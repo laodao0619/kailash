@@ -32,6 +32,13 @@ module.exports=async(req,res)=>{
  try{
   state=await readState();
   if(state.shopifyCycleComplete){await mark("T06","done","Shopify customer historical backfill finished: "+(state.shopifyTotals?.processed||0));return res.status(200).json({ok:true,completed:true,totals:state.shopifyTotals||{},lastUpdate:state.updatedAt});}
+  if(!state.shopifyTotals?.expected){
+   const count=await shopify.customerCount();
+   state.shopifyTotals=state.shopifyTotals||{created:0,updated:0,processed:0,pages:0};
+   if(Number.isFinite(Number(count?.count)))state.shopifyTotals.expected=Number(count.count);
+   state.shopifyTotals.precision=count?.precision||"unknown";
+   await saveState(state);
+  }
   const token=await feishu.tenantToken();
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
   // Each page is committed separately. The cursor advances only after its Feishu writes succeed.
