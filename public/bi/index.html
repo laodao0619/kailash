@@ -402,33 +402,52 @@ async function saveCustomerNote(){
 }
 
 async function profile(c){
- $("customer-dialog").showModal();
+ const id=c.id;customerView.id=id;customerView.orders=[];customerView.events=[];customerView.products=[];
+ if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
- const facts=[["等级（既有快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
- ["最近购买R",n(c.rDays)+" 天"],["历史累计消费",money(c.spendLifetime)],["历史订单",n(c.ordersLifetime)],
- ["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
+ const facts=[["等级（历史快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
+ ["最近购买 R",Number.isFinite(c.rDays)?n(c.rDays)+" 天":"—"],["历史累计消费",money(c.spendLifetime)],
+ ["历史订单",n(c.ordersLifetime)],["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
  $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");
- $("profile-tags").textContent="正在读取已购商品…";$("events").textContent="正在读取客户历史…";
- $("journey-coverage").textContent="Shopify订单和Gmail沟通查询中…";
+ for(const key of ["profile-tags","profile-products","product-categories","mail-summary","events"])$(key).textContent="正在读取客户记录…";
+ $("mail-threads").textContent="";$("journey-svg").innerHTML="";
+ $("journey-coverage").textContent="正在查询 Shopify 订单与 Gmail 记录…";
+ $("chart-explanation").textContent="正在生成客户时间图…";
+ loadCustomerNote(id);
  try{
-  const data=await request("/api/bi-journey",{id:c.id});
-  $("profile-tags").innerHTML=(data.profile?.productInterests||[]).map(t=>'<span class="pill">'+esc(t.label)+' · '+n(t.evidenceCount)+'笔</span>').join("")||'<span class="muted">暂无足够证据</span>';
-  $("journey-coverage").textContent="Shopify订单："+(data.coverage?.orders==="all_returned_orders"?"当前已返回全部":"超过300笔，仍有未加载订单")+
-   "；Gmail："+({sample_up_to_50:"双向沟通当前已返回",partial_more_messages:"还有未加载邮件",gmail_backend_unavailable:"Gmail暂不可用",ambiguous_customer_email:"客户邮箱不唯一，已保护隐私"}[data.coverage?.email]||data.coverage?.email||"未知")+"。来源记录不等同因果归因。";
-  const events=[...(data.events||[])].reverse();
-  $("events").innerHTML=events.map(e=>{
-   const extra=e.kind==="order"?
-    [e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
-    e.kind==="acquisition_visit"?"广告/自然触点 · "+[e.utm?.source,e.utm?.medium,e.utm?.campaign].filter(Boolean).join("/"):
-    e.kind==="communication"?"客户沟通 · "+(e.issueFlag?"疑似售后问题待核实":"邮件记录"):"客户建档";
-   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><p>'+esc(extra)+'</p></div>';
-  }).join("")||'<div class="muted">当前没有可追溯的事件。</div>';
+  const data=await request("/api/bi-journey",{id});
+  if(customerView.id!==id)return;
+  customerView.events=data.events||[];
+  customerView.orders=customerView.events.filter(e=>e.kind==="order");
+  displayProductInsights(data);showEmailSummary(data.mailSummary||{});drawJourneyChart();
+  const cov=data.coverage||{};
+  const orderText=cov.orders==="all_returned_orders"?"当前可访问订单已全部返回":"超过300笔订单，历史仍有未加载部分";
+  const mailText=({
+   sample_up_to_50:"Gmail当前查询已返回部分双向记录",partial_more_messages:"仍有未加载的邮件",
+   gmail_backend_unavailable:"Gmail后端暂不可用",ambiguous_customer_email:"邮箱归属有歧义，已保护私人邮件",
+   no_customer_email:"无客户邮箱",customer_identity_check_failed:"邮箱归属校验失败"
+  })[cov.email]||cov.email||"未知";
+  $("journey-coverage").textContent=orderText+"；"+mailText+"；商品："+
+   (cov.products==="partial_line_items"?"部分订单商品超过单页30件":"本次订单范围内的历史记录")+
+   "。广告来源仅代表已记录触点，RFM净额仍待正式审计。";
+  $("events").innerHTML=customerView.events.slice().reverse().map(e=>{
+   const extra=e.kind==="order"?[e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
+    e.kind==="acquisition_visit"?"来源："+(e.channel||"unknown")+" · "+[e.utm?.source,e.utm?.medium,e.utm?.campaign].filter(Boolean).join(" / "):
+    e.kind==="communication"?(e.direction==="outbound"?"客服回复":"客户来信")+" · "+(e.preview||""):
+    "客户建档（不等于首次订阅）";
+   const url=e.kind==="communication"?safeUrl(e.gmailUrl):"";
+   return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><p>'+esc(extra)+'</p>'+
+    (url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" style="color:#2b6346;font-size:11px">查看原始邮件</a>':"")+'</div>';
+  }).join("")||'<p class="muted">暂无可追溯事件</p>';
  }catch(e){
-  $("profile-tags").textContent="暂时无法加载已购产品兴趣";
-  $("journey-coverage").textContent="实时数据接口暂不可用："+e.message;
-  $("events").textContent="客户M/F/R历史快照仍可查看；实时订单与沟通需检查后台接口。";
+  if(customerView.id!==id)return;
+  $("journey-coverage").textContent="实时客户历史暂时无法读取："+e.message;
+  $("profile-tags").textContent="暂无可核验的商品兴趣";$("profile-products").textContent="商品详情暂不可用";
+  $("mail-summary").textContent="邮件摘要暂不可用";$("events").textContent="暂无可完整核验的事件";
+  drawJourneyChart();
  }
 }
+
 $("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;$("refresh").disabled=false;load()};
 $("secret").onkeydown=e=>{if(e.key==="Enter")$("connect").click()};
 $("apply").onclick=()=>{state.page=1;load()};
@@ -458,6 +477,9 @@ $("size").onchange=()=>{state.page=1;load()};
 document.querySelectorAll("th[data-sort]").forEach(th=>th.addEventListener("click",()=>{const key=th.dataset.sort;
  $("dir").value=$("sort").value===key&&$("dir").value==="desc"?"asc":"desc";$("sort").value=key;state.page=1;load()}));
 $("refresh-status").onclick=baseline;$("close-dialog").onclick=()=>$("customer-dialog").close();
+document.querySelectorAll("#journey-metrics input").forEach(input=>input.onchange=drawJourneyChart);
+$("product-clear").onclick=()=>{document.querySelectorAll("#profile-tags button").forEach(b=>b.classList.remove("active"));showProducts()};
+$("customer-note-save").onclick=saveCustomerNote;
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
 readiness();baseline();
 })();
