@@ -40,5 +40,6 @@ jobs:
           node --check public/bi/timeline-range.js
           node --check public/bi/workbench-modules.js
           node --check public/bi/rfm-3d.js
+          node --check public/bi/ops-center.js
       - name: Execute all synthetic BI tests
         run: node --test tests/kbi-*.test.js

@@ -201,6 +201,37 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 .rfm-compare-table>div:last-child{border-bottom:none}
 .rfm-compare-table i{display:inline-block;height:10px;width:10px;border-radius:3px;margin-right:6px}
 .rfm-compare-table span{min-width:0}
+
+.ops-head{margin:4px 0 18px}.ops-headline{margin-bottom:15px;gap:12px}.ops-headline h2{font-size:19px;font-weight:700}
+.ops-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+.ops-kpi{border-radius:15px;border:1px solid #e5ece6;background:#fff;padding:19px;box-shadow:0 5px 16px rgba(25,50,30,.025)}
+.ops-kpi small{display:block;color:#667b6d;font-size:12px}.ops-kpi strong{display:block;font-size:27px;letter-spacing:-.04em;line-height:1.2;margin:11px 0;color:#26382c;font-weight:700}
+.ops-kpi>span{display:block;font-size:11px;color:#8b9a90;line-height:1.5}
+.ops-two{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:16px;margin-bottom:17px}
+.ops-two>.panel{margin-bottom:0}.ops-trend-chart{display:block;width:100%;max-height:350px;min-height:210px}
+#ops-trend-metrics{gap:13px;margin-bottom:12px}#ops-trend-metrics label{font-size:12px;color:#607267}#ops-trend-metrics input{min-height:auto;accent-color:#2f7352}
+.ops-bar-row{margin:10px 0}.ops-bar-header{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;margin:4px 0}
+.ops-bar-header span{color:#506454}.ops-bar-header b{color:#244f39}.ops-bar-track{height:9px;border-radius:9px;background:#eff3ef;overflow:hidden}.ops-bar-track i{height:100%;display:block;border-radius:9px}
+.ops-list-item{border-bottom:1px solid #e9efea;padding:10px 0;font-size:12px}.ops-list-item:last-child{border-bottom:0}
+.ops-list-item .muted{margin:4px 0}.ops-list-item b{color:#2b4934}
+.ops-list-item .row{align-items:flex-start}
+.ops-raw-data{padding:13px 15px;border-radius:12px;background:#f7f9f7;border:1px solid #e4e9e5;margin-bottom:18px}
+.ops-raw-data summary{cursor:pointer;color:#5e7465;font-size:12px;font-weight:600}
+.ops-raw-data .kpis{margin-top:14px}
+.ops-editor-layout{grid-template-columns:minmax(0,1fr) minmax(300px,.85fr)}
+.ops-editor{background:#f9fbf9;border:1px solid #e6ece7;border-radius:13px;padding:18px;display:grid;gap:11px}
+.ops-editor label{display:grid;gap:4px;font-size:12px;color:#627667;font-weight:550}
+.ops-editor input,.ops-editor select,.ops-editor textarea{width:100%;min-height:39px}
+.ops-editor textarea{padding:11px;border:1px solid #dce8df;border-radius:9px;resize:vertical}
+.ops-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.email-calendar-list{display:grid;gap:9px;max-height:650px;overflow:auto}
+.email-plan-card,.audience-card{border:1px solid #e3ebe4;border-radius:12px;background:#fff;padding:13px}
+.email-plan-card.selected{border-color:#6c9e7c;background:#f1f8f2}
+.email-plan-card h3{font-size:13px;margin:3px 0}.email-plan-card .meta{margin:6px 0}
+.email-plan-card button{min-height:32px}
+#audience-saved-list{max-height:650px;overflow:auto}
+@media(max-width:1180px){.ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-two{grid-template-columns:1fr}}
+@media(max-width:640px){.ops-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-kpi{padding:12px}.ops-kpi strong{font-size:21px}.ops-fields{grid-template-columns:1fr}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -210,6 +241,8 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <a href="#case-center"><span class="nav-icon">◷</span> 客服跟进</a>
 <a href="#product-center"><span class="nav-icon">◇</span> 商品分析</a>
 <a href="#marketing-center"><span class="nav-icon">◎</span> 营销触达</a>
+<a href="#email-calendar"><span class="nav-icon">▦</span> 邮件排期</a>
+<a href="#audience-center"><span class="nav-icon">◈</span> 客户受众</a>
 <a href="#reports-center"><span class="nav-icon">▥</span> 数据报表</a>
 <a href="#operations"><span class="nav-icon">⚙</span> 系统与同步</a></nav>
 <div class="foot">Kailash BI · 内部业务工作台<br>已有客户基线 + CRM 物化索引<br>2026年11月8日标准</div></aside>
@@ -219,13 +252,32 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <h2 id="login-title">内部身份验证</h2><p id="login-msg" class="muted">请输入专用KBI访问凭证。不要输入Shopify或Gmail密钥。</p>
 <div class="toolbar" id="login-control"><input id="secret" type="password" autocomplete="off" aria-label="访问凭证" placeholder="内部访问凭证"><button id="connect" class="primary">进入工作台</button></div>
 </div></section>
-<section class="kpis">
-<div class="card"><small>历史客户基线</small><strong id="stat-master">—</strong><em>Shopify 已扫描原始客户</em></div>
-<div class="card"><small>有效客户索引</small><strong id="stat-index">—</strong><em id="index-date">客户画像物化索引</em></div>
-<div class="card"><small>近180天有效订单快照</small><strong id="stat-orders">—</strong><em>历史阶段结果，非全历史净账本</em></div>
-<div class="card"><small>历史沟通已归档</small><strong id="stat-mail">—</strong><em id="mail-note">Gmail历史补录继续运行</em></div>
+
+<section class="ops-head" aria-label="店铺经营指标">
+ <div class="row ops-headline"><div><div class="eyebrow">COMMERCE · OPERATION COMMAND CENTER</div>
+ <h2>店铺运营核心指标</h2><p class="muted">Shopify Analytics · 最近30天含今日 · 店铺货币 · 私有云端快照</p></div>
+ <div class="toolbar"><span id="ops-data-state" class="pill">待连接Shopify Analytics</span><button id="ops-refresh" type="button">读取最新快照</button></div></div>
+ <div class="ops-kpis" id="ops-kpis">
+ <div class="ops-kpi"><small>店铺GMV · Total Sales</small><strong id="ops-gmv">—</strong><span>Shopify 原生销售额</span></div>
+ <div class="ops-kpi"><small>净销售额 · Net Sales</small><strong id="ops-net">—</strong><span>已含销售分析中的退货调整</span></div>
+ <div class="ops-kpi"><small>店铺转化率</small><strong id="ops-cvr">—</strong><span>Shopify Session Conversion</span></div>
+ <div class="ops-kpi"><small>平均客单价 · AOV</small><strong id="ops-aov">—</strong><span>Shopify 原生平均订单金额</span></div>
+ <div class="ops-kpi"><small>老客GMV占比</small><strong id="ops-return-share">—</strong><span>新老客订单销售结构</span></div>
+ <div class="ops-kpi"><small>回购客户率</small><strong id="ops-repeat-rate">—</strong><span>Shopify returning_customer_rate</span></div>
+ <div class="ops-kpi"><small>邮件归因GMV</small><strong id="ops-email-gmv">—</strong><span>30天UTM最后点击归因</span></div>
+ <div class="ops-kpi"><small>会话访问量</small><strong id="ops-sessions">—</strong><span>Shopify Sessions</span></div></div>
 </section>
-<section id="customers" class="panel">
+<section class="ops-two">
+ <div class="panel"><div class="head"><div><h2>GMV与流量转化趋势</h2><p class="muted">每日GMV、订单和转化率；来源Shopify Analytics，不使用历史CRM人数代替流量。</p></div></div>
+ <div class="body"><div class="toolbar" id="ops-trend-metrics"><label><input type="checkbox" value="gmv" checked> GMV</label><label><input type="checkbox" value="orders" checked> 订单</label><label><input type="checkbox" value="cvr" checked> 转化率</label></div><svg id="ops-trend-chart" viewBox="0 0 870 280" role="img" aria-label="运营指标每日趋势" class="ops-trend-chart"></svg></div></div>
+ <div class="panel"><div class="head"><div><h2>销售渠道GMV结构</h2><p class="muted">Shopify销售渠道，不等于Meta/Google投放归因。</p></div></div><div class="body"><div id="ops-channel-bars">正在加载…</div><div class="divider"></div><h3>最近30天客源结构</h3><div id="ops-customer-mix" class="muted">等待Shopify数据…</div></div></div>
+</section>
+<section class="ops-two">
+ <div class="panel"><div class="head"><div><h2>营销来源与Email销售效果</h2><p class="muted">Shopify最后点击归因。与广告管理器ROAS不同，未接入费用不能计算ROAS。</p></div></div>
+ <div class="body"><div id="ops-attribution">等待渠道归因…</div><h3 style="margin-top:18px">Email归因活动</h3><div id="ops-email-campaigns" class="ops-list"></div></div></div>
+ <div class="panel"><div class="head"><div><h2>商品销售贡献</h2><p class="muted">Shopify过去30天净销售额排名，与当前更新顺序无关。</p></div><button id="ops-products-link" type="button">商品目录</button></div>
+ <div class="body"><div id="ops-product-winners" class="ops-list"></div><div class="toolbar"><span class="muted">商品类目贡献</span></div><div id="ops-category-winners" class="ops-list"></div></div></div>
+</section><section id="customers" class="panel">
 <div class="head"><div><div class="eyebrow">客户管理 / 全量筛选</div><h2>客户列表与分群</h2></div>
 <div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="export" disabled>导出当前筛选</button><button id="refresh" disabled>刷新客户索引</button></div></div>
 <div class="warn" style="margin:15px 20px 0" id="data-caveat">CRM等级及180天M/F/R来自今天既有历史回写；在完整退款/全历史财务审计完成前，不代表最终已核验账本。</div>
@@ -303,6 +355,41 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="body"><div class="toolbar"><input id="product-search" type="search" placeholder="搜索商品名称或关键词"><button id="product-search-btn" class="primary">搜索商品</button></div>
 <p class="muted" id="catalog-status">登录后读取当前商品目录；客户购买偏好请从Customer 360°查看。</p>
 <div id="catalog-grid" class="products-grid"></div></div></section>
+
+<section id="email-calendar" class="panel work-module">
+<div class="head"><div><div class="eyebrow">CRM · CAMPAIGN PLANNING</div><h2>邮件营销日历与效果</h2><p class="muted">编辑排期、主题、Preview、受众与UTM；状态仅为运营计划，不会自动发送邮件。</p></div><button id="calendar-new" class="primary">新增邮件排期</button></div>
+<div class="body"><div class="ops-two ops-editor-layout"><div>
+<div class="email-calendar-list" id="email-calendar-list"><p class="muted">登录后读取私有云端邮件排期…</p></div>
+<div id="calendar-status" class="muted"></div></div>
+<div class="ops-editor" id="email-calendar-editor"><h3 id="calendar-form-title">创建 / 编辑邮件计划</h3>
+<label>活动名称 <input id="calendar-title" maxlength="120" placeholder="例如：Kailash Day of Giving"></label>
+<label>排期（北京时间） <input id="calendar-date" type="datetime-local"></label>
+<label>目标客户群体 <select id="calendar-audience"><option value="">全部已订阅客户（需最终在发送工具核对）</option></select></label>
+<label>邮件 Subject <input id="calendar-subject" maxlength="200" placeholder="必填"></label>
+<label>邮件 Preview Text <input id="calendar-preview" maxlength="240" placeholder="必填"></label>
+<label>UTM Campaign（用来追踪归因GMV） <input id="calendar-utm" maxlength="90" placeholder="例如 kailash_day_1116"></label>
+<label>计划状态 <select id="calendar-state"><option value="draft">草稿</option><option value="planned">已排期</option><option value="ready">待发送</option><option value="sent">已在外部发送（人工确认）</option><option value="cancelled">已取消</option></select></label>
+<label>执行备注 <textarea id="calendar-notes" rows="3" placeholder="素材准备、渠道、责任人、目标GMV、A/B Test…"></textarea></label>
+<div class="toolbar"><button id="calendar-save" class="primary">保存到云端</button><button id="calendar-delete">删除计划</button><button id="calendar-reset">清空表单</button></div><p class="muted" id="calendar-form-note">此模块仅保存排期与效果关联，不会未经确认发送营销邮件。</p>
+</div></div></div></section>
+<section id="audience-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">CRM · SAVED AUDIENCES</div><h2>客户受众分组与Shopify回传</h2>
+<p class="muted">基于RFM八象限、S+/S/A/B等级、AOV和自定义条件保存动态筛选。用于邮件营销时默认只选已订阅有效客户。</p></div></div>
+<div class="body"><div class="ops-two ops-editor-layout"><div class="ops-editor">
+<h3>创建客户分组</h3>
+<label>分组名称<input id="audience-name" maxlength="100" placeholder="例：重要挽留 · 高客单价"></label>
+<div class="ops-fields">
+<label>RFM行为分群<select id="audience-rfm"><option value="">全部RFM分群</option><option value="HHH">重要价值 HHH</option><option value="HHL">重要保持 HHL</option><option value="HLH">重要发展 HLH</option><option value="HLL">一般发展 HLL</option><option value="LHH">重要挽留 LHH</option><option value="LHL">一般挽留 LHL</option><option value="LLH">一般价值 LLH</option><option value="LLL">一般保持 LLL</option></select></label>
+<label>CRM等级<select id="audience-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option></select></label>
+<label>客单价<select id="audience-aov"><option value="all">全部AOV</option><option value="high">≥$400</option><option value="low">＜$400</option></select></label>
+<label>国家代码/地区<input id="audience-country" placeholder="留空不限"></label>
+<label>180天最低消费<input id="audience-minM" type="number" min="0" placeholder="不限制"></label>
+<label>最近购买≤天<input id="audience-maxR" type="number" min="0" placeholder="不限制"></label>
+</div>
+<div class="toolbar"><button id="audience-preview" type="button">预览有效客户人数</button><button id="audience-save" class="primary" type="button">保存分组</button></div>
+<div class="status" id="audience-preview-result">预览将显示匹配人数和排除无效/未订阅客户数量。</div></div>
+<div><h3>已保存客户群体</h3><div id="audience-saved-list" class="ops-list"><p class="muted">暂无已保存客户群体。</p></div>
+<div id="audience-sync-status" class="status">Shopify回传需要主动确认；回传为客户标签和Shopify Segment，不会发送邮件。</div></div></div></div></section>
 <section id="marketing-center" class="panel work-module">
 <div class="head"><div><div class="eyebrow">05 / CUSTOMER ACQUISITION</div><h2>营销触达与来源</h2><p class="muted">通过客户订单中的真实UTM访问事件追踪个人触达节奏。全平台曝光、点击和成本数据需要单独接入。</p></div></div>
 <div class="body"><div class="source-grid">
@@ -317,7 +404,13 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <section id="operations" class="panel work-module">
 <div class="head"><div><div class="eyebrow">07 / SYSTEM & DATA</div><h2>系统运行与数据同步</h2><p class="muted">所有数据源展示真实状态，缺少数据或尚未验收时明确说明。</p></div><button id="refresh-status">刷新状态</button></div>
 <div class="body"><div id="operation-status" class="status">等待数据状态…</div>
-<div id="system-health" class="health-grid"><div class="muted">正在读取索引与接口健康状态…</div></div>
+<details class="ops-raw-data"><summary>查看原始数据扫描量与历史导入状态</summary><section class="kpis">
+<div class="card"><small>历史客户基线</small><strong id="stat-master">—</strong><em>Shopify 已扫描原始客户</em></div>
+<div class="card"><small>有效客户索引</small><strong id="stat-index">—</strong><em id="index-date">客户画像物化索引</em></div>
+<div class="card"><small>近180天有效订单快照</small><strong id="stat-orders">—</strong><em>历史阶段结果，非全历史净账本</em></div>
+<div class="card"><small>历史沟通已归档</small><strong id="stat-mail">—</strong><em id="mail-note">Gmail历史补录继续运行</em></div>
+</section>
+</details><div id="system-health" class="health-grid"><div class="muted">正在读取索引与接口健康状态…</div></div>
 <p class="muted">北京时间：上班前 08:50/08:55/09:00，店铺美东零点后 13:15/13:20/13:25，下班前 15:45/15:50/15:55（客户/订单/邮件）。</p>
 <p class="muted">Gmail历史补录继续从现有断点运行，不重新全量抓取Shopify客户。RFM来自当前已保存历史快照；全历史退款净额审计后再切换为正式口径。</p></div></section>
 <p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
@@ -382,6 +475,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <script src="/bi/timeline-range.js"></script>
 <script src="/bi/workbench-modules.js"></script>
 <script src="/bi/rfm-3d.js"></script>
+<script src="/bi/ops-center.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);
