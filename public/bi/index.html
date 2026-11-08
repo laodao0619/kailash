@@ -355,7 +355,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div id="profile-tags" class="toolbar"></div>
 <div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span>
 <label class="muted">每行展示 <select id="customer-product-cols" aria-label="客户已购商品每行数量"><option value="2">2款</option><option value="3">3款</option><option value="4" selected>4款</option><option value="5">5款</option><option value="6">6款</option></select></label>
-<button id="product-clear" type="button">显示全部产品</button></div>
+<label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="product-hide-services" checked style="min-height:auto">隐藏运费保障等非实体商品</label><button id="product-clear" type="button">清除兴趣筛选</button></div>
 <div id="profile-products" class="products-grid customer-product-grid" style="--customer-cols:4"></div>
 </section>
 <section class="panel c360-pane" data-c360-pane="mail" hidden style="margin-top:15px;padding:17px">
@@ -590,7 +590,7 @@ function drawJourneyChart(){
 }
 
 function showProducts(tag=""){
- const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
+ const shown=customerView.products.filter(p=>(!tag||p.tags.includes(tag))&&(!$("product-hide-services").checked||!p.isService));
  $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"历史已购")+"商品："+shown.length+"款";
  const sourceName={meta:"Meta广告",google:"Google广告",email:"邮件",pinterest:"Pinterest",organic:"自然/直接",unknown:"未知来源"};
  const sourceColor={meta:"#3978db",google:"#dea633",email:"#2c9f68",pinterest:"#bb6983",organic:"#82998a",unknown:"#84968c"};
@@ -831,6 +831,7 @@ document.querySelectorAll("[data-c360-tab]").forEach(b=>b.onclick=()=>customer36
 $("customer-note-save").onclick=saveCustomerNote;
 $("note-shortcut").onclick=()=>{$("note-drawer").hidden=!$("note-drawer").hidden;if(!$("note-drawer").hidden)$("customer-note-text").focus()};
 $("note-close").onclick=()=>{$("note-drawer").hidden=true};
+$("product-hide-services").onchange=()=>showProducts();
 $("customer-product-cols").onchange=()=>{$("profile-products").style.setProperty("--customer-cols",$("customer-product-cols").value)};
 $("customer-dialog").addEventListener("close",()=>{$("note-drawer").hidden=true});
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
