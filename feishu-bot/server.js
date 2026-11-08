@@ -1,7 +1,7 @@
 // Feishu bot long-connection server v5 (Node.js, official SDK WebSocket mode).
 // 在 v4 基础上增加：Shopify 订单数据查询（只读），4 个工具：按订单号/邮箱/状态查订单、
 // 按日期汇总销售、列已付款未发货订单、查客户。直接用 fetch 调 Shopify Admin REST API
-// （2024-10），不引新依赖；配置 SHOPIFY_STORE / SHOPIFY_ACCESS_TOKEN，未配时工具直接
+// （2026-10），不引新依赖；配置 SHOPIFY_STORE / SHOPIFY_ACCESS_TOKEN，未配时工具直接
 // 返回中文提示，不调接口。金额和日期注明来源 Shopify、时间 EST。
 // 在 v3 基础上增加：
 // 1. 支持富文本消息：message_type 为 'post' 时，从 content JSON 里提取纯文字再按正常流程处理。
@@ -38,7 +38,7 @@ const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 // 两个变量缺任何一个时，Shopify 工具直接返回中文提示，不调接口。
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE || '';
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN || '';
-const SHOPIFY_API_VERSION = '2024-10';
+const SHOPIFY_API_VERSION = '2026-10';
 const SHOPIFY_NOT_CONFIGURED = 'Shopify 还没接好，缺少配置：请在服务器 .env 里配好 SHOPIFY_STORE 和 SHOPIFY_ACCESS_TOKEN（只读令牌）后再试。';
 
 if (!APP_ID ||!APP_SECRET) {
