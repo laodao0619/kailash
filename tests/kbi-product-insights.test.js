@@ -44,3 +44,17 @@ test("mail summary groups one customer thread and never marks a possible issue a
  assert.equal(x.conversations[1].issues,1);
  assert.match(x.conversations[1].summary,/人工核验/);
 });
+
+test("shipping protection remains in complete historical archive but not jewelry preference analysis",()=>{
+ const example={kind:"order",at:"2026-11-06",orderId:"gid://shopify/Order/7002",
+  orderName:"7002",validForReview:true,products:[
+   {title:"Shipping Protection",quantity:1,productType:"shipping-protection",productId:"shield-1"},
+   {title:"Vajra Handmade Necklace",quantity:1,productType:"Necklace",productId:"jewelry-1"}
+  ]};
+ const result=productHistory([example]);
+ assert.equal(result.products.length,2);
+ const protection=result.products.find(x=>x.title==="Shipping Protection");
+ assert.equal(protection.isService,true);
+ assert(!result.categories.some(x=>x.label==="shipping-protection"));
+ assert(result.preferences.some(x=>x.label.includes("Vajra")));
+});
