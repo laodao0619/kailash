@@ -17,7 +17,8 @@
   const bounds=allBounds(events,now);
   if(preset==="all")return {start:bounds.start,end:bounds.end,preset:"all"};
   if(preset==="custom"){
-   const start=millis(customStart),end=millis(customEnd);
+   const beijingDay=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s))?millis(String(s)+"T00:00:00+08:00"):null;
+   const start=beijingDay(customStart),end=beijingDay(customEnd);
    if(start!==null&&end!==null&&end>=start)return {
     start,end:end+DAY-1,preset:"custom"};
    return {start:now-180*DAY,end:now,preset:"180"};
