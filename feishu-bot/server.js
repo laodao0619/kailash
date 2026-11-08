@@ -31,6 +31,7 @@ const APP_SECRET = process.env.FEISHU_APP_SECRET;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const ANALYSIS_MODEL = process.env.ANALYSIS_MODEL || 'gpt-4o'; // 深度分析用更强的模型，同一个 OPENAI_API_KEY
+const { markdownToPost } = require('./message-format');
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 
 // ---- Shopify 配置（只读查询） ----
@@ -940,47 +941,6 @@ msg_type: 'text',
 content: JSON.stringify({ text: text.slice(0, 4000)}),
 },
 });
-}
-
-// ---- Markdown 转飞书富文本 post ----
-// 支持 # / ## / ### 标题、**加粗**、- 无序列表、1. 有序列表、普通段落。
-function inlineSegments(text) {
-const segs = [];
-const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
-for (const p of parts) {
-if (!p) continue;
-const m = /^\*\*([^*]+)\*\*$/.exec(p);
-if (m) segs.push({ tag: 'text', text: m[1], style: ['bold'] });
-else segs.push({ tag: 'text', text: p });
-}
-return segs.length ? segs : [{ tag: 'text', text: '' }];
-}
-
-function markdownToPost(md) {
-const lines = String(md || '').slice(0, 4000).split('\n');
-let title = '老道助手测试的回复';
-const content = [];
-let first = true;
-for (const raw of lines) {
-const line = raw.replace(/\s+$/, '');
-if (!line.trim()) continue;
-const h = /^(#{1,3})\s+(.*)$/.exec(line);
-if (h) {
-const heading = h[2].replace(/\*\*/g, '').trim();
-if (first) { title = heading || title; first = false; continue; } // 第一行标题进 post 标题，正文不再重复
-content.push([{ tag: 'text', text: heading, style: ['bold'] }]);
-first = false;
-continue;
-}
-if (first) { title = line.replace(/\*\*/g, '').trim().slice(0, 100) || title; first = false; }
-const ul = /^[-*•]\s+(.*)$/.exec(line);
-if (ul) { content.push([{ tag: 'text', text: '• ' }].concat(inlineSegments(ul[1]))); continue; }
-const ol = /^(\d+)[.、]\s+(.*)$/.exec(line);
-if (ol) { content.push([{ tag: 'text', text: ol[1] + '. ' }].concat(inlineSegments(ol[2]))); continue; }
-content.push(inlineSegments(line));
-}
-if (!content.length) throw new Error('empty post content');
-return { zh_cn: { title: title.slice(0, 100), content } };
 }
 
 // 回复优先用富文本 post，转换或发送失败时回退到 text 消息。
