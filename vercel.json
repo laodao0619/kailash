@@ -19,14 +19,6 @@
       "schedule": "20,50 * * * *"
     },
     {
-      "path": "/api/crm-reminders",
-      "schedule": "30 1 * * *"
-    },
-    {
-      "path": "/api/crm-reminders",
-      "schedule": "30 8 * * *"
-    },
-    {
       "path": "/api/crm-gmail-filtered",
       "schedule": "*/10 * * * *"
     },
