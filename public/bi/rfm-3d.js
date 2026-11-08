@@ -61,11 +61,11 @@ function initialize({$,request,state,esc,n}){
    const corners=[c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0),c(0,0,1),c(1,0,1),c(0,1,1),c(1,1,1)];
    const center=c(.5,.5,.5),poly=[corners[0],corners[1],corners[3],corners[7],corners[6],corners[4]];
    const intensity=seg.count?(.13+.68*Math.sqrt(seg.count/max)):.06;
-   cells.push({code:seg.code,poly,center,seg,depth:center.z,intensity,corners});
+   cells.push({code:seg.code,poly,center,seg,depth:center.z,intensity,corners,pad,w});
   }
   cells.sort((a,b)=>b.depth-a.depth);
   for(const item of cells){
-   const {corners,seg}=item,color=COLORS[seg.code];
+   const {corners,seg,pad,w}=item,color=COLORS[seg.code];
    const a=item.intensity*(selected===seg.code?1.2:1);
    polygon([corners[0],corners[1],corners[3],corners[2]],color,a*.6);
    polygon([corners[4],corners[5],corners[7],corners[6]],color,a*.78);
