@@ -70,6 +70,7 @@ module.exports=async(req,res)=>{
   for(let n=0;n<pages;n++){
    const list=await gmail.listMessages(gmailToken,{pageToken:state.pageToken||undefined,maxResults:40,after:SINCE});
    const additions=[],addedIds=new Set();
+   const countersBefore={...stats};
    for(const row of list.messages||[]){
     stats.seen++;
     const m=await gmail.message(gmailToken,row.id);
@@ -102,7 +103,10 @@ module.exports=async(req,res)=>{
    stats.created+=created;stats.pages++;
    for(const id of addedIds)existing.set(id,"created");
    state.totals=state.totals||{seen:0,created:0,excluded_categories:0,excluded_auto:0,unmatched:0,ambiguous:0,duplicate_threads:0,pages:0};
-   for(const key of Object.keys(state.totals))state.totals[key]+=stats[key==="created"?"created":key]||0;
+   for(const key of Object.keys(state.totals)){
+    const current=stats[key]||0;
+    state.totals[key]+=current-(countersBefore[key]||0);
+   }
    // Reset per-page counters to prevent cumulative overcount on subsequent pages.
    state.pageToken=list.nextPageToken||null;state.finished=!list.nextPageToken;
    await saveState(state);
