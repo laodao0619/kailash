@@ -43,7 +43,9 @@
      stat("近90天有购买记录",n(d.customerActivity.recent90),"历史R值")+
      '</div><h3>邮件订阅结构</h3><p class="muted">'+esc(subscriptions||"暂无")+
      '</p><h3>客户国家分布</h3><p class="muted">'+esc(countries||"暂无")+
-     '</p><div class="warn">收入、利润与ROAS不使用缺少广告成本及退款审计的数据进行估算。本报表数值来自现有CRM快照。</div>';
+     '</p><h3>高低客单价客户（$400 独立维度）</h3><p class="muted">历史平均客单价 ≥ $400：'+n(d.aovBands.high)+
+     '位 · ＜ $400：'+n(d.aovBands.low)+'位 · 缺少可计算客单价：'+n(d.aovBands.unknown)+
+     '位。该分组不影响S+/S/A/B等级。</p><div class="warn">收入、利润与ROAS不使用缺少广告成本及退款审计的数据进行估算。本报表数值来自现有CRM快照。</div>';
    }catch(e){
     $("rfm-summary-cards").textContent="RFM读取失败："+e.message;
     $("report-content").textContent="报表暂不可用："+e.message;
@@ -126,9 +128,18 @@
   $("report-export").onclick=()=>{$("export").click();};
   $("marketing-find").onclick=()=>{const q=$("marketing-customer").value.trim();if(!q)return;$("q").value=q;state.page=1;load();go("customers")};
   $("marketing-customer").onkeydown=e=>{if(e.key==="Enter")$("marketing-find").click()};
+  // Auto-refresh the existing history snapshot after back-end syncs; do not
+  // rerun Shopify ingestion. Pause network polling on hidden tabs.
+  let lastSummary=0;
+  const originalSummary=summary;
+  const scheduledSummary=async()=>{await originalSummary();lastSummary=Date.now()};
+  setInterval(()=>{if(document.visibilityState==="visible"&&state.token)scheduledSummary()},5*60*1000);
+  document.addEventListener("visibilitychange",()=>{
+   if(document.visibilityState==="visible"&&state.token&&Date.now()-lastSummary>5*60*1000)scheduledSummary();
+  });
   $("report-rfm").onclick=()=>go("rfm");
   $("report-cases").onclick=()=>go("case-center");
-  return {start:()=>Promise.allSettled([summary(),cases(),products(),health()]),summary,cases,products,health};
+  return {start:()=>Promise.allSettled([scheduledSummary(),cases(),products(),health()]),summary:scheduledSummary,cases,products,health};
  }
  root.KBIWorkbenchModules={initialize};
 })(typeof window!=="undefined"?window:globalThis);

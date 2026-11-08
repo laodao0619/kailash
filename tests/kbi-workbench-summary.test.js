@@ -33,3 +33,11 @@ test("all final standard grades appear even if empty",()=>{
  assert(d.tiers.every(t=>t.count===0));
  assert.equal(d.historical.m180.coverage,0);
 });
+
+test("AOV high/low $400 bands are separate from RFM grade",()=>{
+ const data=summarize({customers:[
+  {tier:"B",aov:620,m180:10},{tier:"S+",aov:250,m180:4000},{tier:"A",aov:null,m180:800}
+ ]});
+ assert.deepEqual(data.aovBands,{thresholdUsd:400,high:1,low:1,unknown:1});
+ assert.equal(data.tiers.find(x=>x.name==="B").count,1);
+});
