@@ -396,69 +396,107 @@ function chartLine(rows,mapX,mapY,color,label){
  const line=values.length>1?'<path d="'+values.map((p,i)=>(i?"L":"M")+xmlNumber(p.x)+" "+xmlNumber(p.y)).join(" ")+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linejoin="round"/>':"";
  return line+values.map(p=>'<circle cx="'+xmlNumber(p.x)+'" cy="'+xmlNumber(p.y)+'" r="4.4" fill="'+color+'"><title>'+svgEsc(label+": "+p.value+" · "+fmt(p.at))+'</title></circle>').join("");
 }
+const timelineState={preset:"180",view:null,customStart:"",customEnd:""};
+function setTimelineRange(preset){
+ const T=window.KBITimeline;
+ if(!T)return;
+ timelineState.preset=preset;
+ const events=customerView.events||[];
+ timelineState.view=T.timeWindow(events,preset,Date.now(),timelineState.customStart,timelineState.customEnd);
+ document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range===preset));
+ $("timeline-custom").hidden=preset!=="custom";
+ drawJourneyChart();
+}
+function chartPath(points,xFn,yFn,color,meta="",dashed=false){
+ if(!points.length)return "";
+ const cleaned=points.filter(p=>Number.isFinite(Date.parse(p.at))&&Number.isFinite(p.value))
+  .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
+ if(!cleaned.length)return "";
+ const line=cleaned.map((p,i)=>(i?"L":"M")+xmlNumber(xFn(p))+" "+xmlNumber(yFn(p))).join(" ");
+ let result=cleaned.length>1?'<path d="'+line+'" fill="none" stroke="'+color+'" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"'+(dashed?' stroke-dasharray="5 4"':"")+'/>':"";
+ result+=cleaned.slice(-400).map(p=>'<circle cx="'+xmlNumber(xFn(p))+'" cy="'+xmlNumber(yFn(p))+'" r="4.4" fill="'+color+'" stroke="#fff" stroke-width="1.5"><title>'+
+   esc(meta+" · "+fmt(p.at)+" · "+p.value)+'</title></circle>').join("");
+ return result;
+}
 function drawJourneyChart(){
- const checked=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
- const events=customerView.events.filter(e=>e.at&&Number.isFinite(Date.parse(e.at)));
- const orders=customerView.orders.filter(e=>e.validForReview);
+ const T=window.KBITimeline,svg=$("journey-svg");
+ if(!T){svg.innerHTML='<text x="20" y="50">时间轴模块尚未加载</text>';return;}
+ const events=customerView.events.filter(e=>e.at&&T.millis(e.at)!==null);
+ const view=timelineState.view||T.timeWindow(events,timelineState.preset,Date.now(),
+  timelineState.customStart,timelineState.customEnd);
+ timelineState.view=view;
+ const selected=new Set([...document.querySelectorAll("#journey-metrics input:checked")].map(i=>i.value));
+ const inWindow=T.filterEvents(events,view);
+ $("timeline-window-label").textContent="范围："+fmt(view.start)+" — "+fmt(view.end)+" · 当前可见"+inWindow.length+
+  "条事件。鼠标滚轮在图表内以指针所在位置缩放；点击30/60/180/360/全部可重置。";
+ const orders=events.filter(e=>e.kind==="order"&&e.validForReview).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
  const touch=events.filter(e=>e.kind==="acquisition_visit");
- const emails=events.filter(e=>e.kind==="communication");
- const paidUSD=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount)))
-  .slice().sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
- let spent=0;
- const aovSeries=paidUSD.map((o,i)=>({at:o.at,value:Math.round((spent+=Number(o.amount))/(i+1)*100)/100}));
+ const email=events.filter(e=>e.kind==="communication");
+ let total=0,count=0;
+ const aov=orders.filter(o=>o.currency==="USD"&&Number.isFinite(Number(o.amount))).map(o=>{
+  total+=Number(o.amount);count++;
+  return {at:o.at,value:total/count,raw:o};
+ });
+ const quantity=orders.map(o=>({at:o.at,value:(o.products||[]).reduce((sum,p)=>sum+(Number(p.quantity)||0),0),raw:o}));
+ const channelSeries={};
+ for(const e of touch){
+  const key=chartColors[e.channel]?e.channel:"unknown";
+  (channelSeries[key]||(channelSeries[key]=[])).push(e);
+ }
  const groups=[
-  {key:"quantity",label:"购买件数 / 单次订单",kind:"number",data:orders.map(o=>({at:o.at,value:o.products.reduce((sum,p)=>sum+(Number(p.quantity)||0),0)})),color:chartColors.quantity},
-  {key:"orderValue",label:"累计平均客单价 / USD",kind:"number",data:aovSeries,color:chartColors.orderValue},
-  {key:"channel",label:"已记录的来源触点",kind:"touch",data:touch},
-  {key:"email",label:"邮件沟通记录",kind:"email",data:emails}
- ].filter(g=>checked.has(g.key));
- const svg=$("journey-svg");
- const from=Math.min(...events.map(e=>Date.parse(e.at))),to=Math.max(...events.map(e=>Date.parse(e.at)));
- if(!groups.length){svg.setAttribute("viewBox","0 0 850 130");svg.innerHTML='<text x="25" y="65" fill="#748478" font-size="14">请选择至少一项指标</text>';return}
- if(!events.length||!Number.isFinite(from)){svg.setAttribute("viewBox","0 0 850 140");svg.innerHTML='<text x="25" y="60" fill="#748478" font-size="13">暂无可追溯的客户事件</text>';return}
- const width=850,left=145,right=26,laneHeight=118,top=22,bottom=55;
- const height=top+groups.length*laneHeight+bottom;
+  {id:"quantity",title:"购买产品件数",type:"numeric",series:[{name:"购买件数",color:chartColors.quantity,rows:quantity}]},
+  {id:"orderValue",title:"累计客单价 · USD",type:"numeric",series:[{name:"累计AOV",color:chartColors.orderValue,rows:aov}]},
+  {id:"channel",title:"来源触点累计次数",type:"count",series:Object.entries(channelSeries).map(([key,rows])=>({
+   name:({meta:"Meta",google:"Google",email:"Email",pinterest:"Pinterest",organic:"自然访问",unknown:"未注明"}[key]||key),
+   color:chartColors[key]||chartColors.unknown,rows:T.cumulativeSeries(rows,()=>1)
+  }))},
+  {id:"email",title:"邮件往来累计次数",type:"count",series:[
+   {name:"客户来信",color:"#238a64",rows:T.cumulativeSeries(email.filter(e=>e.direction!=="outbound"),()=>1)},
+   {name:"客服回复",color:"#78c9a8",rows:T.cumulativeSeries(email.filter(e=>e.direction==="outbound"),()=>1),dashed:true}
+  ]}
+ ].filter(g=>selected.has(g.id));
+ const left=160,right=26,top=25,lane=126,bottom=65,width=960;
+ const height=Math.max(145,top+groups.length*lane+bottom);
  svg.setAttribute("viewBox","0 0 "+width+" "+height);
- const maxT=to>from?to:from+86400000,minT=to>from?from:from-86400000;
- const x=t=>left+(t-minT)/(maxT-minT)*(width-left-right);
- let out='';
- for(let i=0;i<=4;i++){
-  const xx=left+i*(width-left-right)/4;
-  const date=new Date(minT+i*(maxT-minT)/4).toISOString().slice(0,10);
-  out+='<line x1="'+xmlNumber(xx)+'" y1="'+top+'" x2="'+xmlNumber(xx)+'" y2="'+(height-bottom)+'" stroke="#edf1ed"/>';
-  out+='<text x="'+xmlNumber(xx)+'" y="'+(height-24)+'" text-anchor="middle" font-size="11" fill="#7e9282">'+date+'</text>';
+ svg.setAttribute("aria-label","客户生命周期数据图 · "+fmt(view.start)+" 至 "+fmt(view.end));
+ if(!groups.length){svg.innerHTML='<text x="30" y="65" fill="#6e8575" font-size="15">请选择至少一项时间轴指标</text>';return;}
+ if(!inWindow.length){svg.innerHTML='<text x="30" y="65" fill="#6e8575" font-size="15">该时间范围暂无已记录事件。可切换「全部」或缩小时间范围。</text>';return;}
+ const extent=Math.max(T.DAY,view.end-view.start);
+ const x=p=>left+(T.millis(p.at)-view.start)/extent*(width-left-right);
+ let result='';
+ for(let tick=0;tick<=6;tick++){
+  const t=view.start+extent*tick/6,tx=left+(width-left-right)*tick/6;
+  result+='<line x1="'+xmlNumber(tx)+'" y1="'+top+'" x2="'+xmlNumber(tx)+'" y2="'+(height-bottom)+'" stroke="#e9eeeb"/>'+
+   '<text x="'+xmlNumber(tx)+'" y="'+(height-34)+'" fill="#718479" font-size="11" text-anchor="middle">'+
+   esc(new Date(t).toISOString().slice(0,10))+'</text>';
  }
  for(let i=0;i<groups.length;i++){
-  const g=groups[i],yStart=top+i*laneHeight,yBottom=yStart+91;
-  out+='<rect x="'+left+'" y="'+yStart+'" width="'+(width-left-right)+'" height="91" fill="'+(i%2?"#f9fbf8":"#fff")+'"/>';
-  out+='<text x="12" y="'+(yStart+23)+'" font-size="12" fill="#405b49" font-weight="600">'+svgEsc(g.label)+'</text>';
-  out+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#dce8dd"/>';
-  if(g.kind==="number"){
-   const max=Math.max(1,...g.data.map(e=>e.value));
-   const scale=v=>yBottom-(Math.max(0,v)/max)*66;
-   out+='<text x="'+(left-13)+'" y="'+(yBottom-64)+'" fill="#7d8e80" font-size="10" text-anchor="end">'+svgEsc(max.toFixed(g.key==="orderValue"?0:0))+'</text>';
-   out+='<text x="'+(left-13)+'" y="'+yBottom+'" fill="#7d8e80" font-size="10" text-anchor="end">0</text>';
-   out+=chartLine(g.data,x,scale,g.color,g.label);
-   if(!g.data.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">该指标暂无足够已核验数据</text>';
-  }else{
-   const values=g.data;
-   const y0=yStart+51;
-   out+=values.map((e,index)=>{
-    const channel=g.kind==="touch"?(e.channel||"unknown"):(e.direction==="outbound"?"email":"email");
-    const color=chartColors[channel]||chartColors.unknown;
-    const yy=y0+(index%3-1)*8;
-    const subtitle=g.kind==="touch"?channel+(e.utm?.campaign?" / "+e.utm.campaign:""):(e.direction==="outbound"?"客服回复":"客户来信")+" / "+e.title;
-    return '<circle cx="'+xmlNumber(x(Date.parse(e.at)))+'" cy="'+yy+'" r="'+(g.kind==="email"?5:5.4)+'" fill="'+color+'" stroke="#fff" stroke-width="1.6"><title>'+svgEsc(subtitle+" · "+fmt(e.at))+'</title></circle>';
-   }).join("");
-   if(!values.length)out+='<text x="'+(left+20)+'" y="'+(yStart+50)+'" fill="#85968a" font-size="11">尚无已记录的触达事件</text>';
+  const g=groups[i],y0=top+i*lane,yBottom=y0+94;
+  result+='<rect x="'+left+'" y="'+y0+'" width="'+(width-left-right)+'" height="94" fill="'+(i%2?"#f8faf8":"#fff")+'"/>';
+  result+='<text x="12" y="'+(y0+25)+'" fill="#344d3d" font-weight="600" font-size="13">'+esc(g.title)+'</text>';
+  result+='<line x1="'+left+'" y1="'+yBottom+'" x2="'+(width-right)+'" y2="'+yBottom+'" stroke="#d9e5dc"/>';
+  const series=g.series.map(serie=>({...serie,visible:serie.rows.filter(r=>T.millis(r.at)>=view.start&&T.millis(r.at)<=view.end)}));
+  const max=Math.max(1,...series.flatMap(z=>z.visible.map(row=>row.value)));
+  const y=row=>yBottom-Math.max(0,row.value)/max*67;
+  result+='<text x="'+(left-15)+'" y="'+(yBottom-65)+'" font-size="11" fill="#819287" text-anchor="end">'+Math.ceil(max)+'</text>'+
+   '<text x="'+(left-15)+'" y="'+yBottom+'" font-size="11" fill="#819287" text-anchor="end">0</text>';
+  for(const serie of series){
+   result+=chartPath(serie.visible,x,y,serie.color,serie.name,serie.dashed);
   }
+  if(series.every(z=>z.visible.length===0))result+='<text x="'+(left+12)+'" y="'+(y0+54)+'" font-size="12" fill="#9baa9d">该指标在当前时间段暂无记录</text>';
  }
- out+='<text x="'+(width-right)+'" y="'+(height-7)+'" text-anchor="end" fill="#8c9d8f" font-size="11">时间（北京时间按日期展示）</text>';
- svg.innerHTML=out;
- $("chart-legend").innerHTML=Object.entries({meta:"Meta广告",google:"Google广告",email:"邮件往来",pinterest:"Pinterest",organic:"自然/直接访问",unknown:"来源未明"}).map(([key,label])=>
-  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("");
- $("chart-explanation").textContent="包含"+orders.length+"笔当前可核验订单、"+touch.length+"次 Shopify 记录的访问触点、"+emails.length+"条邮件沟通；不同指标使用独立纵向刻度。客单价为截至该订单的累计平均订单总额；未知币种不进行美元换算。";
+ result+='<text x="'+(width-right)+'" y="'+(height-11)+'" fill="#788b7d" font-size="11" text-anchor="end">时间（北京时间日期）</text>';
+ svg.innerHTML=result;
+ $("chart-legend").innerHTML=Object.entries({meta:"Meta · 蓝色",google:"Google · 黄色",email:"邮件触达 · 绿色",
+  pinterest:"Pinterest",organic:"自然/直接",unknown:"其他/未注明"}).map(([key,label])=>
+  '<span><i class="chart-dot" style="background:'+chartColors[key]+'"></i>'+label+'</span>').join("")+
+  '<span><i class="chart-dot" style="background:'+chartColors.quantity+'"></i>购买数量</span>'+
+  '<span><i class="chart-dot" style="background:'+chartColors.orderValue+'"></i>累计客单价</span>';
+ $("chart-explanation").textContent="当前时段："+inWindow.filter(e=>e.kind==="order").length+"笔订单、"+
+  inWindow.filter(e=>e.kind==="acquisition_visit").length+"次来源触点、"+
+  inWindow.filter(e=>e.kind==="communication").length+"条邮件；4条指标轨道均为连续线段。触点累计次数只计算真实记录，不推断广告曝光；美元客单价不混算其他币种。";
 }
+
 function showProducts(tag=""){
  const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
  $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
