@@ -1,0 +1,24 @@
+# CRM acceleration phase 1: independent Shopify full-history export
+
+## Scope and safety
+
+- `api/crm-orders-bulk.js` is an independent, protected Vercel cron endpoint; it **does not alter CRM customer records or grades**.
+- Requires the Vercel Shopify synchronization application's `read_orders`, `read_all_orders`, and `read_products` scopes. This is **not** the Feishu bot's token.
+- Starts an asynchronous Shopify Bulk Operation, polls by its ID and archives the completed JSONL response into a private Vercel Blob. Operation state and raw export use versioned keys separate from existing 180-day snapshot and reconciliation.
+- The Bulk operation is designed to export every available historical order (no 180-day date filter), line-item sale-time prices and current product metadata. Deleted products may have null metadata; this must not remove the historical order line.
+- The raw archive is **not yet a validated financial ledger**. `totalRefundedSet` is only one raw aggregate; do not infer item-level net revenue by subtracting it from a merchandise subtotal. The next phase must reconcile refunds/transactions, currencies, cancellation, test orders and customer IDs before updating final M/F/R or LTV.
+- The Vercel cron is every 20 minutes; completed jobs are idempotently reported and not relaunched. Failed/cancelled jobs require investigation and do not silently restart.
+
+## Gmail efficiency
+
+The Gmail import now caches the customer email-to-record-count index for 30 minutes in a private Blob. Only valid customer rows are indexed when their quality field is populated. The communication records continue to be created with the existing thread-level duplicate checks; no sends or changes to customer master records occur.
+
+## Verification after deployment
+
+1. Check `/api/crm-shopify-health` and ensure all required scopes, including `read_products`, are reported; the exporter returns `paused` when absent.
+2. Inspect the Vercel cron response: `started` → `running` → `archived` with a nonzero root order count. Do not expose signed export URLs.
+3. Verify the versioned private archive includes order rows plus JSONL child rows linked using `__parentId`, and compare order counts to Shopify analytics. Check whether the export is large enough to require a separate durable downloader; 85-second download timeout is fail-and-retry, not data loss.
+4. Test the seven customer IDs in the merchant's Shopify 180-day >$3,000 segment against the raw order ledger before trusting any CRM grades.
+5. Do not run final grade reconciliation until the all-history ledger and refund semantics are validated.
+
+See Shopify docs: https://shopify.dev/docs/api/usage/bulk-operations/queries
