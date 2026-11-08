@@ -56,6 +56,20 @@ test('segment list filters verified customers and reports page limits honestly',
   assert.match(await crm.listSegment({ crm_grade: 'S+', rfm_group: '重要价值用户' }, allowed), /只查询其中一种/);
 });
 
+test('sample customers needs no segment, is authorized and preserves missing M/R/F', async () => {
+  const m = mock([{ record_id: 'rec123', fields: { 客户数据状态: '有效', 客户姓名: 'A', CRM等级: 'A' } }]);
+  const crm = createCrmReadonly(m.client, { allowedOpenIds: 'ou_allowed' });
+  const answer = await crm.sampleCustomers({ limit: 2 }, allowed);
+  assert.match(answer, /rec123/);
+  assert.match(answer, /待计算/);
+  assert.match(answer, /不代表随机抽样/);
+  assert.deepEqual(m.calls[0].data.filter.conditions, [
+    { field_name: '客户数据状态', operator: 'is', value: ['有效'] },
+  ]);
+  assert.match(await crm.sampleCustomers({}, { ...allowed, chatType: 'group' }), /单聊/);
+  assert.equal(m.calls.length, 1);
+});
+
 test('communication query reads the communication table, not the customer master', async () => {
   const m = mock([row({ 客户邮箱: 'a@example.com', 邮件主题: 'Delivery', 任务状态: '处理中' })]);
   const crm = createCrmReadonly(m.client, { allowedOpenIds: 'ou_allowed' });
