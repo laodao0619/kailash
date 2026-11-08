@@ -228,7 +228,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="source-card"><span class="source-mark" style="background:#3478f6"></span><b>Meta</b><span>客户360°按已记录的Facebook/Instagram UTM识别</span><em>广告曝光与花费尚未接入</em></div>
 <div class="source-card"><span class="source-mark" style="background:#e5ad30"></span><b>Google</b><span>根据订单UTM、来源或referrer识别</span><em>跨设备点击与广告花费尚未接入</em></div>
 <div class="source-card"><span class="source-mark" style="background:#30a86a"></span><b>Email</b><span>已归档客户邮件与同线程客服回复</span><em>未接入营销平台完整发送日志</em></div>
-</div><div class="status" style="margin-top:15px">打开“客户管理”，选择客户，进入 Customer 360° 可使用 30/60/180/360天、自定义及全历史时间轴查看真实触达事件。未记录的曝光和点击不会显示为已发生。</div></div></section>
+</div><div class="status" style="margin-top:15px">在客户360°中查看该客户的实际UTM与邮件历史。未记录的广告曝光和点击不会伪造成已发生。<div class="toolbar" style="margin-top:12px"><input id="marketing-customer" type="search" placeholder="输入客户姓名或邮箱，查看其触达历程"><button id="marketing-find" class="primary" type="button">查找客户</button></div></div></div></section>
 <section id="reports-center" class="panel work-module">
 <div class="head"><div><div class="eyebrow">06 / REPORTS</div><h2>数据报表</h2><p class="muted">基于当前历史索引的已知数字。正式财务净额、利润、ROAS及销售归因等待独立数据源核验。</p></div><button id="report-refresh">刷新报表</button></div>
 <div class="body"><div id="report-content" class="status">请登录以读取客户价值和订阅分布。</div>
@@ -250,7 +250,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="timeline-tools" role="group" aria-label="客户事件时间范围">
 <button type="button" data-range="30">30天</button><button type="button" data-range="60">60天</button>
 <button type="button" data-range="180" class="active">180天</button><button type="button" data-range="360">360天</button>
-<button type="button" data-range="all">全部</button><button type="button" data-range="custom">自定义</button>
+<button type="button" data-range="all">全部</button><button type="button" data-range="custom">自定义</button><button type="button" id="timeline-zoom-in" title="缩小时间范围">＋ 放大</button><button type="button" id="timeline-zoom-out" title="扩大时间范围">－ 缩小</button>
 <span id="timeline-custom" class="toolbar" hidden>
 <label class="muted">开始 <input id="timeline-start" type="date"></label>
 <label class="muted">结束 <input id="timeline-end" type="date"></label>
