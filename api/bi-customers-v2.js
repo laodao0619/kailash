@@ -54,7 +54,10 @@ function queryRows(items,params={}){
   const x=a[sort],y=b[sort],xn=x===null||x===undefined||x==="",yn=y===null||y===undefined||y==="";
   if(xn!==yn)return xn?1:-1; // Unknown fields always last
   let comp=0;
-  if(typeof x==="number"&&typeof y==="number")comp=x-y;
+  if(sort==="tier"){
+   const rank={"S+":7,"S":6,"A":5,"B":4,"基础客户":3,"沉睡":2,"从未购买":1,"待核验":0};
+   comp=(rank[x]??-1)-(rank[y]??-1);
+  }else if(typeof x==="number"&&typeof y==="number")comp=x-y;
   else comp=String(x??"").localeCompare(String(y??""),"zh-CN",{numeric:true,sensitivity:"base"});
   return comp?comp*direction:String(a.id).localeCompare(String(b.id),undefined,{numeric:true});
  });
