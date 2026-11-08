@@ -1,0 +1,127 @@
+"use strict";
+// Read-only, source-grounded customer journey. This route never sends email or writes orders.
+const crypto=require("node:crypto");
+const shopify=require("../lib/crm-shopify");
+const gmail=require("../lib/crm-gmail");
+const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!){
+ customer(id:$id){
+  id createdAt firstName lastName numberOfOrders
+  defaultEmailAddress{emailAddress marketingState}
+  orders(first:50,sortKey:PROCESSED_AT,reverse:true){
+   pageInfo{hasNextPage endCursor}
+   nodes{
+    id name processedAt test cancelledAt displayFinancialStatus displayFulfillmentStatus
+    currentSubtotalPriceSet{shopMoney{amount currencyCode}}
+    lineItems(first:12){pageInfo{hasNextPage} nodes{title quantity}}
+    customerJourneySummary{
+     ready
+     firstVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
+     lastVisit{occurredAt source landingPage referrerUrl utmParameters{source medium campaign}}
+    }
+   }
+  }
+ }
+}`;
+function authorized(req){
+ const expected=process.env.KBI_ACCESS_TOKEN||"";
+ const given=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
+ if(expected.length<24||!given)return false;
+ const a=crypto.createHash("sha256").update(given).digest();
+ const b=crypto.createHash("sha256").update(expected).digest();
+ return crypto.timingSafeEqual(a,b);
+}
+function address(s){return gmail.emailAddress(s);}
+function event(id,kind,at,title,source,extra={}){
+ return {id,kind,at:at||null,title,source,...extra};
+}
+function orderEvent(o){
+ const money=o.currentSubtotalPriceSet?.shopMoney;
+ const valid=!!o.processedAt&&!o.test&&!o.cancelledAt;
+ const j=o.customerJourneySummary||null;
+ const first=j?.ready?j.firstVisit:null;
+ const last=j?.ready?j.lastVisit:null;
+ return event("shopify:"+o.id,"order",o.processedAt,"Order "+o.name,"Shopify",{
+  orderId:o.id,orderName:o.name,
+  status:o.displayFinancialStatus||"UNKNOWN",fulfillment:o.displayFulfillmentStatus||"UNKNOWN",
+  validForReview:valid,
+  amount:money?.amount??null,currency:money?.currencyCode||null,
+  products:(o.lineItems?.nodes||[]).map(x=>({title:x.title,quantity:x.quantity})),
+  productsComplete:!o.lineItems?.pageInfo?.hasNextPage,
+  attribution:{
+   status:!j?"unknown":!j.ready?"pending":!first&&!last?"unknown":"recorded_visit",
+   firstVisit:first?{at:first.occurredAt,source:first.source||null,landingPage:first.landingPage||null,referrer:first.referrerUrl||null,utm:first.utmParameters||null}:null,
+   lastVisit:last?{at:last.occurredAt,source:last.source||null,landingPage:last.landingPage||null,referrer:last.referrerUrl||null,utm:last.utmParameters||null}:null
+  }
+ });
+}
+async function mailEvents(email){
+ const t=await gmail.token();
+ const query=new URLSearchParams({q:'from:"'+email+'" -in:spam -in:trash -category:promotions -category:social -category:forums',maxResults:"50"});
+ const response=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/messages?"+query,{
+  headers:{Authorization:"Bearer "+t}
+ });
+ if(!response.ok)throw Error("gmail_list_failed");
+ const result=await response.json();
+ const output=[];
+ for(const item of (result.messages||[]).slice(0,50)){
+  const m=await gmail.message(t,item.id);
+  if(gmail.classifyMessage(m)!=="candidate")continue;
+  const c=gmail.compactMessage(m);
+  // Gmail search can match quoted threads unexpectedly; verify the actual sender.
+  if(address(c.from)!==email)continue;
+  output.push(event("gmail:"+c.id,"communication",c.date,c.subject||"Customer email","Gmail",{
+   threadId:c.threadId,channel:"email",evidenceType:"customer_message",
+   gmailUrl:"https://mail.google.com/mail/u/0/#all/"+encodeURIComponent(c.threadId)
+  }));
+ }
+ return {events:output,complete:!result.nextPageToken};
+}
+module.exports=async(req,res)=>{
+ res.setHeader("Cache-Control","private, no-store");
+ res.setHeader("X-Content-Type-Options","nosniff");
+ if(req.method!=="GET")return res.status(405).json({ok:false,error:"method_not_allowed"});
+ if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
+ if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
+ const customerId=String(req.query?.id||"");
+ if(!/^\d{5,25}$/.test(customerId))return res.status(400).json({ok:false,error:"invalid_customer_id"});
+ if(!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||
+    (process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET))))
+  return res.status(503).json({ok:false,error:"shopify_backend_not_configured"});
+ try{
+  const data=await shopify.queryShopify(CUSTOMER_QUERY,{id:"gid://shopify/Customer/"+customerId});
+  const c=data.customer;
+  if(!c)return res.status(404).json({ok:false,error:"customer_not_found"});
+  const email=address(c.defaultEmailAddress?.emailAddress||"");
+  const orders=(c.orders?.nodes||[]).map(orderEvent);
+  // Do not claim complete lifetime history from a single 50-order page.
+  let communications=[],mailCoverage="no_customer_email";
+  if(email){
+   if(!(process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET&&process.env.GMAIL_REFRESH_TOKEN)){
+    mailCoverage="gmail_backend_not_configured";
+   }else{
+    try{
+     const mail=await mailEvents(email);
+     communications=mail.events;
+     mailCoverage=mail.complete?"sample_up_to_50":"partial_more_messages";
+    }catch(_){mailCoverage="gmail_backend_unavailable";}
+   }
+  }
+  const events=[
+   event("shopify:"+c.id+":created","customer_created",c.createdAt,"Customer account created","Shopify"),
+   ...orders,...communications
+  ].filter(e=>e.at).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  return res.status(200).json({
+   ok:true,asOf:new Date().toISOString(),
+   customer:{id:c.id,firstName:c.firstName||"",lastName:c.lastName||"",
+    email:email||null,ordersReported:c.numberOfOrders??null,
+    marketingState:c.defaultEmailAddress?.marketingState||null},
+   events,coverage:{orders:c.orders?.pageInfo?.hasNextPage?"partial_first_50":"all_returned_orders",
+    email:mailCoverage,acquisition:"per_order_recorded_visits_only",
+    financialLedger:"not_audited",rfm:"not_computed"},
+   note:"Marketing touches are recorded observations, not causal attribution. Customer email is matched by verified sender."
+  });
+ }catch(e){
+  const s=String(e?.message||"");
+  return res.status(502).json({ok:false,error:s.includes("Shopify")?"shopify_unavailable":"source_unavailable"});
+ }
+};
