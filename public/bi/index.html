@@ -63,7 +63,15 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 @media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
-<nav><a href="#overview" class="active">经营总览</a><a href="#customers">客户管理</a><a href="#rfm">客户分层</a><a href="#operations">运营与同步</a></nav>
+<nav aria-label="工作台模块">
+<a href="#overview" class="active"><span class="nav-icon">◫</span> 经营总览</a>
+<a href="#customers"><span class="nav-icon">▤</span> 客户管理</a>
+<a href="#rfm"><span class="nav-icon">◉</span> RFM 客户分层</a>
+<a href="#case-center"><span class="nav-icon">◷</span> 客服跟进</a>
+<a href="#product-center"><span class="nav-icon">◇</span> 商品分析</a>
+<a href="#marketing-center"><span class="nav-icon">◎</span> 营销触达</a>
+<a href="#reports-center"><span class="nav-icon">▥</span> 数据报表</a>
+<a href="#operations"><span class="nav-icon">⚙</span> 系统与同步</a></nav>
 <div class="foot">Kailash BI · 内部业务工作台<br>已有客户基线 + CRM 物化索引<br>2026年11月8日标准</div></aside>
 <main>
 <div class="top" id="overview"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE</div><h1>经营与客户智能工作台</h1><div class="muted">客户价值、历史沟通与订单生命周期。所有指标均显示来源及数据覆盖范围。</div></div><span class="pill" id="top-status">正在检查系统连接</span></div>
@@ -107,15 +115,51 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 <label>每页 <select id="size"><option>25</option><option selected>50</option><option>100</option></select></label>
 <button id="prev" disabled>上一页</button><button id="next" disabled>下一页</button></div></div>
 </section>
-<div class="grid2">
-<section id="rfm" class="panel"><div class="head"><h2>客户等级规则</h2><span class="pill">11月8日标准</span></div><div class="body">
-<p class="muted">S+：M≥$3,000、R≤45天、F≥5笔；S：M≥$1,500、R≤90天、F≥3笔；A：M≥$800、R≤180天、F≥2笔；B：M＞$0、R≤180天、F≥1笔。</p>
-<div class="warn">每个等级须同时满足M/R/F三项。当前列表显示既有快照回写等级；全历史净额审计尚未完成，正式评级仍需复核。</div>
+<section id="rfm" class="panel work-module">
+<div class="head"><div><div class="eyebrow">02 / CUSTOMER SEGMENTATION</div><h2>RFM 客户分层</h2><p class="muted">实时读取已保存的历史CRM快照，后续账本完成后自动更新来源；不把历史回写冒充最终审计。</p></div><span class="pill">历史汇总 · 待最终净额核验</span></div>
+<div class="body">
+<div class="module-kpis" id="rfm-summary-cards"><span class="muted">登录后加载真实RFM历史分布…</span></div>
+<div class="rfm-layout"><div><h3>各等级客户占比</h3><div id="rfm-bars" class="rfm-bars"><p class="muted">等待客户索引…</p></div><p class="muted">点击任意等级，跳转客户列表并筛选该等级。</p></div>
+<div><h3>RFM 计算口径</h3><div class="rule-list">
+<div><b>S+</b><span>M ≥ $3,000 · R ≤ 45天 · F ≥ 5笔</span></div>
+<div><b>S</b><span>M ≥ $1,500 · R ≤ 90天 · F ≥ 3笔</span></div>
+<div><b>A</b><span>M ≥ $800 · R ≤ 180天 · F ≥ 2笔</span></div>
+<div><b>B</b><span>M ＞ $0 · R ≤ 180天 · F ≥ 1笔</span></div>
+</div><p class="muted">按S+→S→A→B顺序、三个条件同时符合；基础、沉睡、从未购买单独管理。客单价$400高低分组独立于等级。</p></div></div>
+<div id="rfm-coverage" class="status">尚未完成覆盖率检查。</div>
 </div></section>
-<section id="operations" class="panel"><div class="head"><h2>数据同步与运营状态</h2><button id="refresh-status">刷新状态</button></div><div class="body">
-<div class="status" id="operation-status">等待数据状态…</div>
-<p class="muted">北京时间：08:50客户 / 08:55订单 / 09:00邮件；13:15 / 13:20 / 13:25；15:45 / 15:50 / 15:55。历史 Gmail 继续独立断点补录。</p></div></section>
-</div>
+<section id="case-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">03 / CUSTOMER SERVICE</div><h2>客服 Case 跟进</h2><p class="muted">来自已归档客户沟通事件。仅是待核实的候选，不等于全部未处理工单。</p></div>
+<div class="toolbar"><span class="pill" id="case-count">未加载</span><button id="case-refresh">刷新 Case</button></div></div>
+<div class="filters case-filters"><input id="case-query" type="search" placeholder="搜索客户邮箱、订单号、主题、问题摘要">
+<select id="case-priority" aria-label="Case优先级"><option value="">所有优先级</option><option value="P0">紧急 P0</option><option value="P1">高优先 P1</option><option value="P2">普通 P2</option></select>
+<button id="case-search" class="primary">查询</button></div>
+<div class="scroll"><table><thead><tr><th>客户 / 订单</th><th>问题类型</th><th>紧急程度</th><th>回复与处置</th><th>最近来信</th><th>源邮件</th></tr></thead>
+<tbody id="case-rows"><tr><td colspan="6" class="empty-state">登录后查看已归档客服记录</td></tr></tbody></table></div>
+<div class="pager"><span id="case-page-label">等待查询</span><div class="toolbar"><button id="case-prev" disabled>上一页</button><button id="case-next" disabled>下一页</button></div></div>
+</section>
+<section id="product-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">04 / PRODUCT INTELLIGENCE</div><h2>商品与购买偏好</h2><p class="muted">可用的商品目录与客户订单商品画像。当前目录按更新日期排列，不是销售排行。</p></div><span class="pill">Shopify实时商品</span></div>
+<div class="body"><div class="toolbar"><input id="product-search" type="search" placeholder="搜索商品名称或关键词"><button id="product-search-btn" class="primary">搜索商品</button></div>
+<p class="muted" id="catalog-status">登录后读取当前商品目录；客户购买偏好请从Customer 360°查看。</p>
+<div id="catalog-grid" class="products-grid"></div></div></section>
+<section id="marketing-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">05 / CUSTOMER ACQUISITION</div><h2>营销触达与来源</h2><p class="muted">通过客户订单中的真实UTM访问事件追踪个人触达节奏。全平台曝光、点击和成本数据需要单独接入。</p></div></div>
+<div class="body"><div class="source-grid">
+<div class="source-card"><span class="source-mark" style="background:#3478f6"></span><b>Meta</b><span>客户360°按已记录的Facebook/Instagram UTM识别</span><em>广告曝光与花费尚未接入</em></div>
+<div class="source-card"><span class="source-mark" style="background:#e5ad30"></span><b>Google</b><span>根据订单UTM、来源或referrer识别</span><em>跨设备点击与广告花费尚未接入</em></div>
+<div class="source-card"><span class="source-mark" style="background:#30a86a"></span><b>Email</b><span>已归档客户邮件与同线程客服回复</span><em>未接入营销平台完整发送日志</em></div>
+</div><div class="status" style="margin-top:15px">打开“客户管理”，选择客户，进入 Customer 360° 可使用 30/60/180/360天、自定义及全历史时间轴查看真实触达事件。未记录的曝光和点击不会显示为已发生。</div></div></section>
+<section id="reports-center" class="panel work-module">
+<div class="head"><div><div class="eyebrow">06 / REPORTS</div><h2>数据报表</h2><p class="muted">基于当前历史索引的已知数字。正式财务净额、利润、ROAS及销售归因等待独立数据源核验。</p></div><button id="report-refresh">刷新报表</button></div>
+<div class="body"><div id="report-content" class="status">请登录以读取客户价值和订阅分布。</div>
+<div class="toolbar" style="margin-top:16px"><button id="report-export" class="primary">导出当前筛选客户</button><button id="report-rfm">查看RFM分层</button><button id="report-cases">查看客服Case</button></div></div></section>
+<section id="operations" class="panel work-module">
+<div class="head"><div><div class="eyebrow">07 / SYSTEM & DATA</div><h2>系统运行与数据同步</h2><p class="muted">所有数据源展示真实状态，缺少数据或尚未验收时明确说明。</p></div><button id="refresh-status">刷新状态</button></div>
+<div class="body"><div id="operation-status" class="status">等待数据状态…</div>
+<div id="system-health" class="health-grid"><div class="muted">正在读取索引与接口健康状态…</div></div>
+<p class="muted">北京时间：上班前 08:50/08:55/09:00，店铺美东零点后 13:15/13:20/13:25，下班前 15:45/15:50/15:55（客户/订单/邮件）。</p>
+<p class="muted">Gmail历史补录继续从现有断点运行，不重新全量抓取Shopify客户。RFM来自当前已保存历史快照；全历史退款净额审计后再切换为正式口径。</p></div></section>
 <p class="muted">KBI 内部运营工具 · 全量筛选结果来自私有CRM索引 · 不自动发送邮件或修改订单 · 模型画像须人工复核。</p>
 </main></div>
 <dialog id="customer-dialog"><div class="dialog-content">
