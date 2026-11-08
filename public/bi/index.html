@@ -429,12 +429,12 @@ async function profile(c){
   const cov=data.coverage||{};
   const orderText=cov.orders==="all_returned_orders"?"当前可访问订单已全部返回":"超过300笔订单，历史仍有未加载部分";
   const mailText=({
-   sample_up_to_50:"Gmail当前查询已返回部分双向记录",partial_more_messages:"仍有未加载的邮件",
+   retrieved_all_query_matches:"已读取本次Gmail查询全部结果",partial_mail_fetch_errors:"部分邮件读取失败，记录不完整",sample_up_to_50:"Gmail当前查询已返回部分双向记录",partial_more_messages:"已读取最多500封，仍有未加载邮件",
    gmail_backend_unavailable:"Gmail后端暂不可用",ambiguous_customer_email:"邮箱归属有歧义，已保护私人邮件",
    no_customer_email:"无客户邮箱",customer_identity_check_failed:"邮箱归属校验失败"
   })[cov.email]||cov.email||"未知";
   $("journey-coverage").textContent=orderText+"；"+mailText+"；商品："+
-   (cov.products==="partial_line_items"?"部分订单商品超过单页30件":"本次订单范围内的历史记录")+
+   (cov.products==="partial_line_items"?"部分订单商品仍超出本次读取上限":"已返回订单内的商品行")+
    "。广告来源仅代表已记录触点，RFM净额仍待正式审计。";
   $("events").innerHTML=customerView.events.slice().reverse().map(e=>{
    const extra=e.kind==="order"?[e.currency,e.amount,(e.products||[]).map(p=>p.title+" ×"+p.quantity).join(" / "),e.status,e.fulfillment].filter(Boolean).join(" · "):
