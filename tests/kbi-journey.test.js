@@ -19,7 +19,17 @@ function shopOrder(){
  return {id:"gid://shopify/Order/100",name:"7002",processedAt:"2026-10-08T13:13:57Z",
   test:false,cancelledAt:null,displayFinancialStatus:"PAID",displayFulfillmentStatus:"FULFILLED",
   currentSubtotalPriceSet:{shopMoney:{amount:"463.08",currencyCode:"USD"}},
-  lineItems:{pageInfo:{hasNextPage:false},nodes:[{title:"Vajra pendant",quantity:1}]},
+  currentTotalPriceSet:{shopMoney:{amount:"485.00",currencyCode:"USD"}},
+  lineItems:{pageInfo:{hasNextPage:false},nodes:[{
+   id:"gid://shopify/LineItem/111",title:"Vajra pendant",quantity:1,
+   discountedUnitPriceAfterAllDiscountsSet:{shopMoney:{amount:"149.90",currencyCode:"USD"}},
+   image:{url:"https://cdn.shopify.com/s/files/1/picture.jpg",altText:"Vajra"},
+   product:{id:"gid://shopify/Product/987",title:"Vajra pendant",
+    handle:"vajra-pendant",productType:"Necklace",
+    description:"Silver Vajra protective pendant in handmade Tibetan style",
+    onlineStoreUrl:"https://kailashenergy.com/products/vajra-pendant"},
+   variant:{id:"gid://shopify/ProductVariant/888",title:"Default"}
+  }]},
   customerJourneySummary:{ready:true,
    firstVisit:{occurredAt:"2026-10-06T00:00:00Z",source:"facebook",
     landingPage:"https://store.example.test/item",referrerUrl:null,
@@ -96,6 +106,13 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  assert.equal(out.body.coverage.financialLedger,"not_audited");
  assert.equal(out.body.profile.productInterests.some(x=>x.label==="Vajra"),true);
  assert.equal(out.body.profile.productInterests[0].verifiedPreference,false);
+ assert.equal(out.body.profile.products.length,1);
+ assert.equal(out.body.profile.products[0].imageUrl,"https://cdn.shopify.com/s/files/1/picture.jpg");
+ assert.equal(out.body.profile.products[0].productUrl,"https://kailashenergy.com/products/vajra-pendant");
+ assert.equal(out.body.profile.products[0].purchases[0].unitPrice,149.90);
+ assert.equal(out.body.profile.productSummary[0].label,"Necklace");
+ assert.equal(order.amount,"485.00");
+ assert.equal(out.body.mailSummary.inbound,1);
  assert.equal(calls.filter(x=>x.includes("gmail.googleapis.com")).length,2);
  assert.equal(calls.filter(x=>x.includes("myshopify.com")).length,2);
 });
@@ -121,6 +138,8 @@ test("Customer 360 joins outgoing service replies only within customer-originate
  assert.equal(messages.length,2);
  assert.deepEqual(messages.map(x=>x.direction),["inbound","outbound"]);
  assert.equal(messages[1].evidenceType,"service_reply_in_customer_thread");
+ assert.equal(out.body.mailSummary.outbound,1);
+ assert.equal(out.body.mailSummary.threads,1);
 });
 test("a fully refunded order stays on timeline but cannot create interest tags",async()=>{
  setEnvironment();setupFetch({financialStatus:"REFUNDED"});const out=res();
