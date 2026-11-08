@@ -239,6 +239,9 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 .funnel-step small{font-size:12px;color:#668271}.funnel-step strong{display:block;color:#2b583f;font-size:25px;margin:8px 0}.funnel-step span{font-size:11px;color:#7d907f}
 .ops-funnel-insight{font-size:13px;line-height:1.8;background:#f3f7f3;color:#44634d;padding:13px;border-radius:10px;margin:13px 0}
 @media(max-width:620px){.ops-funnel .funnel-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.funnel-step:nth-child(2):after{display:none}}
+
+.ops-executive-brief{border:1px solid #dfebe1;border-radius:12px;padding:14px 17px;background:#f0f7f1;color:#355a3f;font-size:13px;line-height:1.8;margin:0 0 16px}
+.ops-executive-brief strong{color:#224f35}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -264,6 +267,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
  <div class="row ops-headline"><div><div class="eyebrow">COMMERCE · OPERATION COMMAND CENTER</div>
  <h2>店铺运营核心指标</h2><p class="muted">Shopify Analytics · 最近30天含今日 · 店铺货币 · 私有云端快照</p></div>
  <div class="toolbar"><span id="ops-data-state" class="pill">待连接Shopify Analytics</span><button id="ops-refresh" type="button">读取最新快照</button></div></div>
+ <div class="ops-executive-brief" id="ops-executive-brief">登录后自动生成最近7日经营简报与重点诊断。</div>
  <div class="ops-kpis" id="ops-kpis">
  <div class="ops-kpi"><small>店铺GMV · Total Sales</small><strong id="ops-gmv">—</strong><span>Shopify 原生销售额</span></div>
  <div class="ops-kpi"><small>净销售额 · Net Sales</small><strong id="ops-net">—</strong><span>已含销售分析中的退货调整</span></div>
@@ -374,7 +378,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div id="catalog-grid" class="products-grid"></div></div></section>
 
 <section id="email-calendar" class="panel work-module">
-<div class="head"><div><div class="eyebrow">CRM · CAMPAIGN PLANNING</div><h2>邮件营销日历与效果</h2><p class="muted">编辑排期、主题、Preview、受众与UTM；状态仅为运营计划，不会自动发送邮件。</p></div><button id="calendar-new" class="primary">新增邮件排期</button></div>
+<div class="head"><div><div class="eyebrow">CRM · CAMPAIGN PLANNING</div><h2>邮件营销日历与效果</h2><p class="muted">编辑排期、主题、Preview、受众与UTM；状态仅为运营计划，不会自动发送邮件。</p></div><div class="toolbar"><button id="calendar-brand-template">载入品牌月草稿模板</button><button id="calendar-new" class="primary">新增邮件排期</button></div></div>
 <div class="body"><div class="ops-two ops-editor-layout"><div>
 <div class="email-calendar-list" id="email-calendar-list"><p class="muted">登录后读取私有云端邮件排期…</p></div>
 <div id="calendar-status" class="muted"></div></div>

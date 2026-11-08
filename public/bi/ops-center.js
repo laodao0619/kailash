@@ -74,6 +74,18 @@ function initialize(ctx){
    (checkoutCompletion===null?"当前没有足够的结账样本。":
     "进入结账后的会话购买完成比例约 "+checkoutCompletion.toFixed(1)+"%。")+
    " 建议先按国家、广告来源与移动设备核查流量质量，再检查移动端商品页、物流承诺和结账支付体验。";
+  const historic=d.daily.slice(0,-1);
+  const recent7=historic.slice(-7),prior7=historic.slice(-14,-7);
+  const gmv7=recent7.reduce((v,x)=>v+x.totalSales,0);
+  const gmvBefore=prior7.reduce((v,x)=>v+x.totalSales,0);
+  const change=gmvBefore>0?(gmv7/gmvBefore-1)*100:null;
+  const sourceSummary=change===null?"暂无完整可比的前7日数据":
+   "最近7个完整报告日GMV "+cash(gmv7)+"，较此前7日 "+(change>=0?"+":"")+change.toFixed(1)+"%";
+  const emailShare=m.gmv>0?m.emailAttributedGmv/m.gmv*100:null;
+  $("ops-executive-brief").textContent=sourceSummary+
+   "。30日店铺转化率 "+pct(m.conversionRate)+
+   "；邮件最后点击归因收入占同期GMV "+pct(emailShare)+
+   "。优先按渠道与设备检查低质量流量，并复查商品页到结账的漏斗损失。";
   $("ops-data-state").textContent="Shopify Analytics · "+fmtDate(d.generatedAt);
   const channels=d.channelSales||[],max=Math.max(1,...channels.map(x=>x.gmv));
   $("ops-channel-bars").innerHTML=channels.slice(0,8).map((c,i)=>
@@ -261,6 +273,16 @@ function initialize(ctx){
  $("ops-refresh").onclick=analytics;
  $("ops-products-link").onclick=()=>document.getElementById("product-center")?.scrollIntoView({behavior:"smooth"});
  document.querySelectorAll("#ops-trend-metrics input").forEach(x=>x.onchange=chart);
+ $("calendar-brand-template").onclick=()=>{
+  resetCalendar();
+  $("calendar-title").value="Kailash Day of Giving · 品牌月";
+  $("calendar-subject").value="Kailash Day of Giving: A Blessing for You and Your Loved Ones";
+  $("calendar-preview").value="Infinite Light · Compassion · Blessings · Sharing";
+  $("calendar-utm").value="kailash_day_of_giving_2026";
+  $("calendar-notes").value="品牌月邮件草稿模板：11月16日开始庆祝。请手动选择具体发送日期和受众，核实素材和客户订阅状态；本工具不会自动发送。";
+  $("calendar-form-note").textContent="已载入草稿模板。发送时间为空，请人工确认日期后保存。";
+  $("email-calendar-editor").scrollIntoView({behavior:"smooth",block:"center"});
+ };
  $("calendar-new").onclick=resetCalendar;$("calendar-reset").onclick=resetCalendar;
  $("calendar-save").onclick=saveCalendar;$("calendar-delete").onclick=deleteCalendar;
  $("audience-preview").onclick=audiencePreview;$("audience-save").onclick=saveAudience;

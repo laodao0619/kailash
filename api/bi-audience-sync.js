@@ -27,10 +27,14 @@ async function createSegment(name,tag){
  if(d?.userErrors?.length||!d?.segment?.id)throw Error("shopify_segment_create_failed");
  return d.segment.id;
 }
+function missingOrFailedAliases(ids,result){
+ return ids.filter((_id,i)=>!result["b"+i]||!Array.isArray(result["b"+i].userErrors)||
+  result["b"+i].userErrors.length>0);
+}
 async function pushBatch(ids,tag){
  const aliases=ids.map((id,i)=>"b"+i+':tagsAdd(id:"gid://shopify/Customer/'+id+'",tags:["'+tag+'"]){userErrors{field message}}').join(" ");
  const result=await queryShopify("mutation KbiAudienceTags{"+aliases+"}");
- const failures=ids.filter((_id,i)=>(result["b"+i]?.userErrors||[]).length>0);
+ const failures=missingOrFailedAliases(ids,result);
  return failures;
 }
 module.exports=async(req,res)=>{
@@ -85,3 +89,4 @@ module.exports=async(req,res)=>{
   return res.status(503).json({ok:false,error:"shopify_audience_sync_unavailable",note:"Nothing is assumed completed; inspect progress before retrying."});}
 };
 module.exports.pushBatch=pushBatch;
+module.exports.missingOrFailedAliases=missingOrFailedAliases;
