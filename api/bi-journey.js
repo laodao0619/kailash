@@ -50,7 +50,12 @@ function event(id,kind,at,title,source,extra={}){
 }
 function orderEvent(o){
  const money=o.currentSubtotalPriceSet?.shopMoney;
- const valid=!!o.processedAt&&!o.test&&!o.cancelledAt;
+ // A timeline can show every order, but the observed product-interest
+ // calculation must not count unpaid, test, cancelled or refunded orders.
+ const financiallyEligible=["PAID","PARTIALLY_PAID","PARTIALLY_REFUNDED"].includes(o.displayFinancialStatus);
+ const amount=money?.amount==null?NaN:Number(money.amount);
+ const valid=!!o.processedAt&&!o.test&&!o.cancelledAt&&
+  financiallyEligible&&Number.isFinite(amount)&&amount>0;
  const j=o.customerJourneySummary||null;
  const first=j?.ready?j.firstVisit:null;
  const last=j?.ready?j.lastVisit:null;
