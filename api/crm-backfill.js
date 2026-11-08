@@ -25,6 +25,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authorized(req))return res.status(401).json({ok:false});
+ if(process.env.CRM_FILTER_VERSION!=="v2-reviewed")return res.status(200).json({ok:true,paused:true,reason:"Awaiting valid customer screening and subscriptions fields"});
  const ready=!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(200).json({ok:true,skipped:"not_crm_execution_project"});
  if(!ready)return res.status(200).json({ok:true,skipped:"shopify_credentials_unavailable"});
