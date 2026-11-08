@@ -49,6 +49,14 @@ module.exports=async(req,res)=>{
    await saveState(state);
    stats.cleanup=cleanup;
   }
+  if(state.qualityVersion!=="v2"){
+   state.previousImportTotals=state.shopifyTotals||null;
+   state.shopifyCursor=null;
+   state.shopifyCycleComplete=false;
+   state.shopifyTotals={created:0,updated:0,processed:0,pages:0};
+   state.qualityVersion="v2";
+   await saveState(state);
+  }
   const index=await bulk.loadIndex(token,bulk.CUSTOMERS,"Shopify客户ID");
   if(state.shopifyTotals?.initialImported==null){
    state.shopifyTotals=state.shopifyTotals||{created:0,updated:0,processed:0,pages:0};
