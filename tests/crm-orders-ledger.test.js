@@ -39,3 +39,24 @@ test("audit handles UTF-8 split across chunks",async()=>{
  const x=await auditJsonl(Readable.from([line.subarray(0,pos+1),line.subarray(pos+1)]));
  assert.equal(x.totals.eligible,1);
 });
+test("lifetime orders remain separate from rolling 180 days",async()=>{
+ const old=order({id:"old",createdAt:"2025-01-02T00:00:00Z",currentSubtotalPriceSet:usd(4000)});
+ const recent=order({id:"recent",createdAt:"2026-10-01T00:00:00Z",currentSubtotalPriceSet:usd(1200)});
+ const result=await auditJsonl(Readable.from([`${JSON.stringify(old)}\n${JSON.stringify(recent)}\n`]),
+  {asOf:"2026-11-08T00:00:00Z"});
+ assert.equal(result.totals.eligible,2);
+ assert.equal(result.totals.withinWindow,1);
+ assert.equal(result.aggregates.lifetimeMerchandiseCents,520000);
+ assert.equal(result.aggregates.windowMerchandiseCents,120000);
+ assert.equal(result.aggregates.customersWithWindowSpendOver3000,0);
+});
+test("rolling 180-day threshold is strict and invalid dates are flagged",async()=>{
+ const rows=[order({id:"one",createdAt:"2026-11-01T00:00:00Z",currentSubtotalPriceSet:usd(3000)}),
+  order({id:"two",createdAt:"2026-11-03T00:00:00Z",customer:{id:"another"},currentSubtotalPriceSet:usd(3000.01)}),
+  order({id:"three",createdAt:"invalid"})];
+ const result=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")]),
+  {asOf:"2026-11-08T00:00:00Z"});
+ assert.equal(result.aggregates.customersWithWindowSpendOver3000,1);
+ assert.equal(result.totals.missingOrderDate,1);
+ assert.equal(result.totals.withinWindow,2);
+});
