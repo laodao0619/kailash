@@ -3,17 +3,23 @@ on:
   pull_request:
     paths:
       - 'api/bi-journey.js'
+      - 'api/bi-customers.js'
       - 'lib/crm-shopify.js'
       - 'lib/crm-gmail.js'
       - 'tests/kbi-journey.test.js'
+      - 'tests/kbi-customers.test.js'
+      - 'public/bi/index.html'
       - '.github/workflows/kbi-v1-tests.yml'
   push:
     branches: ['feat/kbi-v1-readonly']
     paths:
       - 'api/bi-journey.js'
+      - 'api/bi-customers.js'
       - 'lib/crm-shopify.js'
       - 'lib/crm-gmail.js'
       - 'tests/kbi-journey.test.js'
+      - 'tests/kbi-customers.test.js'
+      - 'public/bi/index.html'
       - '.github/workflows/kbi-v1-tests.yml'
 permissions:
   contents: read
@@ -29,8 +35,14 @@ jobs:
       - name: Node syntax validation
         run: |
           node --check api/bi-journey.js
+          node --check api/bi-customers.js
           node --check lib/crm-shopify.js
           node --check lib/crm-gmail.js
           node --check tests/kbi-journey.test.js
+          node --check tests/kbi-customers.test.js
       - name: Run zero-secret unit tests
-        run: node --test tests/kbi-journey.test.js
+        run: node --test tests/kbi-journey.test.js tests/kbi-customers.test.js
+      - name: Validate inline workbench JavaScript
+        run: |
+          node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const m=s.match(/<script>([\\s\\S]*?)<\\/script>/);if(!m)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",m[1]);'
+          node --check /tmp/kbi-workbench.js
