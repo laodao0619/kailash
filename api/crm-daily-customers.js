@@ -6,6 +6,7 @@
 const state=require("../lib/crm-daily-state");
 const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
+const bulk=require("../lib/crm-bulk-feishu");
 const {classify}=require("../lib/crm-customer-quality");
 const SOURCE=state.ROOT+"/shopify-state.json";
 const BASELINE="crm-execution/import-cursor.json";
@@ -40,17 +41,30 @@ module.exports=async(req,res)=>{
    const filter="updated_at:>="+checkpoint.windowStart;
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
    if(!response?.customers?.nodes||!response.customers.pageInfo)throw Error("Malformed customer delta response");
+   const pageCounters={excluded:0,created:0,updated:0,accepted:0};
+   const valid=[],index=new Map();
    for(const c of response.customers.nodes){
     const quality=classify(c);
     if(!quality.eligible){
-     checkpoint.counters.excluded++;
+     pageCounters.excluded++;
      // A paid suspicious account requires manual review, not deletion.
      continue;
     }
-    const result=await feishu.upsertCustomer(token,c);
-    checkpoint.counters[result==="created"?"created":"updated"]++;
-    checkpoint.counters.accepted++;
+    valid.push(c);
+    const existing=await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id);
+    if(existing.length>1)throw Error("Ambiguous Shopify identity in CRM mirror");
+    if(existing.length===1)index.set(c.id,existing[0].record_id);
    }
+   if(valid.length){
+    // Shared historical field mapper preserves original numeric customer keys,
+    // consent rules, and doesn't modify manually entered CRM grades or notes.
+    const result=await bulk.batchCustomers(token,valid,index);
+    pageCounters.created=result.created;
+    pageCounters.updated=result.updated;
+    pageCounters.accepted=result.created+result.updated;
+   }
+   for(const [key,value] of Object.entries(pageCounters))
+    checkpoint.counters[key]=(checkpoint.counters[key]||0)+value;
    checkpoint.counters.scanned+=response.customers.nodes.length;
    checkpoint.counters.pages++;
    checkpoint.cursor=response.customers.pageInfo.hasNextPage?response.customers.pageInfo.endCursor:null;
