@@ -22,7 +22,9 @@ module.exports=async(req,res)=>{
       readJson("crm-execution/daily-v1/orders-state.json"),
       readJson("crm-execution/daily-v1/gmail-state.json")
     ]);
-    // A missing legacy tasks.json is not evidence that completed source\n    // checkpoints were lost. Report all available baselines independently.\n    const anyData=!!(state||shopify||gmail||gmailStage||ordersStage||ordersReconcile||dailyCustomers||dailyOrders||dailyGmail);
+    // A missing legacy tasks.json is not evidence that completed source
+    // checkpoints were lost. Report all available baselines independently.
+    const anyData=!!(state||shopify||gmail||gmailStage||ordersStage||ordersReconcile||dailyCustomers||dailyOrders||dailyGmail);
     return res.status(200).json({
       ok:true,
       project:"Kailash Energy CRM 2.0",
