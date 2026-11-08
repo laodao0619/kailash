@@ -50,6 +50,16 @@ const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,ite
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=(n,currency="USD")=>typeof n==="number"?(currency==="USD"?"$":(currency||"")+" ")+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const fmt=n=>n?new Date(n).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"}):"—";
+const orderStatus=s=>({
+ PAID:"已付款",PARTIALLY_PAID:"部分付款",PENDING:"待付款",AUTHORIZED:"已授权",
+ REFUNDED:"已退款",PARTIALLY_REFUNDED:"部分退款",VOIDED:"已撤销",
+ FULFILLED:"已发货",UNFULFILLED:"未发货",PARTIALLY_FULFILLED:"部分发货",
+ ON_HOLD:"暂缓发货",IN_PROGRESS:"处理中",SCHEDULED:"计划发货"
+})[String(s||"").toUpperCase()]||s||"未知";
+const sourceStatus=s=>({
+ "Shopify verified identity":"Shopify 身份已核验",
+ "有效":"有效客户","未核验":"尚未核验"
+})[s]||s||"待核查";
 async function api(params){
  const query=new URLSearchParams(params);
  const r=await fetch("/api/bi-v1?"+query,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
@@ -93,7 +103,7 @@ async function load(){
   $("data-note").textContent=source==="shopify"?
    "当前数据直接读取 Shopify。客户姓名、邮箱、历史订单数等为实时来源；全部客户数据质检和 S+/S/A/B 评级待净额审计。":
    "当前为飞书过渡镜像，并非已核验的全历史订单账本，暂不执行正式等级分层。";
-  $("rows").innerHTML=items.length?items.map((c,i)=>'<tr data-i="'+i+'"><td>'+esc(c.name||"未填写姓名")+'<div class="fine">'+esc(c.email)+'</div></td><td>'+esc(c.id)+'</td><td><span class="pill">'+esc(c.tier||"未验证")+'</span></td><td>'+money(c.lifetimeSpend)+'</td><td>'+esc(c.lifetimeOrders??"—")+'</td><td>'+esc(c.country||"—")+'</td><td>'+esc(c.quality||"待核查")+'</td></tr>').join(""):'<tr><td colspan="7" class="empty">没有符合条件的客户</td></tr>';
+  $("rows").innerHTML=items.length?items.map((c,i)=>'<tr data-i="'+i+'"><td>'+esc(c.name||"未填写姓名")+'<div class="fine">'+esc(c.email)+'</div></td><td>'+esc(c.id)+'</td><td><span class="pill">'+esc(c.tier||"未验证")+'</span></td><td>'+money(c.lifetimeSpend)+'</td><td>'+esc(c.lifetimeOrders??"—")+'</td><td>'+esc(c.country||"—")+'</td><td>'+esc(sourceStatus(c.quality))+'</td></tr>').join(""):'<tr><td colspan="7" class="empty">没有符合条件的客户</td></tr>';
   document.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>profile(items[Number(tr.dataset.i)])));
   $("auth").hidden=true;
  }catch(e){$("rows").innerHTML='<tr><td colspan="7" class="empty">无法读取数据：'+esc(e.message)+'</td></tr>';$("sync").textContent="连接异常";}
@@ -119,7 +129,7 @@ async function profile(c){
   $("timeline").innerHTML=events.length?events.map(e=>{
    const d=e.kind==="order"?[
      e.currency&&e.amount!==null?e.currency+" "+e.amount:"",
-     e.status||"",e.fulfillment||"",
+     orderStatus(e.status),orderStatus(e.fulfillment),
      (e.products||[]).map(x=>x.title+" ×"+x.quantity).join("、")
    ].filter(Boolean).join(" · "):e.kind==="communication"?
      (e.issueFlag?"客户反馈疑似未收到包裹 · 待人工核实":"客户邮件 · 可追溯原始记录"):
