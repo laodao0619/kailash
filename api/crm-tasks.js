@@ -15,11 +15,10 @@ const seed={project:"Kailash Energy CRM 2.0",updated_at:null,principles:["自动
 async function readState(){const r=await get(PATH,{access:"private"});if(!r||r.statusCode!==200)return null;const chunks=[];for await(const c of r.stream)chunks.push(c);return JSON.parse(Buffer.concat(chunks).toString("utf8"));}
 async function writeState(s){s.updated_at=new Date().toISOString();await put(PATH,JSON.stringify(s),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});}
 module.exports=async(req,res)=>{
- const bootstrap=req.method==="GET" && req.query.bootstrap==="queue-init-9d7K2mP4x6R8";
- if(!auth(req)&&!bootstrap)return res.status(401).json({ok:false,error:"Unauthorized"});
+ if(!auth(req))return res.status(401).json({ok:false,error:"Unauthorized"});
  try{
   let state=await readState();
-  if((req.method==="POST"&&req.query.action==="initialize")||bootstrap){
+  if(req.method==="POST"&&req.query.action==="initialize"){
    if(!state){state=seed;state.log=[{at:new Date().toISOString(),event:"初始化CRM 2.0执行队列"}];await writeState(state);}
    return res.status(200).json({ok:true,initialized:true,state});
   }
