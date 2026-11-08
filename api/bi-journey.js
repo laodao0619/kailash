@@ -94,6 +94,17 @@ function address(s){return gmail.emailAddress(s);}
 function event(id,kind,at,title,source,extra={}){
  return {id,kind,at:at||null,title,source,...extra};
 }
+function mapOrderProduct(x){
+ const itemPrice=x.discountedUnitPriceAfterAllDiscountsSet?.shopMoney||
+  x.originalUnitPriceSet?.shopMoney||null;
+ return {title:x.title,quantity:x.quantity,lineId:x.id,
+  productId:x.product?.id||null,variantId:x.variant?.id||null,
+  description:String(x.product?.description||"").slice(0,2200),
+  productType:x.product?.productType||"",
+  imageUrl:x.image?.url||null,productUrl:x.product?.onlineStoreUrl||null,
+  unitPrice:itemPrice?.amount==null?null:Number(itemPrice.amount),
+  currency:itemPrice?.currencyCode||null};
+}
 function orderEvent(o){
  const money=o.currentSubtotalPriceSet?.shopMoney;
  const orderTotal=o.currentTotalPriceSet?.shopMoney||money;
@@ -111,18 +122,9 @@ function orderEvent(o){
   status:o.displayFinancialStatus||"UNKNOWN",fulfillment:o.displayFulfillmentStatus||"UNKNOWN",
   validForReview:valid,
   amount:orderTotal?.amount??null,currency:orderTotal?.currencyCode||null,
-  products:(o.lineItems?.nodes||[]).map(x=>{
-   const itemPrice=x.discountedUnitPriceAfterAllDiscountsSet?.shopMoney||
-    x.originalUnitPriceSet?.shopMoney||null;
-   return {title:x.title,quantity:x.quantity,lineId:x.id,
-    productId:x.product?.id||null,variantId:x.variant?.id||null,
-    description:String(x.product?.description||"").slice(0,2200),
-    productType:x.product?.productType||"",
-    imageUrl:x.image?.url||null,productUrl:x.product?.onlineStoreUrl||null,
-    unitPrice:itemPrice?.amount==null?null:Number(itemPrice.amount),
-    currency:itemPrice?.currencyCode||null};
-  }),
+  products:(o.lineItems?.nodes||[]).map(mapOrderProduct),
   productsComplete:!o.lineItems?.pageInfo?.hasNextPage,
+  lineItemPageInfo:o.lineItems?.pageInfo||null,
   attribution:{
    status:!j?"unknown":!j.ready?"pending":!first&&!last?"unknown":"recorded_visit",
    firstVisit:first?{at:first.occurredAt,source:first.source||null,landingPage:first.landingPage||null,referrer:first.referrerUrl||null,utm:first.utmParameters||null}:null,
@@ -201,6 +203,25 @@ module.exports=async(req,res)=>{
    orders.push(...connection.nodes.map(orderEvent));
    pageInfo=connection.pageInfo;pageCount++;
   }
+  // Recover additional line items for complex orders without imposing a
+  // heavyweight per-customer unlimited query. Unfinished orders remain
+  // explicitly marked partial rather than silently losing their products.
+  let lineItemExtraPages=0;
+  for(const order of orders){
+   if(order.productsComplete||lineItemExtraPages>=12)continue;
+   let info=order.lineItemPageInfo||null;
+   // The initial connection is exposed via orderEvent below.
+   while(info?.hasNextPage&&info.endCursor&&lineItemExtraPages<12){
+    const data=await shopify.queryShopify(LINE_ITEMS_PAGE_QUERY,{
+     id:order.orderId,cursor:info.endCursor
+    });
+    const more=data.node?.lineItems;
+    if(!more?.pageInfo||!Array.isArray(more.nodes))throw Error("incomplete_line_items");
+    order.products.push(...more.nodes.map(mapOrderProduct));
+    info=more.pageInfo;lineItemExtraPages++;
+   }
+   order.productsComplete=!info?.hasNextPage;
+  }
   let communications=[],mailCoverage="no_customer_email",mailScanned=0,mailFailed=0;
   if(email){
    // Never attach private Gmail correspondence to ambiguous customer identities.
@@ -257,6 +278,7 @@ module.exports=async(req,res)=>{
     email:mailCoverage,mailScanned,mailFailed,mailMaxQueryResults:500,
     acquisition:"per_order_recorded_visits_only",
     products:orders.some(o=>!o.productsComplete)?"partial_line_items":"returned_order_line_items",
+    lineItemExtraPages,orderPages:pageCount,
     financialLedger:"not_audited",rfm:"not_computed"},
    note:"Marketing touches are recorded observations, not causal attribution. Customer email is matched by verified sender."
   });
