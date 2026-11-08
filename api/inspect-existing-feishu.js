@@ -8,7 +8,7 @@ async function api(token,path){
 module.exports=async(req,res)=>{
  if(req.method!=="GET") return res.status(405).json({ok:false,error:"Method not allowed"});
  const expected=process.env.REPORT_GATEWAY_TOKEN||"";
- const got=(req.headers.authorization||"").replace(/^Bearer\\s+/i,"");
+ const got=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
  if(!expected||got!==expected)return res.status(401).json({ok:false,error:"Unauthorized"});
  // Read-only inspection endpoint; access is restricted by Vercel Deployment Protection / SSO.
  try{
