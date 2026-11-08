@@ -2,6 +2,7 @@
 (function(root){
 function initialize(ctx){
  const {$,request,state,esc,n,money}=ctx;
+ const command=root.KBICommandBoard.initialize(ctx);
  const op={data:null,calendar:{version:0,plans:[]},audiences:{version:0,audiences:[]},
   editingId:null,preview:null,selectedAudience:null,syncStopped:false,syncBusy:false};
  const cash=v=>v==null?"—":money(v);
@@ -74,16 +75,17 @@ function initialize(ctx){
    (checkoutCompletion===null?"当前没有足够的结账样本。":
     "进入结账后的会话购买完成比例约 "+checkoutCompletion.toFixed(1)+"%。")+
    " 建议先按国家、广告来源与移动设备核查流量质量，再检查移动端商品页、物流承诺和结账支付体验。";
-  const historic=d.daily.slice(0,-1);
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const historic=d.daily.filter(x=>x.day<today);
   const recent7=historic.slice(-7),prior7=historic.slice(-14,-7);
   const gmv7=recent7.reduce((v,x)=>v+x.totalSales,0);
   const gmvBefore=prior7.reduce((v,x)=>v+x.totalSales,0);
-  const change=gmvBefore>0?(gmv7/gmvBefore-1)*100:null;
+  const change=recent7.length===7&&prior7.length===7&&gmvBefore>0?(gmv7/gmvBefore-1)*100:null;
   const sourceSummary=change===null?"暂无完整可比的前7日数据":
    "最近7个完整报告日GMV "+cash(gmv7)+"，较此前7日 "+(change>=0?"+":"")+change.toFixed(1)+"%";
   const emailShare=m.gmv>0?m.emailAttributedGmv/m.gmv*100:null;
   $("ops-executive-brief").textContent=sourceSummary+
-   "。30日店铺转化率 "+pct(m.conversionRate)+
+   "。所选期间店铺转化率 "+pct(m.conversionRate)+
    "；邮件最后点击归因收入占同期GMV "+pct(emailShare)+
    "。优先按渠道与设备检查低质量流量，并复查商品页到结账的漏斗损失。";
   $("ops-data-state").textContent="Shopify Analytics · "+fmtDate(d.generatedAt);
@@ -106,17 +108,25 @@ function initialize(ctx){
    '<div class="ops-list-item row"><span>'+(i+1)+'. '+esc(x.name)+'</span><b>'+cash(x.netSales)+'</b></div>').join("");
   $("ops-category-winners").innerHTML=(d.productCategories||[]).slice(0,5).map(x=>
    '<div class="ops-list-item row"><span>'+esc(x.name)+'</span><b>'+cash(x.netSales)+'</b></div>').join("");
-  chart();listCalendar();
+  chart();listCalendar();command.suggestions(d);
  }
+ let analyticsRun=0;
  async function analytics(){
   if(!state.token)return;
   $("ops-data-state").textContent="正在读取Shopify指标…";
+  const run=++analyticsRun;
+  $("ops-range-apply").disabled=true;
+  const start=$("ops-range-start").value,end=$("ops-range-end").value;
   try{
-   const result=await request("/api/bi-ops-dashboard");
+   if(!start||!end||start>end)throw Error("请选择有效的开始和结束日期");
+   const result=await request("/api/bi-ops-dashboard",{start,end});
+   if(run!==analyticsRun)return;
    if(!result.data)throw Error("empty_shopify_analytics");
    viewAnalytics(result.data);
+   $("ops-period-label").textContent="Shopify Analytics · "+start+" 至 "+end+" · 店铺时区与货币";
    if(result.stale)$("ops-data-state").textContent+=" · 云端快照待更新";
-  }catch(e){$("ops-data-state").textContent="Shopify指标暂不可用："+e.message}
+  }catch(e){$("ops-data-state").textContent="读取失败，当前仍为上次成功数据："+e.message}
+  finally{if(run===analyticsRun)$("ops-range-apply").disabled=false;}
  }
  function allAudiences(){
   const saved=op.audiences.audiences||[];
@@ -270,6 +280,16 @@ function initialize(ctx){
    op.calendar=d;resetCalendar();$("calendar-form-note").textContent="已删除云端排期。";
   }catch(e){$("calendar-form-note").textContent="删除失败："+e.message;}
  }
+ function preset(){
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+  const mode=$("ops-range-preset").value;if(mode==="custom")return;
+  const end=new Date(today+"T12:00:00Z"),start=new Date(end);
+  if(mode==="month")start.setUTCDate(1);else start.setUTCDate(start.getUTCDate()-Number(mode)+1);
+  $("ops-range-start").value=start.toISOString().slice(0,10);$("ops-range-end").value=today;
+ }
+ preset();$("ops-range-preset").onchange=preset;
+ for(const id of ["ops-range-start","ops-range-end"])$(id).onchange=()=>{$("ops-range-preset").value="custom";};
+ $("ops-range-apply").onclick=analytics;
  $("ops-refresh").onclick=analytics;
  $("ops-products-link").onclick=()=>document.getElementById("product-center")?.scrollIntoView({behavior:"smooth"});
  document.querySelectorAll("#ops-trend-metrics input").forEach(x=>x.onchange=chart);
@@ -289,7 +309,7 @@ function initialize(ctx){
  for(const id of ["audience-rfm","audience-tier","audience-aov","audience-country","audience-minM","audience-maxR"]){
   $(id).addEventListener("change",()=>{op.preview=null;});
  }
- return {start:()=>Promise.allSettled([analytics(),loadAudiences(),loadCalendar()]),
+ return {start:()=>Promise.allSettled([analytics(),loadAudiences(),loadCalendar(),command.start()]),
   analytics,loadCalendar,loadAudiences};
 }
 root.KBIOpsCenter={initialize};

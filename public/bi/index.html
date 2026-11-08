@@ -242,6 +242,12 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 
 .ops-executive-brief{border:1px solid #dfebe1;border-radius:12px;padding:14px 17px;background:#f0f7f1;color:#355a3f;font-size:13px;line-height:1.8;margin:0 0 16px}
 .ops-executive-brief strong{color:#224f35}
+
+:root{--accent:#204c67;--ink:#172c3d;--muted:#647587;--line:#dce3e9;background:#f1f4f8;color:var(--ink)}
+body{background:#f1f4f8}.sidebar{background:#152b3b;color:#dce8ee}.panel{border-color:#e0e6ec;box-shadow:0 4px 16px #182e4305}.panel h2{color:#1b3448}
+.ops-kpi{border-color:#dce4ec;box-shadow:none}.ops-kpi strong{color:#183c56}.ops-kpi:first-child{background:#193b53;border-color:#193b53}.ops-kpi:first-child strong{color:#fff;font-size:34px}.ops-kpi:first-child small,.ops-kpi:first-child>span{color:#d1e0eb}.ops-kpi:nth-child(3){border-top:3px solid #c78842}.ops-kpi:nth-child(7){border-top:3px solid #4d8677}
+.ops-executive-brief{background:#e9eff5;border-color:#d5e0eb;color:#294d66}.command-panel{border-top:3px solid #b68b4f}.command-columns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}.command-columns h3{font-size:14px;margin:0 0 12px}.command-item{padding:14px;border:1px solid #e1e7ed;border-radius:12px;margin-bottom:10px;background:#fff}.command-item.is-priority{border-color:#d7b578;background:#fffaf0}.command-item.completed{background:#f5f7f9}.command-item.completed .command-check b{text-decoration:line-through;color:#75818b}.command-check{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.6}.command-check input{min-height:0;margin-top:4px;accent-color:#315d72}.command-item .row{align-items:flex-start}.command-item button{padding:5px 8px;font-size:11px;white-space:nowrap}.command-note{font-size:12px;white-space:pre-wrap;color:#6b7783;line-height:1.7}.command-form{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-top:16px}.command-form label{display:grid;gap:7px;font-size:12px}.command-form textarea{width:100%;min-height:72px;padding:10px;border:1px solid #d7dfe7;border-radius:8px}.command-form .wide{grid-column:1/-1}.command-form input{width:100%}.suggestion{display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid #e6ebf0;padding:14px 0}.suggestion b{font-size:13px;margin-left:9px}.suggestion p{font-size:12px;max-width:800px;line-height:1.7}.ops-range{padding:12px 0 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ops-range label{display:grid;gap:5px;font-size:11px;color:#647587}.source-scroll{max-height:420px;overflow:auto;border:1px solid #e0e6ec;border-radius:10px}.source-scroll table{min-width:900px}.source-scroll td{max-width:320px;min-width:120px;white-space:pre-wrap;overflow-wrap:anywhere}.source-panel{margin-bottom:20px}
+@media(max-width:1050px){.command-columns{grid-template-columns:1fr}}@media(max-width:640px){.command-form{grid-template-columns:1fr}.ops-range input{max-width:145px}.ops-kpi:first-child strong{font-size:24px}.suggestion{align-items:flex-start}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -263,10 +269,12 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <div class="toolbar" id="login-control"><input id="secret" type="password" autocomplete="off" aria-label="访问凭证" placeholder="内部访问凭证"><button id="connect" class="primary">进入工作台</button></div>
 </div></section>
 
+<section class="panel command-panel" id="command-center"><div class="head"><div><div class="eyebrow">FOCUS · TARGETS & ACTIONS</div><h2>经营目标与重点跟进</h2><p class="muted">文字目标可自由增删；机会与异常可勾选完成、重点标注、添加备注。</p></div><button id="board-reload">重新读取</button></div><div class="body"><div class="command-columns"><div><h3>公司目标</h3><div id="board-goal"></div></div><div><h3>机会点</h3><div id="board-opportunity"></div></div><div><h3>异常与待排查</h3><div id="board-anomaly"></div></div></div><details id="board-editor" open><summary>新增 / 编辑目标和事项</summary><div class="command-form"><label>类型<select id="board-kind"><option value="goal">公司目标</option><option value="opportunity">机会点</option><option value="anomaly">异常点</option></select></label><label>目标 / 事项文本<input id="board-title" maxlength="300" placeholder="例如：当前月 GMV 目标：$100,000"></label><label class="wide">备注<textarea id="board-notes" maxlength="3000" placeholder="执行动作、责任人、进展或结论"></textarea></label></div><div class="toolbar"><button id="board-save" class="primary">保存到云端</button><button id="board-new">新建 / 清空</button><span id="board-status" role="status" class="muted">等待连接</span></div></details><details open><summary>近期数据建议 · 可加入跟进</summary><div id="board-suggestions"></div></details></div></section>
 <section class="ops-head" aria-label="店铺经营指标">
  <div class="row ops-headline"><div><div class="eyebrow">COMMERCE · OPERATION COMMAND CENTER</div>
- <h2>店铺运营核心指标</h2><p class="muted">Shopify Analytics · 最近30天含今日 · 店铺货币 · 私有云端快照</p></div>
+ <h2>店铺运营核心指标</h2><p class="muted"><span id="ops-period-label">Shopify Analytics · 最近30天含今日 · 店铺时区与货币</span></p></div>
  <div class="toolbar"><span id="ops-data-state" class="pill">待连接Shopify Analytics</span><button id="ops-refresh" type="button">读取最新快照</button></div></div>
+ <div class="ops-range"><label>统计周期<select id="ops-range-preset"><option value="30">最近30天</option><option value="7">最近7天</option><option value="month">本月至今</option><option value="custom">自定义日期</option></select></label><label>开始日期<input id="ops-range-start" type="date"></label><label>结束日期<input id="ops-range-end" type="date"></label><button type="button" id="ops-range-apply" class="primary">应用日期</button><span class="muted">按店铺报告日期统计，结束日包含在内</span></div>
  <div class="ops-executive-brief" id="ops-executive-brief">登录后自动生成最近7日经营简报与重点诊断。</div>
  <div class="ops-kpis" id="ops-kpis">
  <div class="ops-kpi"><small>店铺GMV · Total Sales</small><strong id="ops-gmv">—</strong><span>Shopify 原生销售额</span></div>
@@ -275,22 +283,22 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
  <div class="ops-kpi"><small>平均客单价 · AOV</small><strong id="ops-aov">—</strong><span>Shopify 原生平均订单金额</span></div>
  <div class="ops-kpi"><small>老客GMV占比</small><strong id="ops-return-share">—</strong><span>新老客订单销售结构</span></div>
  <div class="ops-kpi"><small>回购客户率</small><strong id="ops-repeat-rate">—</strong><span>Shopify returning_customer_rate</span></div>
- <div class="ops-kpi"><small>邮件归因GMV</small><strong id="ops-email-gmv">—</strong><span>30天UTM最后点击归因</span></div>
+ <div class="ops-kpi"><small>邮件归因GMV</small><strong id="ops-email-gmv">—</strong><span>所选期间UTM最后点击归因</span></div>
  <div class="ops-kpi"><small>会话访问量</small><strong id="ops-sessions">—</strong><span>Shopify Sessions</span></div></div>
 </section>
 <section class="ops-two">
  <div class="panel"><div class="head"><div><h2>GMV与流量转化趋势</h2><p class="muted">每日GMV、订单和转化率；来源Shopify Analytics，不使用历史CRM人数代替流量。</p></div></div>
  <div class="body"><div class="toolbar" id="ops-trend-metrics"><label><input type="checkbox" value="gmv" checked> GMV</label><label><input type="checkbox" value="orders" checked> 订单</label><label><input type="checkbox" value="cvr" checked> 转化率</label></div><svg id="ops-trend-chart" viewBox="0 0 870 280" role="img" aria-label="运营指标每日趋势" class="ops-trend-chart"></svg></div></div>
- <div class="panel"><div class="head"><div><h2>销售渠道GMV结构</h2><p class="muted">Shopify销售渠道，不等于Meta/Google投放归因。</p></div></div><div class="body"><div id="ops-channel-bars">正在加载…</div><div class="divider"></div><h3>最近30天客源结构</h3><div id="ops-customer-mix" class="muted">等待Shopify数据…</div></div></div>
+ <div class="panel"><div class="head"><div><h2>销售渠道GMV结构</h2><p class="muted">Shopify销售渠道，不等于Meta/Google投放归因。</p></div></div><div class="body"><div id="ops-channel-bars">正在加载…</div><div class="divider"></div><h3>所选期间客源结构</h3><div id="ops-customer-mix" class="muted">等待Shopify数据…</div></div></div>
 </section>
 <section class="ops-two">
  <div class="panel"><div class="head"><div><h2>营销来源与Email销售效果</h2><p class="muted">Shopify最后点击归因。与广告管理器ROAS不同，未接入费用不能计算ROAS。</p></div></div>
  <div class="body"><div id="ops-attribution">等待渠道归因…</div><h3 style="margin-top:18px">Email归因活动</h3><div id="ops-email-campaigns" class="ops-list"></div></div></div>
- <div class="panel"><div class="head"><div><h2>商品销售贡献</h2><p class="muted">Shopify过去30天净销售额排名，与当前更新顺序无关。</p></div><button id="ops-products-link" type="button">商品目录</button></div>
+ <div class="panel"><div class="head"><div><h2>商品销售贡献</h2><p class="muted">Shopify所选期间净销售额排名，与当前更新顺序无关。</p></div><button id="ops-products-link" type="button">商品目录</button></div>
  <div class="body"><div id="ops-product-winners" class="ops-list"></div><div class="toolbar"><span class="muted">商品类目贡献</span></div><div id="ops-category-winners" class="ops-list"></div></div></div>
 </section><section id="ops-funnel" class="panel ops-funnel">
 <div class="head"><div><div class="eyebrow">GROWTH DIAGNOSTICS</div><h2>转化漏斗与流量质量</h2>
-<p class="muted">Shopify Sessions原生指标：访问 → 加购 → 进入结账 → 完成购买。不同于订单量，均为会话级计算。</p></div><span class="pill">30天店铺转化分析</span></div>
+<p class="muted">Shopify Sessions原生指标：访问 → 加购 → 进入结账 → 完成购买。不同于订单量，均为会话级计算。</p></div><span class="pill">所选期间店铺转化分析</span></div>
 <div class="body"><div class="funnel-steps">
 <div class="funnel-step"><small>① 会话访问量</small><strong id="funnel-sessions">—</strong><span>100%访问基线</span></div>
 <div class="funnel-step"><small>② 加购会话</small><strong id="funnel-atc">—</strong><span id="funnel-atc-rate">—</span></div>
@@ -379,7 +387,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 
 <section id="email-calendar" class="panel work-module">
 <div class="head"><div><div class="eyebrow">CRM · CAMPAIGN PLANNING</div><h2>邮件营销日历与效果</h2><p class="muted">编辑排期、主题、Preview、受众与UTM；状态仅为运营计划，不会自动发送邮件。</p></div><div class="toolbar"><button id="calendar-brand-template">载入品牌月草稿模板</button><button id="calendar-new" class="primary">新增邮件排期</button></div></div>
-<div class="body"><div class="ops-two ops-editor-layout"><div>
+<div class="body"><div class="source-panel"><div class="row"><h3>飞书邮件排期 · 原表</h3><div class="toolbar"><a href="https://ycnic6l8vkfx.feishu.cn/wiki/E9U3wgHj6iRIQqksKXxcSEBtn7d?table=tblfmFKLU5ihM532&amp;view=vewgDsfDhw" target="_blank" rel="noopener">打开飞书排期</a><button id="email-source-refresh">读取飞书排期</button></div></div><p id="email-source-status" class="muted" role="status">等待读取飞书排期</p><div id="email-source-table" class="source-scroll"></div></div><div class="ops-two ops-editor-layout"><div>
 <div class="email-calendar-list" id="email-calendar-list"><p class="muted">登录后读取私有云端邮件排期…</p></div>
 <div id="calendar-status" class="muted"></div></div>
 <div class="ops-editor" id="email-calendar-editor"><h3 id="calendar-form-title">创建 / 编辑邮件计划</h3>
@@ -496,6 +504,7 @@ dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8f
 <script src="/bi/timeline-range.js"></script>
 <script src="/bi/workbench-modules.js"></script>
 <script src="/bi/rfm-3d.js"></script>
+<script src="/bi/command-board.js"></script>
 <script src="/bi/ops-center.js"></script>
 <script>
 (()=>{"use strict";
