@@ -70,9 +70,17 @@ async function write(path,obj){
 }
 function slotAt(now=new Date()){
  const at=new Date(now.getTime()+8*3600000);
- const day=at.toISOString().slice(0,10),hour=at.getUTCHours();
- const slot=hour<12?"morning":hour<15?"noon":"afternoon";
- return day+"-"+slot;
+ const day=at.toISOString().slice(0,10);
+ const minute=at.getUTCHours()*60+at.getUTCMinutes();
+ // Rebuild only after the source delta windows have finished:
+ // 09:05, 13:30, 16:00 Beijing. Overnight reuse yesterday's snapshot.
+ if(minute<9*60+5){
+  const yesterday=new Date(at.getTime()-86400000).toISOString().slice(0,10);
+  return yesterday+"-afternoon";
+ }
+ if(minute<13*60+30)return day+"-morning";
+ if(minute<16*60)return day+"-noon";
+ return day+"-afternoon";
 }
 async function fetchPage(token,cursor){
  const q=new URLSearchParams({page_size:"500"});
