@@ -43,7 +43,7 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 <footer>仅供内部使用 · 本页面不发送营销邮件 · 客户资料不会写入公开网页文件</footer>
 </main></div>
 <dialog id="profile"><div class="detail"><div class="detail-head"><div><div class="eyebrow">客户全景 · 360°</div><h2 id="profile-name"></h2><p id="profile-email"></p></div><button id="close">关闭</button></div><div class="detail-grid" id="profile-data"></div>
-<h2 style="font:600 17px system-ui;margin-top:29px">客户生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
+<h2 style="font:600 17px system-ui;margin-top:29px">已观察到的商品兴趣</h2><p class="fine">依据客户已购商品标题生成，属于行为证据，不等同于客户本人确认的喜好。</p><div id="interest-tags" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px"></div><h2 style="font:600 17px system-ui;margin-top:29px">客户生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
 <script>
 (()=>{"use strict";
 const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,items=[],cursor=null,cursorStack=[],nextCursor=null,source="shopify";
@@ -138,11 +138,13 @@ async function apiJourney(id){
 async function profile(c){
  $("profile").showModal();$("profile-name").textContent=c.name||"未填写姓名";$("profile-email").textContent=c.email||"无邮箱";
  $("profile-data").innerHTML=[["CRM等级",c.tier||"未验证"],["历史消费参考",money(c.lifetimeSpend,c.currency)],["历史订单数",c.lifetimeOrders??"—"],["国家/地区",c.country||"—"],["最近订单",c.lastOrder||"未回填"],["数据更新时间",fmt(c.syncedAt)]].map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1])+'</strong></div>').join("");
- $("coverage").textContent="正在读取客户沟通历史…";$("timeline").innerHTML="";
+ $("coverage").textContent="正在读取客户沟通历史…";$("timeline").innerHTML="";$("interest-tags").textContent="正在分析已购商品…";
  try{
   // Live Shopify order events and verified inbound Gmail messages take precedence.
   const data=await apiJourney(c.id);
   const coverage=data.coverage||{};
+  const tags=data.profile?.productInterests||[];
+  $("interest-tags").innerHTML=tags.length?tags.slice(0,12).map(x=>'<span class="pill" title="来自已购商品标题，不代表客户自述喜好">'+esc(x.label)+' · '+esc(x.evidenceCount)+'笔订单</span>').join(""):'<span class="fine">暂无足够的已购商品证据。</span>';
   $("coverage").textContent="真实来源：Shopify订单 + Gmail收件。订单覆盖："+(coverage.orders==="all_returned_orders"?"当前可查订单":"前50笔（更多待分页）")+"；邮件覆盖："+(coverage.email==="sample_up_to_50"?"当前样本":"未完整接入")+"。RFM净额未审计，不做因果归因。";
   const events=(data.events||[]).slice().reverse();
   $("timeline").innerHTML=events.length?events.map(e=>{
@@ -162,6 +164,7 @@ async function profile(c){
    return '<div class="event"><time>'+esc(fmt(e.at))+'</time><b>'+esc(e.title)+'</b><small>'+esc(d)+' · '+esc(e.source)+'</small>'+attr+'<div>'+origin+'</div></div>';
   }).join(""):'<div class="fine">当前还没有可追溯的事件。</div>';
  }catch(e){
+  $("interest-tags").textContent="暂时无法读取已购商品兴趣。";
   $("coverage").textContent="实时历史尚未接通（"+e.message+"），尝试读取现有CRM沟通镜像。";
   try{
    const data=await api({mode:"customer",id:c.id});
