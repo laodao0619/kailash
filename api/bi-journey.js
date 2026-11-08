@@ -22,6 +22,19 @@ const CUSTOMER_QUERY=`query KbiCustomerJourney($id:ID!){
   }
  }
 }`;
+const EMAIL_OWNERS_QUERY=`query KbiEmailOwners($filter:String!){
+ customers(first:50,query:$filter){
+  pageInfo{hasNextPage}
+  nodes{id defaultEmailAddress{emailAddress}}
+ }
+}`;
+async function uniqueEmailOwner(email,id){
+ const data=await shopify.queryShopify(EMAIL_OWNERS_QUERY,{filter:"email:"+email});
+ const owners=data.customers;
+ if(!owners||owners.pageInfo?.hasNextPage)return false;
+ const exact=(owners.nodes||[]).filter(c=>address(c.defaultEmailAddress?.emailAddress||"")===email);
+ return exact.length===1&&exact[0].id===id;
+}
 function authorized(req){
  const expected=process.env.KBI_ACCESS_TOKEN||"";
  const given=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
@@ -101,14 +114,21 @@ module.exports=async(req,res)=>{
   // Do not claim complete lifetime history from a single 50-order page.
   let communications=[],mailCoverage="no_customer_email";
   if(email){
-   if(!(process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET&&process.env.GMAIL_REFRESH_TOKEN)){
-    mailCoverage="gmail_backend_not_configured";
-   }else{
-    try{
-     const mail=await mailEvents(email);
-     communications=mail.events;
-     mailCoverage=mail.complete?"sample_up_to_50":"partial_more_messages";
-    }catch(_){mailCoverage="gmail_backend_unavailable";}
+   // Never attach private Gmail correspondence to ambiguous customer identities.
+   let ownerVerified=false;
+   try{ownerVerified=await uniqueEmailOwner(email,c.id);}
+   catch(_){mailCoverage="customer_identity_check_failed";}
+   if(!ownerVerified && mailCoverage==="no_customer_email")mailCoverage="ambiguous_customer_email";
+   if(ownerVerified){
+    if(!(process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET&&process.env.GMAIL_REFRESH_TOKEN)){
+     mailCoverage="gmail_backend_not_configured";
+    }else{
+     try{
+      const mail=await mailEvents(email);
+      communications=mail.events;
+      mailCoverage=mail.complete?"sample_up_to_50":"partial_more_messages";
+     }catch(_){mailCoverage="gmail_backend_unavailable";}
+    }
    }
   }
   // Preserve the pre-order marketing visit as an evidence-backed event.
