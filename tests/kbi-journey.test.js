@@ -66,7 +66,7 @@ test("without KBI token no private customer data is fetched",async()=>{
 test("live timeline combines Shopify attribution, order and verified customer mail",async()=>{
  setEnvironment();const calls=setupFetch();const out=res();
  await handler(req(),out);
- assert.equal(out.code,200);
+ assert.equal(out.code,200,JSON.stringify(out.body)+" calls: "+calls.join(";"));
  assert.equal(out.body.ok,true);
  assert.deepEqual(out.body.events.map(x=>x.kind),["customer_created","order","communication"]);
  const order=out.body.events[1];
@@ -78,7 +78,7 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  assert.equal(calls.filter(x=>x.includes("gmail.googleapis.com")).length,2);
 });
 test("a message from an unexpected sender is never linked",async()=>{
- setEnvironment();setupFetch({duplicate:true});const out=res();
+ setEnvironment();const calls=setupFetch({duplicate:true});const out=res();
  await handler(req(),out);
  assert.equal(out.code,200);
  assert.equal(out.body.events.filter(x=>x.kind==="communication").length,0);
