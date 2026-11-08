@@ -30,7 +30,7 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 <div class="top"><div><div class="eyebrow">客户智能 / 客户分析</div><h1>了解每位客户的完整历程</h1><p>统一客户资料、购买历史与沟通证据；所有未核验数据明确标注。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
 <section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" aria-label="内部访问凭证" placeholder="请输入 KBI 内部访问凭证"><button class="primary" id="connect">连接只读数据</button></div></section>
 <section class="cards" aria-label="数据总览">
-<div class="card"><small>客户数据概况</small><strong id="kpi-total">—</strong><span>以当前已核验数据为准</span></div>
+<div class="card"><small>Shopify 客户总数</small><strong id="kpi-total">—</strong><span id="kpi-total-note">包含待清洗记录；不等于有效CRM客户数</span></div>
 <div class="card"><small>当前查询结果</small><strong id="kpi-match">—</strong><span>当前页面人数，未核算时不推算全量</span></div>
 <div class="card"><small>当前数据来源</small><strong id="kpi-source" style="font-size:17px">尚未连接</strong><span id="kpi-source-note">优先连接 Shopify 实时数据</span></div>
 <div class="card"><small>客户分层数据</small><strong style="font-size:17px">待核验</strong><span>不使用2026-10-23旧等级覆盖</span></div>
@@ -67,6 +67,24 @@ async function api(params){
  if(!r.ok||!json.ok)throw Error(json.error||"request_failed");
  return json;
 }
+async function apiOverview(){
+ const r=await fetch("/api/bi-overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+ const json=await r.json();
+ if(!r.ok||!json.ok)throw Error(json.error||"overview_unavailable");
+ return json;
+}
+async function refreshOverview(){
+ try{
+  const data=await apiOverview();
+  const c=data.customers;
+  $("kpi-total").textContent=c.precision==="EXACT"&&Number.isInteger(c.count)?
+   c.count.toLocaleString("zh-CN"):"待核验";
+  $("kpi-total-note").textContent="Shopify "+(c.precision==="EXACT"?"精确原始总数":"近似总数")+"；含待质检账户";
+ }catch(_){
+  $("kpi-total").textContent="—";
+  $("kpi-total-note").textContent="尚未获得可核验的客户总数";
+ }
+}
 async function shopifyCustomers(params){
  const query=new URLSearchParams(params);
  const r=await fetch("/api/bi-customers?"+query,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
@@ -90,7 +108,7 @@ async function load(){
   }
   items=data.customers;total=data.total??null;
   nextCursor=source==="shopify"?data.nextCursor:null;
-  $("kpi-total").textContent=source==="shopify"?"实时":(data.scanned?.toLocaleString()||"—");
+  if(source==="feishu")$("kpi-total-note").textContent="仅展示飞书镜像，不作为Shopify有效客户数";
   $("kpi-match").textContent=source==="shopify"?items.length+"+":[total?.toLocaleString()||"—"].join("");
   $("sync").textContent=(source==="shopify"?"Shopify 实时数据":"飞书历史镜像")+" · "+fmt(data.asOf);
   $("kpi-source").textContent=source==="shopify"?"Shopify 实时":"飞书镜像";
@@ -106,6 +124,7 @@ async function load(){
   $("rows").innerHTML=items.length?items.map((c,i)=>'<tr data-i="'+i+'"><td>'+esc(c.name||"未填写姓名")+'<div class="fine">'+esc(c.email)+'</div></td><td>'+esc(c.id)+'</td><td><span class="pill">'+esc(c.tier||"未验证")+'</span></td><td>'+money(c.lifetimeSpend)+'</td><td>'+esc(c.lifetimeOrders??"—")+'</td><td>'+esc(c.country||"—")+'</td><td>'+esc(sourceStatus(c.quality))+'</td></tr>').join(""):'<tr><td colspan="7" class="empty">没有符合条件的客户</td></tr>';
   document.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>profile(items[Number(tr.dataset.i)])));
   $("auth").hidden=true;
+  refreshOverview();
  }catch(e){$("rows").innerHTML='<tr><td colspan="7" class="empty">无法读取数据：'+esc(e.message)+'</td></tr>';$("sync").textContent="连接异常";}
  finally{busy=false;}
 }
