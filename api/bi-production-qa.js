@@ -44,6 +44,13 @@ module.exports=async(req,res)=>{
  const report={version:1,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  const prior=await get(RESULT,{access:"private"});
+  if(prior?.statusCode===200){
+   const chunks=[];for await(const c of prior.stream)chunks.push(c);
+   const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
+   if(previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+    return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
+  }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
   report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000;
   if(!report.checks.list)throw Error("list_not_ready");
