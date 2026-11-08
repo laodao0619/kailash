@@ -61,6 +61,85 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 [hidden]{display:none!important}
 @media(max-width:920px){.layout{grid-template-columns:1fr}aside{padding:12px;gap:10px}nav{display:flex;overflow:auto}nav a{white-space:nowrap}aside .foot{display:none}main{padding:19px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
 @media(max-width:560px){h1{font-size:25px}.head,.body{padding:15px}.filters{padding:15px}.profile-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}input[type=search]{min-width:100%}}
+
+/* Kailash BI V3 — calm, Apple-inspired information hierarchy */
+:root{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:#202925;background:#f5f6f7;--ink:#202925;--muted:#65736c;--line:#e6e9e8;--accent:#2f6652}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.layout{grid-template-columns:244px minmax(0,1fr)}
+aside{position:sticky;top:0;height:100vh;padding:30px 16px 20px;background:#fff;color:#25352c;border-right:1px solid #e9ecea;gap:24px;overflow:auto}
+.brand{font-size:19px;font-weight:600;margin:0 15px;color:#20392b}.brand small{color:#788b80;font-size:10px;letter-spacing:.13em}
+nav{display:grid;gap:5px}nav a{display:flex;gap:9px;align-items:center;color:#607269;font-size:13px;font-weight:550;border-radius:11px;padding:12px 13px}
+nav a:hover{background:#f1f4f2;color:#2b503b}nav a.active{background:#e9f1eb;color:#28563a}
+.nav-icon{display:inline-flex;width:20px;justify-content:center;font-size:16px;color:#789583}
+aside .foot{color:#899790;font-size:11px;margin-top:auto;padding:14px;line-height:1.8}
+main{padding:32px clamp(20px,3vw,48px);max-width:1740px}
+.top{align-items:center;margin-bottom:25px}
+h1{font-family:inherit;font-weight:650;font-size:30px;letter-spacing:-.038em;color:#202d25}
+h2{font-size:17px;letter-spacing:-.012em;font-weight:650}
+h3{font-size:13px;font-weight:650;letter-spacing:-.005em}
+.eyebrow{font-size:10px;color:#667e6e;font-weight:700;letter-spacing:.14em}
+.muted,.status{font-size:12px;color:#687970;line-height:1.75}
+.panel,.card{border:1px solid #e9ecea;border-radius:16px;box-shadow:0 5px 26px rgba(21,48,32,.035);background:#fff}
+.panel{scroll-margin-top:20px}
+.card{padding:20px 22px}.card small{font-size:12px}.card strong{font-size:30px;font-weight:650}.card em{font-size:11px}
+.head{padding:21px 24px;gap:16px}
+.body{padding:20px 24px}
+.head h2{margin:4px 0}.head .muted{margin:6px 0 0}
+button,input,select,textarea{font-family:inherit}
+button,input,select{font-size:13px}
+button{min-height:38px;padding:9px 15px;border-radius:10px;border-color:#dfe5e0;font-weight:550;color:#344b3d;transition:background .16s,border-color .16s,transform .16s}
+button:hover:not(:disabled){border-color:#bccdc0;background:#f4f7f5}
+button:active:not(:disabled){transform:scale(.985)}
+button.primary{background:#2d674f;border-color:#2d674f;color:white}
+button.primary:hover{background:#24533f}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid #7fae92;outline-offset:2px}
+input,select{min-height:40px;border-radius:10px;border-color:#e1e8e2;padding:8px 11px}
+input:focus,select:focus,textarea:focus{border-color:#70a285;box-shadow:0 0 0 3px #bfe4c53d;outline:0}
+.filters{background:#fbfcfb;gap:13px;padding:20px 23px}
+.filter-row{gap:11px}.filter-row label{font-size:12px;color:#68786d;font-weight:500}
+th{background:#fafbfa;font-size:11px;padding:13px 15px;position:sticky;top:0;z-index:1}
+td{font-size:12px;padding:14px 15px}td b{font-weight:600}
+table{font-variant-numeric:tabular-nums}
+tbody tr:hover{background:#f6faf7}.pager{padding:15px 22px}
+.pill{background:#ecf3ee;border:1px solid #e0eae2;color:#37634a;padding:5px 10px;font-size:11px}
+.warn{background:#fbf9f2;border:1px solid #eee7d6;color:#806b46}
+.status{background:#f7f9f7;border-color:#e8ece9;border-radius:11px}
+.work-module{margin-top:20px}
+.module-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:23px}
+.module-stat{border:1px solid #ecf0ec;background:#f9fbf9;border-radius:13px;padding:17px}
+.module-stat small{font-size:11px;color:#6e8075}.module-stat strong{font-size:23px;color:#273c2d;display:block;margin:7px 0}
+.module-stat em{font-size:10px;color:#809186;font-style:normal}
+.rfm-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(275px,.8fr);gap:27px;margin-bottom:20px}
+.rfm-bars{display:grid;gap:11px;padding:8px 0}
+.rfm-bar{display:grid;grid-template-columns:65px minmax(0,1fr) 72px;align-items:center;gap:12px;width:100%;background:transparent;border:0;padding:0;text-align:left;min-height:31px}
+.rfm-bar:hover{background:transparent}.rfm-bar .meter{border-radius:9px;background:#edf2ee;overflow:hidden;height:12px}
+.rfm-bar .meter i{height:100%;display:block;border-radius:9px;background:#6c9580}
+.rfm-bar strong{color:#34483b;font-size:12px;font-weight:650}.rfm-bar span:last-child{font-size:11px;color:#728176;text-align:right}
+.rule-list{display:grid;gap:8px;margin:14px 0}.rule-list>div{display:flex;justify-content:space-between;gap:15px;padding:10px 12px;border-radius:10px;background:#f7f9f7;font-size:11px}
+.rule-list b{font-weight:700;color:#2c6245}.rule-list span{color:#637769;text-align:right}
+.case-filters{display:flex;flex-wrap:wrap;align-items:center}.case-filters input{min-width:260px;flex:1}.case-filters select{min-width:140px}
+.empty-state{padding:32px!important;text-align:center;color:#76877a}
+.source-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.source-card{border:1px solid #e7ece8;border-radius:13px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:160px;font-size:12px}
+.source-mark{display:inline-block;width:13px;height:13px;border-radius:50%}.source-card b{font-size:14px}.source-card>span:not(.source-mark){color:#687a6f;line-height:1.6}.source-card em{font-style:normal;color:#947b45;font-size:11px;margin-top:auto}
+.health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:17px 0}.health-item{background:#f8faf8;border:1px solid #e5ebe6;border-radius:12px;padding:14px}
+.health-item strong{font-size:12px;display:block;margin:4px 0}.health-item small{font-size:11px;color:#7b8b80}
+dialog{width:min(1220px,96vw);max-height:94vh;border-radius:18px;background:#f8faf8}
+.dialog-content{padding:25px 30px}
+.profile-kpis>div{background:#fff;border:1px solid #e9ede9;padding:17px;border-radius:12px}
+.profile-kpis strong{font-size:16px}
+.journey-chart{background:#fff;border-color:#e6ebe6;touch-action:pan-y}
+.journey-chart:focus-visible{outline:2px solid #78a88c}
+.timeline-tools{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.timeline-tools button{padding:8px 11px;min-width:45px}
+.timeline-tools button.active{background:#e5f1e8;color:#24553c;border-color:#afd1b9}
+.timeline-tools input[type=date]{width:143px;min-height:37px}
+.chart-hint{font-size:11px;color:#7d8b80}
+@media(max-width:1100px){.module-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rfm-layout{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:920px){aside{position:relative;width:100%;height:auto;padding:17px 18px;overflow:visible}.layout{grid-template-columns:1fr}nav{display:flex;overflow:auto;padding-bottom:4px}nav a{white-space:nowrap}main{padding:22px 16px}.top{flex-wrap:wrap}}
+@media(max-width:620px){.kpis{grid-template-columns:1fr 1fr}.source-grid,.health-grid{grid-template-columns:1fr}.module-kpis{grid-template-columns:1fr 1fr}.dialog-content{padding:18px}.timeline-tools button{min-height:39px}.top h1{font-size:24px}input[type=search]{min-width:180px}}
+
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
