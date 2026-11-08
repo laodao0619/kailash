@@ -53,6 +53,25 @@ async function pages(token,table,maxPages=100){
  }
  return {items:all,complete:false};
 }
+async function searchExact(token,table,field,value,maxPages=5){
+ const path="/bitable/v1/apps/"+APP+"/tables/"+table+"/records/search?page_size=100";
+ let cursor;const all=[];
+ for(let n=0;n<maxPages;n++){
+  const q=cursor?path+"&page_token="+encodeURIComponent(cursor):path;
+  const response=await fetch("https://open.feishu.cn/open-apis"+q,{
+   method:"POST",headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
+   body:JSON.stringify({filter:{conjunction:"and",conditions:[{field_name:field,operator:"is",value:[value]}]}})
+  });
+  const json=await response.json().catch(()=>({}));
+  if(!response.ok||json.code!==0)throw Error("Feishu search failed");
+  const data=json.data||{};
+  all.push(...(data.items||[]));
+  if(!data.has_more)return {items:all,complete:true};
+  cursor=data.page_token;
+  if(!cursor)break;
+ }
+ return {items:all,complete:false};
+}
 function sanitizeError(e){return /Feishu|OAuth|pagination/i.test(String(e.message))?"source_unavailable":"internal_error";}
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
@@ -76,16 +95,25 @@ module.exports=async(req,res)=>{
   if(mode==="customer"){
    const id=String(req.query?.id||"");
    if(!/^\d{5,25}$/.test(id))return res.status(400).json({ok:false,error:"invalid_id"});
-   const [customers,communications]=await Promise.all([pages(t,CUSTOMER),pages(t,CONTACTS)]);
-   if(!customers.complete||!communications.complete)return res.status(503).json({ok:false,error:"incomplete_scan"});
-   const found=customers.items.map(customer).find(x=>x.id===id);
+   // Exact server-side lookup avoids scanning 12k+ customers for each profile.
+   const customers=await searchExact(t,CUSTOMER,"Shopify客户ID",id);
+   if(!customers.complete||customers.items.length>1)
+    return res.status(409).json({ok:false,error:"ambiguous_customer_id"});
+   const found=customers.items.length?customer(customers.items[0]):null;
    if(!found)return res.status(404).json({ok:false,error:"customer_not_found"});
    const email=found.email.trim().toLowerCase();
-   const events=communications.items.filter(x=>{
-    const f=x.fields||{};
-    const ce=String(scalar(f["客户邮箱"])||"").trim().toLowerCase();
-    return email&&ce===email;
-   }).slice(0,300).map(x=>{
+   let communications={items:[],complete:true};
+   if(email){
+    // A shared email may belong to multiple Shopify customers. Do not
+    // associate private messages unless the identity is unique.
+    const emailOwners=await searchExact(t,CUSTOMER,"邮箱",email);
+    if(!emailOwners.complete||emailOwners.items.filter(x=>String(scalar(x.fields?.["Shopify客户ID"])||"")).length!==1)
+     return res.status(200).json({ok:true,source:"Feishu CRM mirror",asOf:new Date().toISOString(),customer:found,events:[],
+      coverage:{orders:"historical_order_lines_not_connected",acquisition:"not_connected",emails:"ambiguous_email; not linked"}});
+    communications=await searchExact(t,CONTACTS,"客户邮箱",email);
+    if(!communications.complete)return res.status(503).json({ok:false,error:"incomplete_communication_scan"});
+   }
+   const events=communications.items.slice(0,300).map(x=>{
     const f=x.fields||{};
     const date=number(f["记录时间"]);
     return {id:String(scalar(f["数据来源ID"])||x.record_id),kind:"communication",
