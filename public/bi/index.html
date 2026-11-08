@@ -578,19 +578,47 @@ function drawJourneyChart(){
 
 function showProducts(tag=""){
  const shown=customerView.products.filter(p=>!tag||p.tags.includes(tag));
- $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"已返回历史")+"商品："+shown.length+"款";
+ $("product-result-count").textContent=(tag?"匹配「"+tag+"」的":"历史已购")+"商品："+shown.length+"款";
+ const sourceName={meta:"Meta广告",google:"Google广告",email:"邮件",pinterest:"Pinterest",organic:"自然/直接",unknown:"未知来源"};
+ const sourceColor={meta:"#3978db",google:"#dea633",email:"#2c9f68",pinterest:"#bb6983",organic:"#82998a",unknown:"#84968c"};
+ function purchaseRow(p){
+  const curr=p.currency||"USD";
+  const price=p.discountedUnitPrice??p.unitPrice;
+  const base=p.originalUnitPrice??null;
+  const discount=base!==null&&price!==null&&base>price?Math.round((base-price)/base*100):0;
+  const src=p.orderChannel||"unknown";
+  const issue=(p.relatedEmailIssues||[]).map(e=>{
+   const url=safeUrl(e.url);
+   return '<div class="order-issue">订单号匹配到疑似邮件问题（未经客服确认）：'+
+    (url?'<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">'+esc(e.subject)+'</a>':esc(e.subject))+'</div>';
+  }).join("");
+  return '<div class="purchase-evidence"><div class="paid-price">'+
+   (price!==null&&Number.isFinite(Number(price))?money(Number(price),curr):"成交单价未记录")+
+   (discount?' <span class="discount-pill">优惠 '+discount+'%</span>':"")+'</div>'+
+   (discount?'<span class="price-was">原单价 '+money(base,curr)+'</span>':
+    '<span class="muted" style="font-size:10px">未记录商品级折扣</span>')+
+   '<div class="order-source"><b>'+esc(p.orderName||"历史订单")+'</b> · '+esc(fmt(p.at))+' · '+n(p.quantity)+'件<br>'+
+   '<span style="color:'+sourceColor[src]+'">● '+esc(sourceName[src]||"未知来源")+'</span> · 仅已记录访问渠道</div>'+issue+'</div>';
+ }
  $("profile-products").innerHTML=shown.length?shown.map(p=>{
-  const count=p.purchases.filter(x=>x.validForReview).reduce((s,x)=>s+Number(x.quantity||0),0);
-  const purchase=p.purchases.find(x=>x.validForReview)||p.purchases[0]||{};
+  const purchases=p.purchases.slice().sort((a,b)=>String(b.at).localeCompare(String(a.at)));
+  const count=purchases.filter(x=>x.validForReview).reduce((v,x)=>v+Number(x.quantity||0),0);
   const href=safeUrl(p.productUrl,"product"),image=safeUrl(p.imageUrl,"image");
-  return '<article class="product-card">'+(image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':'<div style="height:140px;background:#f2f5f1;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
-   '<div class="product-info"><b>'+esc(p.title)+'</b><span class="pill">'+esc(p.productType)+'</span>'+
-   '<p>'+esc((p.description||"").slice(0,160)||"暂无商品描述")+'</p>'+
-   '<div class="muted">已购买 '+n(count)+' 件 · '+n(p.validOrders)+'笔有效订单</div>'+
-   '<div class="muted">订单记录单价：'+(purchase.unitPrice!==null?money(purchase.unitPrice,purchase.currency||"USD"):"未记录")+'</div>'+
-   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">查看网站商品原始页</a>':'<span class="muted">商品可能已下架 / 无公开链接</span>')+
+  const headline=purchases.find(x=>x.validForReview)||purchases[0];
+  const others=purchases.filter(x=>x!==headline);
+  return '<article class="product-card">'+
+   (image?'<img loading="lazy" alt="'+esc(p.title)+'" src="'+esc(image)+'">':
+    '<div style="aspect-ratio:3/4;background:#eef3ee;display:grid;place-items:center;color:#8a998d">暂无商品图片</div>')+
+   '<div class="product-info"><b>'+esc(p.title)+'</b><div style="margin:6px 0"><span class="pill">'+esc(p.productType)+'</span></div>'+
+   '<p>'+esc((p.description||"").slice(0,90)||"暂无产品描述")+'</p>'+
+   '<div class="muted">有效购买 '+n(count)+'件 · '+n(p.validOrders)+'笔订单</div>'+
+   (headline?purchaseRow(headline):"")+
+   (others.length?'<details style="margin:8px 0"><summary style="font-size:11px;color:#336c4d;cursor:pointer">展开其他 '+others.length+' 笔购买记录</summary>'+
+    others.map(purchaseRow).join("")+'</details>':"")+
+   (href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">追溯网站产品页</a>':
+    '<span class="muted">公开产品页不可用</span>')+
    '</div></article>';
- }).join(""):'<p class="muted">当前筛选没有可匹配的历史商品。</p>';
+ }).join(""):'<p class="muted">当前标签下没有可溯源的已购商品。</p>';
 }
 function displayProductInsights(data){
  const p=data.profile||{};
