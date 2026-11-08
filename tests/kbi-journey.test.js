@@ -37,7 +37,7 @@ function setupFetch({duplicate=false,mailDate="2026-11-08T08:51:12Z"}={}){
   if(String(url).includes("oauth2.googleapis.com/token"))return response({access_token:"test-oauth"});
   if(String(url).includes("/messages?"))return response({messages:[{id:"mail-1"}]});
   if(String(url).includes("messages/mail-1"))return response({
-   id:"mail-1",threadId:"thread-1",labelIds:["INBOX"],internalDate:String(new Date(mailDate).getTime()),
+   id:"mail-1",threadId:"thread-1",snippet:"Did not receive order",labelIds:["INBOX"],internalDate:String(new Date(mailDate).getTime()),
    payload:{headers:[{name:"From",value:(duplicate?"another@example.test":EMAIL)},
     {name:"To",value:"service@example.test"},{name:"Subject",value:"Re: Order 7002, not received"},
     {name:"Date",value:mailDate}]}});
@@ -69,12 +69,15 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  await handler(req(),out);
  assert.equal(out.code,200,JSON.stringify(out.body)+" calls: "+calls.join(";"));
  assert.equal(out.body.ok,true);
- assert.deepEqual(out.body.events.map(x=>x.kind),["customer_created","order","communication"]);
- const order=out.body.events[1];
+ assert.deepEqual(out.body.events.map(x=>x.kind),["customer_created","acquisition_visit","order","communication"]);
+ assert.equal(out.body.events[1].utm.source,"facebook");
+ const order=out.body.events[2];
  assert.equal(order.attribution.firstVisit.utm.source,"facebook");
  assert.equal(order.attribution.firstVisit.utm.medium,"cpc");
  assert.equal(order.validForReview,true);
- assert.equal(out.body.events[2].source,"Gmail");
+ assert.equal(out.body.events[3].source,"Gmail");
+ assert.equal(out.body.events[3].issueFlag,"possible_nonreceipt_claim");
+ assert.equal(out.body.events[3].issueVerified,false);
  assert.equal(out.body.coverage.financialLedger,"not_audited");
  assert.equal(calls.filter(x=>x.includes("gmail.googleapis.com")).length,2);
 });
