@@ -149,6 +149,21 @@ function createCrmReadonly(client, { allowedOpenIds = process.env.CRM_ALLOWED_OP
       + JSON.stringify(records, null, 2);
   }
 
+  async function sampleCustomers(args, context) {
+    const denied = authorize(context); if (denied) return denied;
+    const limit = Math.min(Math.max(Number.parseInt(args?.limit, 10) || 2, 1), 5);
+    const result = await search(CUSTOMERS, [condition('客户数据状态', 'is', '有效')], limit);
+    if (result.error) return result.error;
+    const rows = result.items.slice(0, limit).map((r) => ({
+      记录ID: r.record_id || '未提供',
+      ...customerProjection(r.fields),
+    }));
+    return `来源：飞书CRM客户档案；仅抽取本次返回的前 ${rows.length} 条有效档案，不代表随机抽样。`
+      + ' M/R/F取自CRM已存字段，未重新计算；缺失时保持待计算，等级以已存结果为准。'
+      + ' 本次接口未提供可核验的源订单统计时间。\n'
+      + JSON.stringify(rows, null, 2);
+  }
+
   async function customerCommunications(args, context) {
     const denied = authorize(context); if (denied) return denied;
     const email = String(args.email || '').trim().toLowerCase();
@@ -161,7 +176,7 @@ function createCrmReadonly(client, { allowedOpenIds = process.env.CRM_ALLOWED_OP
       + JSON.stringify(rows, null, 2);
   }
 
-  return { findCustomer, listSegment, customerCommunications };
+  return { findCustomer, listSegment, sampleCustomers, customerCommunications };
 }
 
 module.exports = { createCrmReadonly, customerProjection, communicationProjection, CRM_GRADES, RFM_GROUPS };
