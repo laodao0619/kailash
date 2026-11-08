@@ -1,6 +1,7 @@
 "use strict";
 const crypto=require("crypto");
 const {get,put}=require("@vercel/blob");
+const {mark}=require("../lib/crm-task-log");
 const gmail=require("../lib/crm-gmail");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
@@ -61,7 +62,7 @@ module.exports=async(req,res)=>{
   const bytes=[];for await(const c of base.stream)bytes.push(c);
   const shop=JSON.parse(Buffer.concat(bytes).toString("utf8"));
   if(!shop.shopifyCycleComplete)return res.status(200).json({ok:true,skipped:"awaiting_shopify_backfill",shopifyProcessed:shop.shopifyTotals?.processed||0});
-  if(state.finished)return res.status(200).json({ok:true,completed:true,totals:state.totals});
+  if(state.finished){await mark("T07","done","Gmail filtered historical correspondence completed");return res.status(200).json({ok:true,completed:true,totals:state.totals});}
   const token=await feishu.tenantToken();
   const emails=await emailIndex(token);
   const existing=await bulk.loadIndex(token,bulk.THREADS,"数据来源ID");
@@ -112,6 +113,7 @@ module.exports=async(req,res)=>{
    await saveState(state);
    if(state.finished)break;
   }
+  await mark("T07",state.finished?"done":"in_progress","Filtered Gmail threads imported "+(state.totals?.created||0));
   return res.status(200).json({ok:true,completed:!!state.finished,run:stats,totals:state.totals||{},criteria:"Gmail 365-day window, non-promotional, non-automated, direct inbound matched unique Shopify customer, one record per thread"});
- }catch(e){return res.status(502).json({ok:false,error:String(e.message).slice(0,180),stats,retryable:true});}
+ }catch(e){await mark("T07","retry",String(e.message||e).slice(0,140));return res.status(502).json({ok:false,error:String(e.message).slice(0,180),stats,retryable:true});}
 };
