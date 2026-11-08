@@ -136,6 +136,7 @@ dialog{border:0;padding:0;border-radius:15px;width:min(930px,97vw);max-height:93
 </section>
 <section class="panel" style="margin-top:15px;padding:17px">
 <h2>历史购买产品与偏好画像</h2><p class="muted">展示已返回历史订单中的商品图、成交时单价、数量、商品类别、描述和网站链接；当前产品售价可能与成交价不同。</p>
+<div id="product-narrative" class="status" style="margin:12px 0">正在整理客户购买偏好…</div>
 <div id="product-categories" class="muted" style="margin:8px 0"></div>
 <div id="profile-tags" class="toolbar"></div>
 <div class="toolbar" style="margin-top:12px"><span id="product-result-count" class="muted">加载历史产品中…</span><button id="product-clear" type="button">显示全部产品</button></div>
@@ -344,6 +345,7 @@ function displayProductInsights(data){
  const p=data.profile||{};
  customerView.products=p.products||[];
  customerView.insights=p.productInterests||[];
+ $("product-narrative").textContent=p.productPreferenceNarrative||"暂时缺少可以总结的历史购买证据";
  $("product-categories").textContent=(p.productSummary||[]).length?
   "购买类型："+p.productSummary.slice(0,7).map(x=>x.label+" "+x.quantity+"件").join(" · "):
   "暂无足够的有效历史订单总结";
@@ -366,7 +368,7 @@ function showEmailSummary(mail){
  const entries=mail?.conversations||[];
  $("mail-threads").innerHTML=entries.length?entries.map(t=>
  '<div class="mail-thread"><strong>'+esc(t.subject||"未注明主题")+'</strong>'+
- '<p>'+esc(t.summary||"")+'</p>'+
+ '<p>'+esc(t.summary||"")+'</p><p>客户最近内容：'+esc(t.lastCustomerPreview||"未记录")+'</p><p>客服最近回复：'+esc(t.lastServicePreview||"尚未记录")+'</p>'+
  '<p>来信 '+n(t.inbound)+' / 回复 '+n(t.outbound)+' · '+esc(fmt(t.lastAt))+'</p>'+
  (safeUrl(t.gmailUrl)?'<a href="'+esc(safeUrl(t.gmailUrl))+'" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#2b6346;text-decoration:underline">查看原始邮件线程</a>':"")+'</div>'
  ).join(""):'<p class="muted">当前没有可核验的邮件对话。</p>';
@@ -414,7 +416,7 @@ async function profile(c){
  ["历史订单",n(c.ordersLifetime)],["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
  $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");
  for(const key of ["profile-tags","profile-products","product-categories","mail-summary","events"])$(key).textContent="正在读取客户记录…";
- $("mail-threads").textContent="";$("journey-svg").innerHTML="";
+ $("mail-threads").textContent="";$("journey-svg").innerHTML="";$("product-narrative").textContent="正在生成基于订单的偏好总结…";
  $("journey-coverage").textContent="正在查询 Shopify 订单与 Gmail 记录…";
  $("chart-explanation").textContent="正在生成客户时间图…";
  loadCustomerNote(id);
