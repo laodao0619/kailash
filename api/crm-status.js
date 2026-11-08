@@ -12,7 +12,12 @@ module.exports=async(req,res)=>{
       project:"Kailash Energy CRM 2.0",
       updated_at:state.updated_at||null,
       tasks:(state.tasks||[]).map(x=>({id:x.id,status:x.status,last_run_at:x.last_run_at||null})),
-      last_event_at:(state.log||[]).at(-1)?.at||null
+      last_event_at:(state.log||[]).at(-1)?.at||null,
+      source_connectors:{
+        shopify_backend_authorized:!!(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN&&process.env.SHOPIFY_SHOP_DOMAIN),
+        gmail_backend_authorized:!!(process.env.GMAIL_REFRESH_TOKEN&&process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET),
+        note:"ChatGPT Shopify/Gmail connector permissions do not automatically grant access to the Vercel backend"
+      }
     });
   }catch(e){return res.status(502).json({ok:false,status:"unavailable"});}
 };
