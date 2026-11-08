@@ -11,7 +11,7 @@ module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
   if(req.method!=="GET") return res.status(405).json({ok:false});
   try{
-    const [state,shopify,gmail,gmailStage,ordersStage,ordersReconcile,dailyCustomers,dailyOrders,dailyGmail,caseSync]=await Promise.all([
+    const [state,shopify,gmail,gmailStage,ordersStage,ordersReconcile,dailyCustomers,dailyOrders,dailyGmail,caseSync,caseWriteback]=await Promise.all([
       readJson("crm-execution/tasks.json"),
       readJson("crm-execution/import-cursor.json"),
       readJson("crm-execution/gmail-filtered-cursor.json"),
@@ -21,7 +21,8 @@ module.exports=async(req,res)=>{
       readJson("crm-execution/daily-v1/shopify-state.json"),
       readJson("crm-execution/daily-v1/orders-state.json"),
       readJson("crm-execution/daily-v1/gmail-state.json"),
-      readJson("crm-cases/v1/sync-state.json")
+      readJson("crm-cases/v1/sync-state.json"),
+      readJson("crm-cases/v1/feishu-writeback-state.json")
     ]);
     // A missing legacy tasks.json is not evidence that completed source
     // checkpoints were lost. Report all available baselines independently.
@@ -55,6 +56,14 @@ module.exports=async(req,res)=>{
         accepted_events:caseSync?.accepted||0,
         excluded:caseSync?.excluded||0,
         note:"Case numbers are candidate events, not unique verified unresolved cases; detail endpoint requires authorization"
+      },
+      case_feishu_writeback:{
+        started:!!caseWriteback,
+        last_success_at:caseWriteback?.lastRunAt||null,
+        target_table_id:caseWriteback?.tableId||null,
+        total_cases_at_last_run:caseWriteback?.totalCases??null,
+        scanned_events_at_last_run:caseWriteback?.scannedEvents??null,
+        verified_target:caseWriteback?.tableId==="tblNi7C5q5FYlG06"
       },
       source_connectors:{
         shopify_backend_authorized:!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET))),
