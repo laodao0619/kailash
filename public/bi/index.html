@@ -46,7 +46,7 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 <h2 style="font:600 17px system-ui;margin-top:29px">Customer Journey · 生命历程</h2><p id="coverage"></p><div id="timeline" class="timeline"></div></div></dialog>
 <script>
 (()=>{"use strict";
-const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,items=[];
+const $=x=>document.getElementById(x);let token="",page=1,total=0,busy=false,items=[],cursor=null,cursorStack=[],nextCursor=null,source="shopify";
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const money=n=>typeof n==="number"?"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const fmt=n=>n?new Date(n).toLocaleString("zh-CN",{timeZone:"Asia/Shanghai"}):"—";
@@ -57,15 +57,40 @@ async function api(params){
  if(!r.ok||!json.ok)throw Error(json.error||"request_failed");
  return json;
 }
+async function shopifyCustomers(params){
+ const query=new URLSearchParams(params);
+ const r=await fetch("/api/bi-customers?"+query,{headers:{Authorization:"Bearer "+token},cache:"no-store"});
+ const json=await r.json();
+ if(!r.ok||!json.ok)throw Error(json.error||"shopify_not_ready");
+ return json;
+}
 async function load(){
  if(busy||!token)return;
  busy=true;$("rows").innerHTML='<tr><td colspan="7" class="empty">正在查询云端数据…</td></tr>';
  try{
-  const data=await api({mode:"customers",page,q:$("search").value,tier:$("tier").value});
-  total=data.total;items=data.customers;$("kpi-total").textContent=data.scanned.toLocaleString();$("kpi-match").textContent=total.toLocaleString();
-  $("sync").textContent="同步快照 · "+fmt(data.asOf);
-  $("page-label").textContent="第 "+page+" 页 · 当前匹配 "+total.toLocaleString()+" 位客户";
-  $("prev").disabled=page===1;$("next").disabled=page*50>=total;
+  let data;
+  try{
+   data=await shopifyCustomers({q:$("search").value,cursor:cursor||""});
+   source="shopify";
+  }catch(shopifyError){
+   // If live Shopify is not available, try the existing CRM Feishu mirror.
+   // Never invent missing RFM tiers or treat stale mirror rows as audited.
+   data=await api({mode:"customers",page,q:$("search").value,tier:""});
+   source="feishu";
+  }
+  items=data.customers;total=data.total??null;
+  nextCursor=source==="shopify"?data.nextCursor:null;
+  $("kpi-total").textContent=source==="shopify"?"实时":(data.scanned?.toLocaleString()||"—");
+  $("kpi-match").textContent=source==="shopify"?items.length+"+":[total?.toLocaleString()||"—"].join("");
+  $("sync").textContent=(source==="shopify"?"Shopify实时查询":"飞书镜像")+" · "+fmt(data.asOf);
+  $("page-label").textContent="第 "+page+" 页 · "+(source==="shopify"?"每页最多40位；总数未核算":"当前匹配 "+total.toLocaleString()+" 位客户");
+  $("prev").disabled=page===1;
+  $("next").disabled=source==="shopify"?!nextCursor:page*50>=total;
+  $("tier").disabled=true;
+  $("tier").title="等级筛选待11月8日全历史净额账本审计完成后开放";
+  $("data-note").textContent=source==="shopify"?
+   "当前数据直接读取 Shopify。客户姓名、邮箱、历史订单数等为实时来源；全部客户数据质检和 S+/S/A/B 评级待净额审计。":
+   "当前为飞书过渡镜像，并非已核验的全历史订单账本，暂不执行正式等级分层。";
   $("rows").innerHTML=items.length?items.map((c,i)=>'<tr data-i="'+i+'"><td>'+esc(c.name||"未填写姓名")+'<div class="fine">'+esc(c.email)+'</div></td><td>'+esc(c.id)+'</td><td><span class="pill">'+esc(c.tier||"未验证")+'</span></td><td>'+money(c.lifetimeSpend)+'</td><td>'+esc(c.lifetimeOrders??"—")+'</td><td>'+esc(c.country||"—")+'</td><td>'+esc(c.quality||"待核查")+'</td></tr>').join(""):'<tr><td colspan="7" class="empty">没有符合条件的客户</td></tr>';
   document.querySelectorAll("tr[data-i]").forEach(tr=>tr.addEventListener("click",()=>profile(items[Number(tr.dataset.i)])));
   $("auth").hidden=true;
@@ -113,10 +138,14 @@ async function profile(c){
   }catch(_){$("timeline").textContent="尚未获取客户事件。";}
  }
 }
-$("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;load()};
+$("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;cursor=null;cursorStack=[];load()};
 $("apply").onclick=()=>{page=1;load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;load()};
 $("search").onkeydown=e=>{if(e.key==="Enter"){page=1;load()}};
-$("prev").onclick=()=>{if(page>1){page--;load()}};$("next").onclick=()=>{if(page*50<total){page++;load()}};
+$("prev").onclick=()=>{if(page>1){page--;if(source==="shopify")cursor=cursorStack.pop()||null;load()}};
+$("next").onclick=()=>{
+ if(source==="shopify"&&nextCursor){cursorStack.push(cursor);cursor=nextCursor;page++;load()}
+ else if(source==="feishu"&&page*50<total){page++;load()}
+};
 $("close").onclick=()=>$("profile").close();
 })();
 </script></body></html>
