@@ -17,6 +17,10 @@
     {
       "path": "/api/crm-reminders",
       "schedule": "30 8 * * *"
+    },
+    {
+      "path": "/api/crm-import",
+      "schedule": "0 2 * * *"
     }
   ]
 }
