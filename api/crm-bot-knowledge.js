@@ -44,7 +44,7 @@ async function searchField(token,table,field,value) {
  return j.data?.items||[];
 }
 function fmtMoney(s) {
- const n=Number(stringify(s));return Number.isFinite(n)?"$"+n.toLocaleString("en-US",{maximumFractionDigits:2}):"待核验";
+ const raw=stringify(s).trim(); if(!raw)return "待核验"; const n=Number(raw);return Number.isFinite(n)?"$"+n.toLocaleString("en-US",{maximumFractionDigits:2}):"待核验";
 }
 function plainRules(){
  return [
