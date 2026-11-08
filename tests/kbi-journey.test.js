@@ -84,6 +84,8 @@ test("live timeline combines Shopify attribution, order and verified customer ma
  assert.equal(out.body.events[3].issueFlag,"possible_nonreceipt_claim");
  assert.equal(out.body.events[3].issueVerified,false);
  assert.equal(out.body.coverage.financialLedger,"not_audited");
+ assert.equal(out.body.profile.productInterests.some(x=>x.label==="Vajra"),true);
+ assert.equal(out.body.profile.productInterests[0].verifiedPreference,false);
  assert.equal(calls.filter(x=>x.includes("gmail.googleapis.com")).length,2);
  assert.equal(calls.filter(x=>x.includes("myshopify.com")).length,2);
 });
