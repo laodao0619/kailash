@@ -24,6 +24,7 @@ const lark = require('@larksuiteoapi/node-sdk');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createCrmReadonly } = require('./crm-readonly');
 
 const APP_ID = process.env.FEISHU_APP_ID;
 const APP_SECRET = process.env.FEISHU_APP_SECRET;
@@ -52,6 +53,7 @@ appSecret: APP_SECRET,
 appType: lark.AppType.SelfBuild,
 domain: lark.Domain.Feishu, // open.feishu.cn (China)
 });
+const crmReadonly = createCrmReadonly(client);
 
 // ---- 常量 ----
 const HISTORY_DIR = path.join(__dirname, 'history');
@@ -60,11 +62,12 @@ const HISTORY_MAX = 20; // 最近 20 条消息（约 10 轮对话）
 const KB_MAX = 200;
 
 // ---- 系统提示词：12:04 版原文 + v2 工具说明 + 记忆/知识库说明 ----
-const SYSTEM_PROMPT = '你是老道助手测试，Kailash Energy 店铺的运营助手，由 GPT-4o-mini 驱动，通过 API 接入。当被问到你是什么、数据从哪里来时，如实说：你由 GPT 驱动，训练知识截至 2023 年 10 月；目前尚未接通广告、邮件、CRM 的实时数据，所以查不到广告、邮件和 CRM 数据，也不要编造数字。Shopify 订单数据已接通，查订单、销售、客户时用 Shopify 工具。不要说自己没有和 GPT 链接。回答要简洁、直接，先给结论再给依据。用中文回答，除非用户用英文提问。'
-+ '你现在可以查公司飞书里的数据：用工具按关键词搜索云文档和多维表格、读取多维表格的记录、读取云文档正文。当用户问到公司文档、表格、运营数据时，先用工具去查，不要凭空回答；依据查到的内容回答，并注明数据来源和表格名字；如果工具返回查不到或没有权限，如实告诉用户原因，并请用户把表格链接发给你，或把文件分享给应用「老道_助手测试」。广告、邮件、CRM 这些仍未接通，不要编造。'
+const SYSTEM_PROMPT = '你是老道助手测试，Kailash Energy 店铺的运营助手，由 GPT-4o-mini 驱动，通过 API 接入。当被问到你是什么、数据从哪里来时，如实说：你由 GPT 驱动；广告和邮件的实时分析接口尚未接通，不要编造数字。Shopify 订单数据已接通，查订单、销售、客户时用 Shopify 工具；CRM客户档案通过独立的飞书只读工具查询，未授权或数据未计算时必须如实说明。不要说自己没有和 GPT 链接。回答要简洁、直接，先给结论再给依据。用中文回答，除非用户用英文提问。'
++ '你现在可以查公司飞书里的数据：用工具按关键词搜索云文档和多维表格、读取多维表格的记录、读取云文档正文。当用户问到公司文档、表格、运营数据时，先用工具去查，不要凭空回答；依据查到的内容回答，并注明数据来源和表格名字；如果工具返回查不到或没有权限，如实告诉用户原因，并请用户把表格链接发给你，或把文件分享给应用「老道_助手测试」。广告和邮件的实时分析接口尚未接通，不要编造。'
 + '你有对话记忆和知识库：你会记得同一会话里最近的对话内容，回答时结合上文；回答前会先在知识库里匹配相关内容，优先用知识库里的摘要回答并注明来源（文档或表格名）。当用户要求把若干文档逐一打开总结归纳时，你要主动先列出或搜索出文档清单，逐个打开、逐个摘要存入知识库，最后给一份合并总结；不要反复向用户要文档名或链接，只有实在找不到时才问一次。'
 + '回答要结构化：先给结论，再给依据；事项按优先级 P0/P1/P2 分，重点加粗，数字必须注明来源。被要求全面归纳（全部读取、分析、归纳、总结）时，先逐一读完文档再做合并分析，不要只给摘录式摘要。'
 + 'Shopify 已接通：问订单、销售、客户时先用 Shopify 工具查，依据查到的内容回答并注明来源是 Shopify、时间是 EST（店铺时间）；查不到如实说，不要编造数字；销售口径以 Shopify 为准。';
+const CRM_PROMPT = 'CRM客户档案已提供独立的飞书Bitable只读工具。问CRM等级、RFM、生命周期、CRM客户跟进时使用CRM工具，不使用Shopify实时累计消费推断180天M/R/F。CRM等级或RFM为空时明确回答“尚未完成计算”；只有CRM等级字段明确为S+时才认定S+。复购必须说明“历史（历史订单数≥2）”或“近180天（近180天有效订单数≥2）”的周期。RFM八类：重要价值用户、重要保持用户、重要发展用户、一般发展用户、重要挽留用户、一般挽留用户、一般价值用户、一般保持用户。CRM客户资料只允许已授权员工在单聊中查询。';
 
 // ---- 对话记忆：按 chat_id 存磁盘 JSON ----
 // 文件名用 chat_id 的 SHA-256（前 32 位 hex）映射，绝不直接把 chat_id 拼进路径。
@@ -665,13 +668,16 @@ const TOOL_IMPL = {
   shopify_sales_summary: (args) => toolShopifySalesSummary(args),
   list_unfulfilled_orders: (args) => toolListUnfulfilledOrders(args),
   get_shopify_customer: (args) => toolGetShopifyCustomer(args),
+  crm_find_customer: (args, _reads, context) => crmReadonly.findCustomer(args, context),
+  crm_list_segment: (args, _reads, context) => crmReadonly.listSegment(args, context),
+  crm_customer_communications: (args, _reads, context) => crmReadonly.customerCommunications(args, context),
 };
 
-async function runTool(name, args, reads) {
+async function runTool(name, args, reads, context) {
   const fn = TOOL_IMPL[name];
   if (!fn) return '没有这个工具：' + name + '。';
   try {
-    const out = await fn(args || {}, reads);
+    const out = await fn(args || {}, reads, context);
     return typeof out === 'string' ? out : JSON.stringify(out);
   } catch (e) {
     console.error('[feishu-bot] tool failed', name, e.message);
@@ -680,6 +686,41 @@ async function runTool(name, args, reads) {
 }
 
 const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'crm_find_customer',
+      description: '通过飞书正式CRM客户档案，按邮箱、完整Shopify Customer GID或姓名查客户。提供CRM等级、RFM、180天M/R/F、两种复购口径、订阅、负责人和生命周期。仅授权单聊。',
+      parameters: { type: 'object', properties: {
+        email: { type: 'string', description: '精确客户邮箱' },
+        shopify_customer_id: { type: 'string', description: '完整 gid://shopify/Customer/数字' },
+        name: { type: 'string', description: '客户姓名（可能出现同名，需要进一步消歧）' },
+      }, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'crm_list_segment',
+      description: '查询正式飞书CRM某个已计算等级或RFM八类分群的客户名单。每次只选一种分群，严格只查询客户数据状态为有效的记录，最多20条；不把部分名单当作完整名单。仅授权单聊。',
+      parameters: { type: 'object', properties: {
+        crm_grade: { type: 'string', enum: ['S+', 'S', 'A', 'B', '基础客户', '沉睡', '从未购买'] },
+        rfm_group: { type: 'string', enum: ['重要价值用户', '重要保持用户', '重要发展用户', '一般发展用户', '重要挽留用户', '一般挽留用户', '一般价值用户', '一般保持用户'] },
+        limit: { type: 'integer', description: '展示条数，默认10，最多20' },
+      }, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'crm_customer_communications',
+      description: '根据精确客户邮箱查询飞书CRM客户沟通与跟进记录（摘要、问题、任务状态），不是Gmail原始全量。仅授权单聊。',
+      parameters: { type: 'object', properties: {
+        email: { type: 'string', description: '精确客户邮箱' },
+        limit: { type: 'integer', description: '最多10条，默认5条' },
+      }, required: ['email'] },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -849,12 +890,12 @@ return d;
 } finally { clearTimeout(timer);}
 }
 
-async function askChatGPT(userText, chatId) {
+async function askChatGPT(userText, chatId, context) {
 if (!OPENAI_API_KEY) return { reply: null, reads: []};
 // 对话记忆：本次会话最近 20 条 + 知识库匹配到的相关条目一起带上。
 const history = loadHistory(chatId);
 const kbHits = searchKB(userText, loadKB());
-let system = SYSTEM_PROMPT;
+let system = SYSTEM_PROMPT + '\n' + CRM_PROMPT;
 if (kbHits.length) {
 system += '\n\n' + formatKBHits(kbHits);
 }
@@ -875,8 +916,8 @@ for (const call of calls) {
 const name = call.function?.name || '';
 let args = {};
 try { args = JSON.parse(call.function?.arguments || '{}');} catch { args = {};}
-console.log('[feishu-bot] tool call:', name, JSON.stringify(args).slice(0, 200));
-const result = await runTool(name, args, reads);
+console.log('[feishu-bot] tool call:', name, name.startsWith('crm_') ? '[CRM arguments redacted]' : JSON.stringify(args).slice(0, 200));
+const result = await runTool(name, args, reads, context);
 messages.push({ role: 'tool', tool_call_id: call.id, content: String(result).slice(0, 8000)});
 }
 }
@@ -1021,7 +1062,7 @@ console.log('[feishu-bot] got message in', chatId, ':', text.slice(0, 80));
 // 先把用户这条消息记入对话历史。
 saveHistory(chatId, [...loadHistory(chatId), { role: 'user', content: text}]);
 try {
-const { reply, reads} = await askChatGPT(text, chatId);
+const { reply, reads} = await askChatGPT(text, chatId, { chatType, senderOpenId: sender.sender_id?.open_id });
 let finalReply = reply;
 if (!finalReply) finalReply = '我已收到你的消息：“' + text.slice(0, 100) + '”。但 ChatGPT 还没配好，缺少 OPENAI_API_KEY，配好后我就能正常回答了。';
 await sendReply(chatId, finalReply);

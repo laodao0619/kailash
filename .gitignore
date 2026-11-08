@@ -1,0 +1,6 @@
+.env
+**/.env
+feishu-bot/history/
+feishu-bot/knowledge.json
+node_modules/
+**/node_modules/
