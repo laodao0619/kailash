@@ -6,6 +6,8 @@ const gmail=require("../lib/crm-gmail");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const PATH="crm-execution/gmail-filtered-cursor.json";
+const EMAIL_CACHE="crm-execution/gmail-verified-email-index-v1.json";
+const EMAIL_CACHE_MS=30*60*1000;
 const SINCE="2025-11-08T00:00:00.000Z";
 function authorized(req){
  const expected=Buffer.from(process.env.CRON_SECRET||"");
@@ -23,6 +25,13 @@ async function saveState(x){
  await put(PATH,JSON.stringify(x),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});
 }
 async function emailIndex(token){
+ const cached=await get(EMAIL_CACHE,{access:"private"});
+ if(cached?.statusCode===200){
+  const chunks=[];for await(const c of cached.stream)chunks.push(c);
+  const data=JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  if(Date.now()-Number(data.createdAt)<EMAIL_CACHE_MS&&Array.isArray(data.entries))
+   return new Map(data.entries);
+ }
  const map=new Map(); let cursor;
  const base="https://open.feishu.cn/open-apis/bitable/v1/apps/Y7VvbgreAasoLtsYdhrcmmDUn5d/tables/"+bulk.CUSTOMERS+"/records";
  for(let n=0;n<100;n++){
@@ -31,6 +40,9 @@ async function emailIndex(token){
   const j=await res.json().catch(()=>({}));
   if(!res.ok||j.code!==0)throw Error("Failed reading customer email index");
   for(const item of j.data?.items||[]){
+   const state=item.fields?.["客户数据状态"];
+   const quality=typeof state==="string"?state:Array.isArray(state)?state.map(x=>x.text||"").join(""):"";
+   if(quality&&quality!=="有效")continue;
    const raw=item.fields?.["邮箱"];const value=typeof raw==="string"?raw:Array.isArray(raw)?raw.map(t=>t.text||"").join(""):"";
    const email=value.trim().toLowerCase();
    if(email)map.set(email,(map.get(email)||0)+1);
@@ -38,6 +50,7 @@ async function emailIndex(token){
   if(!j.data?.has_more)break;
   cursor=j.data?.page_token;if(!cursor)throw Error("Missing Bitable customer page token");
  }
+ await put(EMAIL_CACHE,JSON.stringify({createdAt:Date.now(),entries:[...map]}),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});
  return map;
 }
 async function append(token,records){
