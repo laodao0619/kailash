@@ -27,7 +27,7 @@ module.exports=async(req,res)=>{
  const readyShop=!!(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN&&process.env.SHOPIFY_SHOP_DOMAIN);
  const readyGmail=!!(process.env.GMAIL_REFRESH_TOKEN&&process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET);
  if(!readyShop&&!readyGmail)return res.status(200).json({ok:true,skipped:"waiting_for_shopify_and_gmail_backend_authorization",shopify:false,gmail:false});
- const stat={shopify:{processed:0,created:0,updated:0,failed:0},gmail:{processed:0,created:0,updated:0,failed:0}};
+ const stat={shopify:{processed:0,created:0,updated:0,failed:0},gmail:{processed:0,created:0,updated:0,failed:0,unmatched:0}};
  try{
   const t=await feishu.tenantToken();
   let cursor=await readCursor();
@@ -45,7 +45,7 @@ module.exports=async(req,res)=>{
     if(cursor.shopifyCycleComplete)break;
    }
   }
-  if(readyGmail){
+  if(readyGmail && (!readyShop || cursor.shopifyCycleComplete)){
    const tkn=await gmail.token();
    for(let n=0;n<2;n++){
     const list=await gmail.listMessages(tkn,{pageToken:cursor.gmailNextPageToken||undefined,maxResults:50});
@@ -53,6 +53,10 @@ module.exports=async(req,res)=>{
      try{
       const item=await gmail.message(tkn,msg.id);
       const record=gmail.compactMessage(item);
+      const fromMatch=record.from?await feishu.findBy(t,"tblbk7Ju6fcM1BXF","邮箱",record.from):[];
+      const toMatch=record.to?await feishu.findBy(t,"tblbk7Ju6fcM1BXF","邮箱",record.to):[];
+      if(!fromMatch.length&&!toMatch.length){stat.gmail.unmatched++;continue;}
+      record.customerEmail=fromMatch.length?record.from:record.to;
       const result=await feishu.upsertGmail(t,record);
       stat.gmail[result]++;stat.gmail.processed++;
      }catch(e){stat.gmail.failed++;throw new Error("Gmail Feishu upsert failed; retry same page next run");}
