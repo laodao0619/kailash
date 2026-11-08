@@ -1,6 +1,8 @@
 "use strict";
 const gmail = require("../lib/crm-gmail");
 const cases = require("../lib/crm-cases");
+const feishu = require("../lib/crm-feishu");
+const enrichment = require("../lib/crm-case-enrichment");
 
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
@@ -10,7 +12,7 @@ module.exports = async (req, res) => {
   try {
     const dryRun = req.query?.dry_run === "1";
     const state = (await cases.read(cases.STATE)) || { pageToken: null, scanned: 0, accepted: 0, excluded: 0 };
-    const oauth = await gmail.token();
+    const [oauth, feishuToken] = await Promise.all([gmail.token(), feishu.tenantToken()]);
     const result = await gmail.listMessages(oauth, {
       maxResults: 50, pageToken: state.pageToken || undefined,
       after: new Date(Date.now() - cases.DAYS * 86400000).toISOString(), query: "in:inbox",
@@ -21,7 +23,7 @@ module.exports = async (req, res) => {
         const msg = await gmail.message(oauth, row.id);
         counts.scanned++;
         if (gmail.classifyMessage(msg) !== "candidate") { counts.excluded++; continue; }
-        const e = cases.event(msg);
+        const e = await enrichment.enrich(cases.event(msg), msg, oauth, feishuToken);
         if (!dryRun) await cases.save(cases.PREFIX + encodeURIComponent(msg.id) + ".json", e);
         counts.accepted++;
       } catch (err) {
