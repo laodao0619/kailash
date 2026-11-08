@@ -5,7 +5,7 @@ const { get, put } = require("@vercel/blob");
 const feishu = require("../lib/crm-feishu");
 const TABLE = "tblNi7C5q5FYlG06";
 const CHAT = "oc_45c79d089b461677fe06caf55e375dec";
-const MARKER = "crm-cases/v1/private-report-preview-20261108.json";
+const MARKER = "crm-cases/v1/private-report-preview-20261108-v2.json";
 const VIEW = "https://ycnic6l8vkfx.feishu.cn/wiki/OSUew3QCUics0vkuphJc2sDfnGf?table=tblNi7C5q5FYlG06&view=vewS88etSM";
 
 function authorized(req) {
@@ -35,11 +35,20 @@ async function fetchCases(token) {
 function report(rows, date = new Date()) {
   const totals = { urgent: 0, high: 0, normal: 0, replied: 0, noReply: 0, resolved: 0, unverified: 0 };
   const categories = new Map();
+  const grades = new Map();
   const alerts = [];
   for (const row of rows) {
     const f = row.fields || {};
-    const p = value(f["任务优先级"]), s = value(f["任务状态"]), reply = value(f["客服回复状态"]);
+    const originalP = value(f["任务优先级"]), s = value(f["任务状态"]), reply = value(f["客服回复状态"]);
     const kind = value(f["问题类别"]) || "未分类";
+    const evidence = (value(f["邮件主题"]) + " " + value(f["客户原文摘录"])).toLowerCase();
+    // Existing rows were written by the P0/P1 mapping bug. Derive a
+    // conservative operational priority for preview until rows are re-synced.
+    const p = originalP === "紧急" || /退款退货|支付争议|商品问题|商品售后/.test(kind)
+      || /(?:not received|did not receive|never received|order not received|lost package|lost parcel|未收到|丢件|chargeback|fraud)/.test(evidence) ? "紧急"
+      : originalP === "高" || /物流查询|产品问题|售前咨询|补发赠品/.test(kind) ? "高" : "普通";
+    const grade = value(f["CRM等级（Case核验）"]) || value(f["CRM等级"]) || "待核验";
+    grades.set(grade, (grades.get(grade) || 0) + 1);
     categories.set(kind, (categories.get(kind) || 0) + 1);
     if (p === "紧急") totals.urgent++; else if (p === "高") totals.high++; else totals.normal++;
     if (/已解决|已完成/.test(s) && !/未解决/.test(s)) totals.resolved++;
@@ -56,7 +65,9 @@ function report(rows, date = new Date()) {
     "【Kailash Energy｜客服 Case 私聊验收日报】",
     `数据读取时间：${dateText}（北京时间）`,
     `当前表内 Case：${rows.length} 件（历史及近期混合，非今日新增）`,
-    `优先级：🔴紧急 ${totals.urgent}｜🟠高 ${totals.high}｜普通 ${totals.normal}`,
+    `Case处理优先级：🔴紧急 ${totals.urgent}｜🟠高 ${totals.high}｜普通 ${totals.normal}`,
+    "CRM客户等级：" + ([...grades.entries()].sort((a,b)=>["S+","S","A","B","基础客户","沉睡","从未购买","待核验"].indexOf(a[0])-["S+","S","A","B","基础客户","沉睡","从未购买","待核验"].indexOf(b[0])).map(([k,n])=>`${k} ${n}`).join("｜") || "暂无"),
+    `重点客户（S+/S/A）：${["S+","S","A"].reduce((n,k)=>n+(grades.get(k)||0),0)} 件`,
     `状态：已解决/已完成 ${totals.resolved}｜已回复但未确认解决 ${totals.replied}｜未发现后续回复 ${totals.noReply}｜待核验 ${totals.unverified}`,
     "问题类别：" + ([...categories.entries()].sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k} ${n}`).join("；") || "暂无"),
     "—— 优先处理（最多 5 件）——",

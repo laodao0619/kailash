@@ -20,6 +20,13 @@ test("Case writeback leaves human fields untouched during later syncs", () => {
   assert.equal(TABLE,"tblNi7C5q5FYlG06");
 });
 
+test("P0/P1/P2 case severities map to Feishu task priorities", () => {
+  const caseBase={caseId:"CASE-123456789ABC",category:"物流询单"};
+  assert.equal(recordFields({...caseBase,priority:"P0"})["任务优先级"],"紧急");
+  assert.equal(recordFields({...caseBase,priority:"P1"})["任务优先级"],"高");
+  assert.equal(recordFields({...caseBase,priority:"P2"})["任务优先级"],"普通");
+});
+
 test("Case updates an existing communication table record without touching task state", async () => {
   const originalFind = feishu.findBy, originalRequest = feishu.request;
   const calls = [];
