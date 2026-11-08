@@ -30,7 +30,7 @@ async function createSegment(name,tag){
 async function pushBatch(ids,tag){
  const aliases=ids.map((id,i)=>"b"+i+':tagsAdd(id:"gid://shopify/Customer/'+id+'",tags:["'+tag+'"]){userErrors{field message}}').join(" ");
  const result=await queryShopify("mutation KbiAudienceTags{"+aliases+"}");
- const failures=ids.filter((_id,i)=>(result["b"+i]?.userErrors||[]).length>0);
+ const failures=ids.filter((_id,i)=>!result["b"+i]||!Array.isArray(result["b"+i].userErrors)||result["b"+i].userErrors.length>0);
  return failures;
 }
 module.exports=async(req,res)=>{
