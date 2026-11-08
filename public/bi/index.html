@@ -24,17 +24,25 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 </style></head>
 <body><div class="layout">
 <aside><div class="brand">KAILASH <span class="sub">ENERGY</span><div class="sub">经营智能管理平台</div></div>
-<nav class="menu"><a class="selected" href="#customers">▦　客户智能</a><a aria-disabled="true" title="后续阶段开放">◷　客户分层分析</a><a aria-disabled="true" title="下一阶段">◈　经营数据总览</a><a aria-disabled="true" title="下一阶段">◎　运营协作</a></nav>
-<div class="bottom">KBI V1 · 只读预览<br>数据源：Shopify 优先 / 飞书备用<br>分层：以 2026-11-08 规则为准</div></aside>
+<nav class="menu"><a class="selected" href="#overview">◈　经营总览</a><a href="#customers">▦　客户智能</a><a href="#rfm">◷　客户分层</a><a href="#operations">◎　运营协作</a></nav>
+<div class="bottom">KBI V1 · 内部正式工作台<br>数据源：Shopify 优先 / 飞书备用<br>分层：以 2026-11-08 规则为准</div></aside>
 <main>
-<div class="top"><div><div class="eyebrow">客户智能 / 客户分析</div><h1>了解每位客户的完整历程</h1><p>统一客户资料、购买历史与沟通证据；所有未核验数据明确标注。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
+<div class="top"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE / 经营管理</div><h1>经营数据与客户工作台</h1><p>从公司经营状态到单个客户历程，基于真实数据与可追溯证据辅助决策。</p></div><div><span class="pill" id="sync">尚未连接</span></div></div>
 <section class="notice" id="auth"><b id="auth-title">正在检查系统连接状态…</b><div id="auth-note">验证数据源及访问配置。请勿在此输入 Shopify、Gmail 或其他应用密钥。</div><div id="auth-fields" hidden><input id="token" type="password" autocomplete="off" aria-label="内部访问凭证" placeholder="请输入 KBI 内部访问凭证"><button class="primary" id="connect">连接只读数据</button></div></section>
-<section class="cards" aria-label="数据总览">
+<section id="overview" class="cards" aria-label="经营数据总览">
 <div class="card"><small>Shopify 客户总数</small><strong id="kpi-total">—</strong><span id="kpi-total-note">包含待清洗记录；不等于有效CRM客户数</span></div>
 <div class="card"><small>当前查询结果</small><strong id="kpi-match">—</strong><span>当前页面人数，未核算时不推算全量</span></div>
 <div class="card"><small>当前数据来源</small><strong id="kpi-source" style="font-size:17px">尚未连接</strong><span id="kpi-source-note">优先连接 Shopify 实时数据</span></div>
 <div class="card"><small>客户分层数据</small><strong style="font-size:17px">待核验</strong><span>不使用2026-10-23旧等级覆盖</span></div>
 </section>
+<section class="panel" style="margin-bottom:18px" aria-label="历史数据与经营基线">
+<div class="panel-head"><div><div class="eyebrow">01 / 数据基线</div><h2>现有历史数据 · 无需重复抓取</h2></div><button id="refresh-baseline">刷新数据</button></div>
+<div class="cards" style="margin:0;padding:18px;grid-template-columns:repeat(3,minmax(0,1fr))">
+<div class="card"><small>历史客户扫描</small><strong id="base-customers">—</strong><span>Shopify原始基线 · 11月8日</span></div>
+<div class="card"><small>近180天有效订单</small><strong id="base-orders">—</strong><span>订单快照 · 待财务净额核对</span></div>
+<div class="card"><small>Gmail已归档沟通</small><strong id="base-mails">—</strong><span id="mail-progress">历史邮件继续断点补录</span></div>
+</div>
+<p id="snapshot-at" style="margin:0 20px 16px">正在获取生产数据断点…</p></section>
 <section class="panel" id="ingestion" style="margin-bottom:18px">
  <div class="panel-head"><div><div class="eyebrow">数据同步 / 授权核验</div><h2>数据抓取状态</h2></div>
  <button id="check-ingestion" disabled>检查授权与抓取状态</button></div>
@@ -45,6 +53,27 @@ footer{color:#9aaba0;font-size:11px;margin-top:18px}
 <div class="notice" style="margin:16px 22px" id="data-note">当前显示飞书现有数据镜像；客户分层需要等待2026年11月8日标准下的全历史订单财务核验。对未知数据不推断。</div>
 <div class="scroll"><table><thead><tr><th>客户</th><th>客户编号</th><th>等级</th><th>历史消费参考</th><th>历史订单数</th><th>国家/地区</th><th>数据状态</th></tr></thead><tbody id="rows"><tr><td colspan="7" class="empty">等待后台连接，暂未加载客户数据</td></tr></tbody></table></div>
 <div class="pager"><div id="page-label">暂无数据</div><div><button id="prev" disabled>上一页</button> <button id="next" disabled>下一页</button></div></div></section>
+<section class="panel" id="rfm" style="margin-top:18px">
+<div class="panel-head"><div><div class="eyebrow">03 / 客户分层 · 2026-11-08</div><h2>RFM规则与数据验证</h2></div><span class="pill" id="rfm-check">等级待财务核验</span></div>
+<p style="margin:17px 22px">等级按近180天净消费M、距最近有效订单天数R、近180天有效订单F三项<strong>同时满足</strong>计算，按S+、S、A、B从高到低取最高符合等级。缺失全历史/退款数据时，不输出正式等级。</p>
+<div class="scroll"><table><thead><tr><th>等级</th><th>近180天净消费 M</th><th>最近购买 R</th><th>近180天订单 F</th></tr></thead><tbody>
+<tr><td>S+</td><td>≥ $3,000</td><td>≤ 45天</td><td>≥ 5笔</td></tr>
+<tr><td>S</td><td>≥ $1,500</td><td>≤ 90天</td><td>≥ 3笔</td></tr>
+<tr><td>A</td><td>≥ $800</td><td>≤ 180天</td><td>≥ 2笔</td></tr>
+<tr><td>B</td><td>＞ $0</td><td>≤ 180天</td><td>≥ 1笔</td></tr>
+</tbody></table></div>
+<div class="notice" style="margin:14px 20px">另区分基础客户、沉睡客户和从未购买；客单价$400高低分组是独立维度。现有等级回写属于历史处理结果，正式口径仍需净额审计。</div>
+</section>
+<section class="panel" id="operations" style="margin-top:18px">
+<div class="panel-head"><div><div class="eyebrow">04 / 运营协作</div><h2>每日自动同步与团队执行</h2></div><span class="pill">北京时间</span></div>
+<div class="scroll"><table><thead><tr><th>阶段</th><th>客户更新</th><th>订单与退款</th><th>Gmail新增</th></tr></thead><tbody>
+<tr><td>上班前</td><td>08:50</td><td>08:55</td><td>09:00</td></tr>
+<tr><td>美东店铺归零后</td><td>13:15</td><td>13:20</td><td>13:25</td></tr>
+<tr><td>下班前</td><td>15:45</td><td>15:50</td><td>15:55</td></tr>
+</tbody></table></div>
+<div class="notice" id="operation-state" style="margin:14px 20px">正在获取今天的增量任务状态…</div>
+<div style="padding:0 20px 20px"><span class="fine">客服与Gmail历史事件需要按来源核对；AI建议均须人工确认。未来接入部门广告、商品及财务经营数据后可扩展归因分析。</span></div>
+</section>
 <footer>仅供内部使用 · 本页面不发送营销邮件 · 客户资料不会写入公开网页文件</footer>
 </main></div>
 <dialog id="profile"><div class="detail"><div class="detail-head"><div><div class="eyebrow">客户全景 · 360°</div><h2 id="profile-name"></h2><p id="profile-email"></p></div><button id="close">关闭</button></div><div class="detail-grid" id="profile-data"></div>
@@ -71,6 +100,28 @@ async function api(params){
  const json=await r.json();
  if(!r.ok||!json.ok)throw Error(json.error||"request_failed");
  return json;
+}
+async function refreshBaseline(){
+ try{
+  const r=await fetch("/api/crm-status",{cache:"no-store"});
+  if(!r.ok)throw Error("snapshot_unavailable");
+  const d=await r.json();
+  if(!d.ok)throw Error("status_invalid");
+  const ints=x=>Number.isInteger(x)?x.toLocaleString("zh-CN"):"—";
+  $("base-customers").textContent=ints(d.imports?.shopify?.totals?.processed);
+  $("base-orders").textContent=ints(d.imports?.orders_180d?.totals?.eligible);
+  $("base-mails").textContent=ints(d.imports?.gmail?.totals?.created);
+  $("mail-progress").textContent=d.imports?.gmail?.completed?"历史导入已完成":"历史邮件正在继续按断点补录";
+  $("snapshot-at").textContent="最后运行记录："+fmt(d.updated_at)+" · 原始基线不重复导入 · 数据源：生产CRM断点";
+  const daily=d.daily_incremental||{};
+  const status=x=>!x?.started?"待首轮验证":x.completed?"最近一轮已完成":"最近一轮进行中";
+  $("operation-state").textContent="客户增量："+status(daily.customers)+"；订单增量："+status(daily.orders)+"；Gmail增量："+status(daily.gmail)+"。所有状态来自真实生产断点。";
+  $("rfm-check").textContent=d.imports?.crm_grading?.completed?
+    "既有评级已回写，待最终审计":"评级尚未完成";
+ }catch(_){
+  $("snapshot-at").textContent="暂无法访问历史数据断点；不显示猜测值。";
+  $("operation-state").textContent="生产同步状态暂不可读，请稍后刷新。";
+ }
 }
 async function apiOverview(){
  const r=await fetch("/api/bi-overview",{headers:{Authorization:"Bearer "+token},cache:"no-store"});
@@ -230,6 +281,9 @@ async function checkReadiness(){
 }
 $("connect").onclick=()=>{token=$("token").value.trim();$("token").value="";page=1;cursor=null;cursorStack=[];load()};
 checkReadiness();
+refreshBaseline();
+$("refresh-baseline").onclick=refreshBaseline;
+document.querySelectorAll(".menu a[href]").forEach(a=>a.addEventListener("click",()=>{document.querySelectorAll(".menu a").forEach(x=>x.classList.remove("selected"));a.classList.add("selected")}));
 $("apply").onclick=()=>{page=1;cursor=null;cursorStack=[];load()};$("clear").onclick=()=>{$("search").value="";$("tier").value="";page=1;cursor=null;cursorStack=[];load()};
 $("search").onkeydown=e=>{if(e.key==="Enter"){page=1;cursor=null;cursorStack=[];load()}};
 $("prev").onclick=()=>{if(page>1){page--;if(source==="shopify")cursor=cursorStack.pop()||null;load()}};
