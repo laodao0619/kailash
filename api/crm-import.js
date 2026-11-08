@@ -32,8 +32,11 @@ module.exports=async(req,res)=>{
   const t=await feishu.tenantToken();
   let cursor=await readCursor();
   if(readyShop){
-   for(let n=0;n<3;n++){
-    const page=await shopify.customers(cursor.shopifyCursor||null);
+   const safeSmallBatch=req.query?.check_batch==="five";
+   const maxPages=safeSmallBatch?1:3;
+   const pageSize=safeSmallBatch?5:50;
+   for(let n=0;n<maxPages;n++){
+    const page=await shopify.customers(cursor.shopifyCursor||null,pageSize);
     for(const customer of page.nodes||[]){
      try{const result=await feishu.upsertCustomer(t,customer);stat.shopify[result]++;stat.shopify.processed++;}
      catch(e){stat.shopify.failed++;throw new Error("Shopify Feishu upsert failed; retry same page next run");}
