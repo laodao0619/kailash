@@ -8,6 +8,7 @@ const fixture={
  sales:Q([{day:"2026-11-01",total_sales:"1000",net_sales:"900",gross_sales:"1100",orders:"5",average_order_value:"180"}]),
  summary:Q([{total_sales:"1000",net_sales:"900",orders:"5",average_order_value:"180",returning_customer_rate:"0.4",returning_customers:"2"}]),
  sessions:Q([{day:"2026-11-01",sessions:"200",conversion_rate:"0.025"}]),
+ funnel:Q([{sessions:"200",conversion_rate:"0.025",added_to_cart_rate:"0.12",reached_checkout_rate:"0.08"}]),
  channels:Q([{sales_channel:"Online Store",total_sales:"600",net_sales:"550",orders:"3"},
  {sales_channel:"Shop",total_sales:"400",net_sales:"350",orders:"2"}]),
  repeat:Q([{new_or_returning_customer:"New",total_sales:"700",orders:"3"},
@@ -24,6 +25,11 @@ test("ShopifyQL sales/visits computes session-weighted conversion and native rep
  assert.equal(d.metrics.netSales,900);
  assert.equal(d.metrics.sessions,200);
  assert.equal(d.metrics.conversionRate,2.5);
+ assert.equal(d.metrics.addedToCartRate,12);
+ assert.equal(d.metrics.reachedCheckoutRate,8);
+ assert.equal(d.metrics.addedToCartSessions,24);
+ assert.equal(d.metrics.reachedCheckoutSessions,16);
+ assert.equal(d.metrics.convertedSessions,5);
  assert.equal(d.metrics.aov,180);
  assert.equal(d.metrics.repeatCustomerRate,40);
  assert.equal(d.metrics.returningGmvShare,30);
@@ -67,6 +73,7 @@ test("landing dashboard has actionable live operations/calendar/audience UIs",()
  const js=fs.readFileSync(path.join(__dirname,"../public/bi/ops-center.js"),"utf8");
  for(const id of ["ops-gmv","ops-net","ops-cvr","ops-aov","ops-return-share","ops-repeat-rate",
   "ops-email-gmv","ops-channel-bars","ops-trend-chart","ops-email-campaigns",
+  "funnel-sessions","funnel-atc","funnel-checkout","funnel-paid","ops-funnel-insight",
   "calendar-save","calendar-subject","calendar-preview","calendar-audience",
   "audience-preview","audience-save","audience-saved-list","audience-sync-status"]){
   assert(html.includes('id="'+id+'"'),id);
