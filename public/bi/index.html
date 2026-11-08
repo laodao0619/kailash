@@ -471,7 +471,7 @@ function drawJourneyChart(){
   const t=view.start+extent*tick/6,tx=left+(width-left-right)*tick/6;
   result+='<line x1="'+xmlNumber(tx)+'" y1="'+top+'" x2="'+xmlNumber(tx)+'" y2="'+(height-bottom)+'" stroke="#e9eeeb"/>'+
    '<text x="'+xmlNumber(tx)+'" y="'+(height-34)+'" fill="#718479" font-size="11" text-anchor="middle">'+
-   esc(new Date(t).toISOString().slice(0,10))+'</text>';
+   esc(new Date(t).toLocaleDateString("zh-CN",{timeZone:"Asia/Shanghai",year:"2-digit",month:"2-digit",day:"2-digit"}))+'</text>';
  }
  for(let i=0;i<groups.length;i++){
   const g=groups[i],y0=top+i*lane,yBottom=y0+94;
@@ -669,6 +669,18 @@ $("timeline-apply").onclick=()=>{
  if(!begin||!end||end<begin){$("timeline-window-label").textContent="请输入有效日期范围（开始日期不晚于结束日期）。";return;}
  timelineState.customStart=begin;timelineState.customEnd=end;setTimelineRange("custom");
 };
+function timelineZoom(delta,ratio=.5){
+ if(!window.KBITimeline||!customerView.events.length)return;
+ const T=window.KBITimeline;
+ timelineState.view=T.zoom(timelineState.view||T.timeWindow(customerView.events,
+  timelineState.preset,Date.now(),timelineState.customStart,timelineState.customEnd),delta,ratio,
+  T.allBounds(customerView.events,Date.now()));
+ timelineState.preset="zoom";
+ document.querySelectorAll("[data-range]").forEach(x=>x.classList.remove("active"));
+ $("timeline-custom").hidden=true;drawJourneyChart();
+}
+$("timeline-zoom-in").onclick=()=>timelineZoom(-100);
+$("timeline-zoom-out").onclick=()=>timelineZoom(100);
 $("journey-svg").addEventListener("wheel",e=>{
  if(!customerView.events.length||!window.KBITimeline)return;
  e.preventDefault();
