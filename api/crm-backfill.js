@@ -6,6 +6,7 @@ const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const quality=require("../lib/crm-quality-feishu");
+const {organizeViews}=require("../lib/crm-quality-views");
 const {classify}=require("../lib/crm-customer-quality");
 const PATH="crm-execution/import-cursor.json";
 function authorized(req){
@@ -33,6 +34,7 @@ module.exports=async(req,res)=>{
  if(!ready)return res.status(200).json({ok:true,skipped:"shopify_credentials_unavailable"});
  let state={},stats={new:0,updated:0,pages:0,failed:0};
  try{
+  const startedAt=Date.now();
   state=await readState();
   if(state.shopifyCycleComplete){await mark("T06","done","Shopify customer historical backfill finished: "+(state.shopifyTotals?.processed||0));return res.status(200).json({ok:true,completed:true,totals:state.shopifyTotals||{},lastUpdate:state.updatedAt});}
   if(!state.shopifyTotals?.expected){
@@ -44,6 +46,11 @@ module.exports=async(req,res)=>{
   }
   const token=await feishu.tenantToken();
   await quality.ensureFields(token);
+  if(state.viewSetVersion!=="v2"){
+   stats.views=await organizeViews(token);
+   state.viewSetVersion="v2";
+   await saveState(state);
+  }
   if(!state.qualityCleanupFinished){
    const cleanup=await quality.cleanExisting(token,state);
    await saveState(state);
@@ -65,7 +72,7 @@ module.exports=async(req,res)=>{
   }
   // Each page is committed separately. The cursor advances only after its Feishu writes succeed.
   const pages=Math.max(1,Math.min(25,Number(req.query?.pages)||20));
-  const deadline=Date.now()+88000;
+  const deadline=startedAt+95000;
   for(let i=0;i<pages;i++){
    if(Date.now()>deadline)break;
    const page=await shopify.customers(state.shopifyCursor||null,50);
