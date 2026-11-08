@@ -69,6 +69,7 @@ const SYSTEM_PROMPT = '你是老道助手测试，Kailash Energy 店铺的运营
 + '回答要结构化：先给结论，再给依据；事项按优先级 P0/P1/P2 分，重点加粗，数字必须注明来源。被要求全面归纳（全部读取、分析、归纳、总结）时，先逐一读完文档再做合并分析，不要只给摘录式摘要。'
 + 'Shopify 已接通：问订单、销售、客户时先用 Shopify 工具查，依据查到的内容回答并注明来源是 Shopify、时间是 EST（店铺时间）；查不到如实说，不要编造数字；销售口径以 Shopify 为准。';
 const CRM_PROMPT = 'CRM客户档案已提供独立的飞书Bitable只读工具。问CRM等级、RFM、生命周期、CRM客户跟进时使用CRM工具，不使用Shopify实时累计消费推断180天M/R/F。CRM等级或RFM为空时明确回答“尚未完成计算”；只有CRM等级字段明确为S+时才认定S+。复购必须说明“历史（历史订单数≥2）”或“近180天（近180天有效订单数≥2）”的周期。RFM八类：重要价值用户、重要保持用户、重要发展用户、一般发展用户、重要挽留用户、一般挽留用户、一般价值用户、一般保持用户。CRM客户资料只允许已授权员工在单聊中查询。';
+const QUERY_ROUTING_PROMPT = '运营查询路由：用户问最新/最近N笔订单且没有筛选条件，直接调用 list_latest_shopify_orders，不要索要订单号。用户要求抽取/查看几条CRM有效档案样本且未指定等级，直接调用 crm_sample_customers，不要强制要求等级；这只是已存字段核验，绝不声称随机抽样或重算等级。工具返回错误时如实报告，不要说是用户没提供参数。';
 
 // ---- 对话记忆：按 chat_id 存磁盘 JSON ----
 // 文件名用 chat_id 的 SHA-256（前 32 位 hex）映射，绝不直接把 chat_id 拼进路径。
@@ -386,6 +387,22 @@ async function toolSearchShopifyOrders(args) {
   return '查到 ' + matches.length + ' 个订单（数据来源：Shopify，时间 EST）：\n' + matches.map(fmtOrderBrief).join('\n---\n');
 }
 
+// 常用运营入口：无须订单号或状态，直接读取最新有效订单。
+async function toolListLatestShopifyOrders(args = {}) {
+  if (!shopifyConfigured()) return SHOPIFY_NOT_CONFIGURED;
+  const limit = Math.min(Math.max(parseInt(args.limit, 10) || 3, 1), 20);
+  const queriedAt = new Date().toISOString();
+  const res = await shopifyFetch('/orders.json', { status: 'any', limit: Math.max(limit * 2, 20), order: 'created_at desc' });
+  if (res.error) return res.error;
+  const orders = ((res.data && res.data.orders) || [])
+    .filter((o) => !o.cancelled_at)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, limit);
+  if (!orders.length) return `Shopify 本次未返回有效订单。查询时间 UTC：${queriedAt}。`;
+  return `Shopify 最新 ${orders.length} 笔有效订单（不含已取消订单；查询时间 UTC：${queriedAt}；订单时间 EST）：\n`
+    + orders.map(fmtOrderBrief).join('\n---\n');
+}
+
 // 工具 2：按日期范围（YYYY-MM-DD，EST）或快捷词 yesterday/today 汇总销售。
 async function toolShopifySalesSummary(args) {
   if (!shopifyConfigured()) return SHOPIFY_NOT_CONFIGURED;
@@ -666,11 +683,13 @@ const TOOL_IMPL = {
   read_bitable_records: (args, reads) => toolReadBitableRecords(args, reads),
   read_docx_content: (args, reads) => toolReadDocx(args, reads),
   search_shopify_orders: (args) => toolSearchShopifyOrders(args),
+  list_latest_shopify_orders: (args) => toolListLatestShopifyOrders(args),
   shopify_sales_summary: (args) => toolShopifySalesSummary(args),
   list_unfulfilled_orders: (args) => toolListUnfulfilledOrders(args),
   get_shopify_customer: (args) => toolGetShopifyCustomer(args),
   crm_find_customer: (args, _reads, context) => crmReadonly.findCustomer(args, context),
   crm_list_segment: (args, _reads, context) => crmReadonly.listSegment(args, context),
+  crm_sample_customers: (args, _reads, context) => crmReadonly.sampleCustomers(args, context),
   crm_customer_communications: (args, _reads, context) => crmReadonly.customerCommunications(args, context),
 };
 
@@ -687,6 +706,16 @@ async function runTool(name, args, reads, context) {
 }
 
 const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'crm_sample_customers',
+      description: '授权单聊中不指定等级即可抽取前几条有效CRM客户档案做数据核验，返回已有M/R/F原始字段、已存等级、记录ID和缺失标记。只读，非随机抽样；不能当作重新计算的等级。',
+      parameters: { type: 'object', properties: {
+        limit: { type: 'integer', description: '返回1至5条，默认2条' },
+      }, required: [] },
+    },
+  },
   {
     type: 'function',
     function: {
@@ -821,6 +850,16 @@ const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'list_latest_shopify_orders',
+      description: '直接查询 Shopify 最新有效订单，无需提供订单号、客户邮箱、付款或发货状态。返回实际查询时间、订单时间、金额、付款与履约状态。',
+      parameters: { type: 'object', properties: {
+        limit: { type: 'integer', description: '1至20笔，默认3笔' },
+      }, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'shopify_sales_summary',
       description: '按日期范围汇总 Shopify 销售：订单数、总销售额、客均价、未发货单数。日期按 EST 店铺时间算，可用 start_date/end_date（YYYY-MM-DD）或快捷词 range（yesterday/today）。已排除已取消订单，销售口径以 Shopify 为准。',
       parameters: {
@@ -896,7 +935,7 @@ if (!OPENAI_API_KEY) return { reply: null, reads: []};
 // 对话记忆：本次会话最近 20 条 + 知识库匹配到的相关条目一起带上。
 const history = loadHistory(chatId);
 const kbHits = searchKB(userText, loadKB());
-let system = SYSTEM_PROMPT + '\n' + CRM_PROMPT;
+let system = SYSTEM_PROMPT + '\n' + CRM_PROMPT + '\n' + QUERY_ROUTING_PROMPT;
 if (kbHits.length) {
 system += '\n\n' + formatKBHits(kbHits);
 }
@@ -1058,4 +1097,4 @@ process.on('SIGINT', () => { console.log('[feishu-bot] stopping...'); process.ex
 process.on('SIGTERM', () => { console.log('[feishu-bot] stopping...'); process.exit(0);});
 
 // 导出纯函数供本地测试（生产运行 node server-v4.js 时无影响）。
-module.exports = { extractMessageText, markdownToPost, inlineSegments, wantsDeepAnalysis, sendReply, sendText, shopifyConfigured, estToday, fmtEst, toolSearchShopifyOrders, toolShopifySalesSummary, toolListUnfulfilledOrders, toolGetShopifyCustomer };
+module.exports = { extractMessageText, markdownToPost, inlineSegments, wantsDeepAnalysis, sendReply, sendText, shopifyConfigured, estToday, fmtEst, toolSearchShopifyOrders, toolListLatestShopifyOrders, toolShopifySalesSummary, toolListUnfulfilledOrders, toolGetShopifyCustomer };
