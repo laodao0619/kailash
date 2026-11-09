@@ -48,3 +48,30 @@ test("duplicate Case IDs reject without write", async () => {
     feishu.request = originalRequest;
   }
 });
+
+test("Case write rejects unconfigured select values before POST or PATCH", async () => {
+  const originalRequest = feishu.request;
+  const originalFind = feishu.findBy;
+  const c = { caseId: "CASE-ABCDEF123456", category: "物流", priority: "P1" };
+  const schema = Object.keys(recordFields(c, 1)).map(field_name => ({
+    field_name,
+    type: field_name === "问题类别" ? 4 : field_name === "任务优先级" ? 3 : 1,
+    ...(["问题类别", "任务优先级"].includes(field_name)
+      ? { property: { options: [{ name: "其他" }, { name: "普通" }] } }
+      : {})
+  }));
+  let writes = 0;
+  feishu.findBy = async () => [];
+  feishu.request = async (_token, path, method = "GET") => {
+    if (method !== "GET") writes++;
+    if (path.includes("/fields?")) return { items: schema, has_more: false };
+    return {};
+  };
+  try {
+    await assert.rejects(upsertCase("test-token", TABLE, c), /option not configured/);
+    assert.equal(writes, 0);
+  } finally {
+    feishu.request = originalRequest;
+    feishu.findBy = originalFind;
+  }
+});
