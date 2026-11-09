@@ -342,8 +342,8 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <div class="body">
 <div class="module-kpis" id="rfm-summary-cards"><span class="muted">登录后加载真实RFM历史分布…</span></div>
 <div class="rfm-model">
- <div class="rfm-model-head"><div><h3>RFM 三维健康分布</h3><p class="muted">R 最近购买 · F 购买次数 · M 180天消费。立体色块分别代表8个RFM行为分群，颜色深浅及内部粒子密度反映相对人数。</p></div>
- <div class="toolbar"><button id="rfm-reset-view">重置视角</button><button id="rfm-save" class="primary">保存当前模型</button></div></div>
+ <div class="rfm-model-head"><div><h3>RFM 三维健康分布</h3><p class="muted">R 最近购买 · F 购买次数 · M 180天消费。立体色块分别代表8个RFM行为分群，方块体积与颜色深浅反映相对人数；遮挡的分群可旋转后查看，或点击右侧列表。</p></div>
+ <div class="toolbar"><button id="rfm-reset-view">主视角 / 重置</button><button id="rfm-back-view">背视角</button><button id="rfm-save" class="primary">保存当前模型</button></div></div>
  <div class="rfm-model-filters">
  <label>客户等级<select id="rfm-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
  <label>AOV客群<select id="rfm-aov"><option value="all">全部客单价</option><option value="high">≥ $400</option><option value="low">＜ $400</option><option value="unknown">AOV未知</option></select></label>
@@ -352,7 +352,7 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
  <label>M 高值阈值 (USD) <input id="rfm-m" type="number" value="800" min="0" max="1000000"></label>
  <button id="rfm-run" class="primary">更新模型</button></div>
  <div class="rfm-visual-layout"><div class="rfm-canvas-frame"><canvas id="rfm-cube" width="900" height="600" aria-label="可拖动旋转的RFM三维八象限数据图" role="img"></canvas>
- <div class="rfm-canvas-help">按住拖动旋转 · 滚轮缩放模型 · 点击色块查看分群</div></div>
+ <div id="rfm-orientation" class="rfm-canvas-help" role="status">当前近侧：R低值侧、F低值侧；上方为M高值。</div><div class="rfm-canvas-help">O (0,0,0) 为模型低值角，并非客户数据均为零。R+ 表示更近期（间隔天数更少）。<br>拖动旋转 · 滚轮缩放 · 点击可见色块；俯视角度锁定，避免上下翻转。</div></div>
  <div class="rfm-model-panel"><div id="rfm-health" class="module-kpis"><p class="muted">正在加载历史RFM模型…</p></div><h3>八象限结构</h3><div id="rfm-8segments" class="rfm-segments"></div>
  <div id="rfm-segment-detail" class="status">选择一个色块，查看这类客户的数量与含义。</div></div></div>
  <div class="rfm-snapshot-bar"><label>保存名称<input id="rfm-snapshot-name" type="text" maxlength="80" placeholder="例如：11月基线-高客单价"></label>

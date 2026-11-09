@@ -17,8 +17,8 @@ function initialize({$,request,state,esc,n}){
   const depth=Math.sin(rot)*x+Math.cos(rot)*z;
   const yy=Math.cos(pitch)*y-Math.sin(pitch)*depth;
   const dz=Math.sin(pitch)*y+Math.cos(pitch)*depth;
-  const k=165*scale/(1+dz*.07);
-  return {x:450+yaw*k,y:290-yy*k,z:dz};
+  const k=140*scale/(1+dz*.07);
+  return {x:450+yaw*k,y:285-yy*k,z:dz};
  }
  const V=(x,y,z)=>projection(x-1,y-1,z-1);
  function polygon(points,color,alpha=.6){
@@ -35,60 +35,87 @@ function initialize({$,request,state,esc,n}){
    if((a.y>y)!==(b.y>y)&&x<(b.x-a.x)*(y-a.y)/(b.y-a.y)+a.x)inside=!inside;
   }return inside;
  }
+ const FACE_DEFS=[
+  {ids:[0,2,6,4],normal:[-1,0,0],shade:.70},
+  {ids:[1,5,7,3],normal:[1,0,0],shade:.86},
+  {ids:[0,4,5,1],normal:[0,-1,0],shade:.67},
+  {ids:[2,3,7,6],normal:[0,1,0],shade:1.12},
+  {ids:[0,1,3,2],normal:[0,0,-1],shade:.82},
+  {ids:[4,6,7,5],normal:[0,0,1],shade:.94}
+ ];
+ function normalDepth(n){return Math.cos(pitch)*(Math.sin(rot)*n[0]+Math.cos(rot)*n[2])+Math.sin(pitch)*n[1]}
+ function shadeColor(hex,factor){const c=hex.slice(1);return '#'+[0,2,4].map(i=>Math.min(255,Math.round(parseInt(c.slice(i,i+2),16)*factor)).toString(16).padStart(2,'0')).join('')}
+ function line(a,b,color,width=1,dashed=false){
+  ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dashed?[5,5]:[]);
+  ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.restore();
+ }
+ function badge(text,x,y,color='#24455d'){
+  ctx.save();ctx.font='600 13px system-ui';const width=ctx.measureText(text).width+18;
+  const xx=Math.max(7,Math.min(893-width,x-width/2)),yy=Math.max(7,Math.min(566,y));
+  ctx.fillStyle='rgba(255,255,255,.96)';ctx.fillRect(xx,yy,width,25);
+  ctx.strokeStyle='#d7e1e8';ctx.strokeRect(xx,yy,width,25);ctx.fillStyle=color;
+  ctx.textAlign='center';ctx.fillText(text,xx+width/2,yy+17);ctx.restore();
+ }
  function render(){
   if(!ctx)return;
   ctx.clearRect(0,0,900,600);
-  ctx.font="13px -apple-system,system-ui,sans-serif";
-  ctx.fillStyle="#6b8575";ctx.fillText("R (最近购买)",28,35);
-  ctx.fillText("M (近180天消费)",28,57);ctx.fillText("F (购买频率)",28,79);
-  const bounds=[[0,0,0],[2,0,0],[0,2,0],[0,0,2],[2,2,0],[2,0,2],[0,2,2],[2,2,2]].map(p=>V(...p));
-  const lines=[[0,1],[0,2],[0,3],[1,4],[1,5],[2,4],[2,6],[3,5],[3,6],[4,7],[5,7],[6,7]];
-  ctx.strokeStyle="#d3ded6";ctx.lineWidth=1;
-  for(const [a,b] of lines){ctx.beginPath();ctx.moveTo(bounds[a].x,bounds[a].y);ctx.lineTo(bounds[b].x,bounds[b].y);ctx.stroke()}
-  cells=[];
+  // An opaque floor and depth-correct faces remove the reversible wireframe illusion.
+  const floor=[V(0,0,0),V(2.18,0,0),V(2.18,0,2.18),V(0,0,2.18)];
+  polygon(floor,'#e9eff4',1);
+  for(let i=0;i<=4;i++){
+   const t=i*.52;line(V(t,0,0),V(t,0,2.08),'#d6e0e8');line(V(0,0,t),V(2.08,0,t),'#d6e0e8');
+  }
+  const bounds=[[0,0,0],[2.08,0,0],[0,2.08,0],[2.08,2.08,0],[0,0,2.08],[2.08,0,2.08],[0,2.08,2.08],[2.08,2.08,2.08]].map(p=>V(...p));
+  const visible=FACE_DEFS.filter(f=>normalDepth(f.normal)<-1e-6);
+  const edges=[[0,1],[0,2],[0,4],[1,3],[1,5],[2,3],[2,6],[3,7],[4,5],[4,6],[5,7],[6,7]];
+  for(const [a,b] of edges){const front=visible.some(f=>f.ids.includes(a)&&f.ids.includes(b));line(bounds[a],bounds[b],front?'#8fa5b6':'#cbd7e1',front?1.6:1,!front);}
+  cells=[];const faces=[];
   const max=Math.max(1,...(current?.segments||[]).map(s=>s.count));
   for(const seg of current?.segments||[]){
-   // Axis coding: R high -> +x, F high -> +z, M high -> +y.
-   const hi=(c)=>c==="H"?1:0;
+   const hi=c=>c==='H'?1:0;
    const x=hi(seg.code[0]),z=hi(seg.code[1]),y=hi(seg.code[2]);
-   // Occupied cube volume, not a fixed-sized octant: relative count is
-   // represented by physical volume as well as particles and color opacity.
    const ratio=seg.count/max;
    const w=seg.count?(.13+.84*Math.cbrt(ratio)):.08;
-   const pad=(1.04-w)/2;
-   const start=[x*1.04+pad,y*1.04+pad,z*1.04+pad];
+   const pad=(1.04-w)/2,start=[x*1.04+pad,y*1.04+pad,z*1.04+pad];
    const c=(dx,dy,dz)=>V(start[0]+dx*w,start[1]+dy*w,start[2]+dz*w);
    const corners=[c(0,0,0),c(1,0,0),c(0,1,0),c(1,1,0),c(0,0,1),c(1,0,1),c(0,1,1),c(1,1,1)];
-   const center=c(.5,.5,.5),poly=[corners[0],corners[1],corners[3],corners[7],corners[6],corners[4]];
-   const intensity=seg.count?(.13+.68*Math.sqrt(seg.count/max)):.06;
-   cells.push({code:seg.code,poly,center,seg,depth:center.z,intensity,corners,pad,w});
+   const center=c(.5,.5,.5);
+   cells.push({code:seg.code,center,seg,depth:center.z,corners});
+   for(const face of visible){const poly=face.ids.map(i=>corners[i]);faces.push({code:seg.code,seg,poly,shade:face.shade,depth:poly.reduce((v,p)=>v+p.z,0)/4});}
   }
-  cells.sort((a,b)=>b.depth-a.depth);
-  for(const item of cells){
-   const {corners,seg,pad,w}=item,color=COLORS[seg.code];
-   const a=item.intensity*(selected===seg.code?1.2:1);
-   polygon([corners[0],corners[1],corners[3],corners[2]],color,a*.6);
-   polygon([corners[4],corners[5],corners[7],corners[6]],color,a*.78);
-   polygon([corners[2],corners[3],corners[7],corners[6]],color,a*.9);
-   polygon([corners[1],corners[5],corners[7],corners[3]],color,a*.75);
-   // Deterministic particle cloud: darker/denser = more clients. Never show exact PII.
-   const particles=Math.min(145,Math.round(4+Math.sqrt(seg.count)*2.0));
-   for(let k=0;k<particles;k++){
-    const seed=(k*17+seg.code.charCodeAt(0)*13)%991;
-    const fx=(seed*73%997)/997,fy=(seed*137%983)/983,fz=(seed*311%977)/977;
-    const x=seg.code[0]==="H"?1:0,y=seg.code[2]==="H"?1:0,z=seg.code[1]==="H"?1:0;
-    const p=V(x*1.04+pad+fx*w,y*1.04+pad+fy*w,z*1.04+pad+fz*w);
-    ctx.beginPath();ctx.arc(p.x,p.y,seg.count?1.7:0,0,Math.PI*2);
-    ctx.fillStyle=colorAlpha(color,.35+.55*Math.sqrt(seg.count/max));ctx.fill();
-   }
-   ctx.fillStyle="#1d4031";ctx.font="bold 12px system-ui";
-   ctx.textAlign="center";ctx.fillText(seg.code+" "+seg.count,item.center.x,item.center.y-4);
-   ctx.font="11px system-ui";ctx.fillText(seg.pct+"%",item.center.x,item.center.y+11);
-   ctx.textAlign="left";
+  faces.sort((a,b)=>b.depth-a.depth);
+  for(const face of faces){
+   const intensity=face.seg.count?(.68+.32*Math.sqrt(face.seg.count/max)):.35;
+   polygon(face.poly,shadeColor(COLORS[face.code],face.shade*intensity),1);
+   if(selected===face.code){ctx.save();ctx.strokeStyle='#132f45';ctx.lineWidth=3;ctx.beginPath();face.poly.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.stroke();ctx.restore();}
   }
-  const labels=[["R+",V(2.25,.15,.2)],["F+",V(.1,.15,2.25)],["M+",V(.1,2.25,.1)]];
-  ctx.font="bold 15px system-ui";ctx.fillStyle="#34694d";
-  for(const [v,p] of labels)ctx.fillText(v,p.x,p.y);
+  // Hit-test only actually visible, depth-sorted surfaces (nearest surface wins).
+  cells=faces.map(f=>({code:f.code,poly:f.poly,depth:f.depth}));
+  const labelCells=(current?.segments||[]).map(seg=>{
+   const x=seg.code[0]==='H'?1:0,y=seg.code[2]==='H'?1:0,z=seg.code[1]==='H'?1:0;
+   return {seg,p:V(x*1.04+.52,y*1.04+.52,z*1.04+.52)};
+  }).sort((a,b)=>b.p.z-a.p.z);
+  for(const {seg,p} of labelCells){
+   const nearest=[...faces].reverse().find(f=>pointInPoly(p.x,p.y,f.poly));
+   if(nearest&&nearest.code!==seg.code)continue;
+   ctx.save();ctx.font='bold 12px system-ui';ctx.textAlign='center';
+   const label=seg.code+' · '+seg.count,width=ctx.measureText(label).width+12;
+   ctx.fillStyle='rgba(255,255,255,.94)';ctx.fillRect(p.x-width/2,p.y-16,width,33);
+   ctx.fillStyle='#183448';ctx.fillText(label,p.x,p.y-3);ctx.font='11px system-ui';ctx.fillText(seg.pct+'%',p.x,p.y+11);ctx.restore();
+  }
+  const origin=V(0,0,0),axes=[{name:'R+ 更近期',end:V(2.42,0,0),color:'#2676b6'},{name:'F+ 次数增多',end:V(0,0,2.42),color:'#c27b2e'},{name:'M+ 消费增加',end:V(0,2.42,0),color:'#795ab6'}];
+  for(const a of axes){
+   line(origin,a.end,a.color,2.7);
+   const angle=Math.atan2(a.end.y-origin.y,a.end.x-origin.x);
+   polygon([a.end,{x:a.end.x-12*Math.cos(angle-.38),y:a.end.y-12*Math.sin(angle-.38)},{x:a.end.x-12*Math.cos(angle+.38),y:a.end.y-12*Math.sin(angle+.38)}],a.color,1);
+   badge(a.name,a.end.x,a.end.y+(a.end.y<origin.y?-31:9),a.color);
+  }
+  ctx.save();ctx.beginPath();ctx.arc(origin.x,origin.y,6,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#183448';ctx.stroke();ctx.restore();
+  badge('O (0, 0, 0) · 模型原点',origin.x,origin.y+12);
+  const nearR=Math.sin(rot)<0?'R高值侧':'R低值侧',nearF=Math.cos(rot)<0?'F高值侧':'F低值侧';
+  badge('靠近你：'+nearR+' / '+nearF,450,12);
+  ctx.save();ctx.font='12px system-ui';ctx.fillStyle='#607b90';ctx.fillText('实线：可见边界  ·  虚线：后方边界',28,585);ctx.restore();
+  const orientation=$('rfm-orientation');if(orientation)orientation.textContent='当前近侧：'+nearR+'、'+nearF+'；上方为M高值。';
  }
  function detail(code){
   selected=code;
@@ -173,14 +200,14 @@ function initialize({$,request,state,esc,n}){
  canvas.addEventListener("pointermove",e=>{if(!drag)return;
   const dx=e.clientX-drag.x,dy=e.clientY-drag.y;
   if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
-  rot+=dx*.008;pitch=Math.max(-1.35,Math.min(.45,pitch-dy*.008));drag.x=e.clientX;drag.y=e.clientY;render();
+  rot+=dx*.008;pitch=Math.max(-1.05,Math.min(-.20,pitch-dy*.008));drag.x=e.clientX;drag.y=e.clientY;render();
  });
  canvas.addEventListener("pointerup",e=>{const moved=drag?.moved;drag=null;
   if(moved)return;const p=pointer(e);
   const found=[...cells].reverse().find(c=>pointInPoly(p.x,p.y,c.poly));
   if(found)detail(found.code);
  });
- canvas.addEventListener("wheel",e=>{e.preventDefault();scale=Math.max(.55,Math.min(1.6,scale*(e.deltaY>0?.92:1.08)));render()},{passive:false});
+ canvas.addEventListener("wheel",e=>{e.preventDefault();scale=Math.max(.65,Math.min(1.25,scale*(e.deltaY>0?.92:1.08)));render()},{passive:false});
  // Apply filter changes immediately; numeric thresholds are debounced while typing.
  let changeTimer=null;
  for(const id of ["rfm-tier","rfm-aov"]){$(id).onchange=()=>refresh()}
@@ -192,6 +219,7 @@ function initialize({$,request,state,esc,n}){
    },430);
   });
  }
+ if($('rfm-back-view'))$('rfm-back-view').onclick=()=>{rot=.58+Math.PI;pitch=-.44;scale=1;render()};
  $("rfm-reset-view").onclick=()=>{rot=.58;pitch=-.44;scale=1;render()};
  $("rfm-run").onclick=refresh;$("rfm-save").onclick=save;$("rfm-compare").onclick=compareWithSaved;
  $("rfm-copy").onclick=()=>{
