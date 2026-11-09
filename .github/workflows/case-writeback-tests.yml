@@ -1,0 +1,31 @@
+name: Case writeback safety tests
+
+on:
+  pull_request:
+    paths:
+      - 'lib/crm-case-*.js'
+      - 'lib/crm-feishu.js'
+      - 'tests/crm-case-*.test.js'
+      - '.github/workflows/case-writeback-tests.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/crm-case-*.js'
+      - 'lib/crm-feishu.js'
+      - 'tests/crm-case-*.test.js'
+      - '.github/workflows/case-writeback-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  case-writeback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install isolated dependencies (repository has no package-lock)
+        run: npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false
+      - name: Run isolated Case writeback regression tests
+        run: node --test tests/crm-case-*.test.js
