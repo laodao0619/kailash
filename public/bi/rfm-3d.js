@@ -69,6 +69,12 @@ function initialize({$,request,state,esc,n}){
   const visible=FACE_DEFS.filter(f=>normalDepth(f.normal)<-1e-6);
   const edges=[[0,1],[0,2],[0,4],[1,3],[1,5],[2,3],[2,6],[3,7],[4,5],[4,6],[5,7],[6,7]];
   for(const [a,b] of edges){const front=visible.some(f=>f.ids.includes(a)&&f.ids.includes(b));line(bounds[a],bounds[b],front?'#8fa5b6':'#cbd7e1',front?1.6:1,!front);}
+  const origin=V(0,0,0),axes=[{name:'R+ 更近期',end:V(2.42,0,0),color:'#2676b6'},{name:'F+ 次数增多',end:V(0,0,2.42),color:'#c27b2e'},{name:'M+ 消费增加',end:V(0,2.42,0),color:'#795ab6'}];
+  for(const a of axes){
+   line(origin,a.end,a.color,2.7);
+   const angle=Math.atan2(a.end.y-origin.y,a.end.x-origin.x);
+   polygon([a.end,{x:a.end.x-12*Math.cos(angle-.38),y:a.end.y-12*Math.sin(angle-.38)},{x:a.end.x-12*Math.cos(angle+.38),y:a.end.y-12*Math.sin(angle+.38)}],a.color,1);
+  }
   cells=[];const faces=[];
   const max=Math.max(1,...(current?.segments||[]).map(s=>s.count));
   for(const seg of current?.segments||[]){
@@ -103,13 +109,7 @@ function initialize({$,request,state,esc,n}){
    ctx.fillStyle='rgba(255,255,255,.94)';ctx.fillRect(p.x-width/2,p.y-16,width,33);
    ctx.fillStyle='#183448';ctx.fillText(label,p.x,p.y-3);ctx.font='11px system-ui';ctx.fillText(seg.pct+'%',p.x,p.y+11);ctx.restore();
   }
-  const origin=V(0,0,0),axes=[{name:'R+ 更近期',end:V(2.42,0,0),color:'#2676b6'},{name:'F+ 次数增多',end:V(0,0,2.42),color:'#c27b2e'},{name:'M+ 消费增加',end:V(0,2.42,0),color:'#795ab6'}];
-  for(const a of axes){
-   line(origin,a.end,a.color,2.7);
-   const angle=Math.atan2(a.end.y-origin.y,a.end.x-origin.x);
-   polygon([a.end,{x:a.end.x-12*Math.cos(angle-.38),y:a.end.y-12*Math.sin(angle-.38)},{x:a.end.x-12*Math.cos(angle+.38),y:a.end.y-12*Math.sin(angle+.38)}],a.color,1);
-   badge(a.name,a.end.x,a.end.y+(a.end.y<origin.y?-31:9),a.color);
-  }
+  for(const a of axes)badge(a.name,a.end.x+(a.end.y<85?90:0),Math.max(55,a.end.y+(a.end.y<origin.y?-31:9)),a.color);
   ctx.save();ctx.beginPath();ctx.arc(origin.x,origin.y,6,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#183448';ctx.stroke();ctx.restore();
   badge('O (0, 0, 0) · 模型原点',origin.x,origin.y+12);
   const nearR=Math.sin(rot)<0?'R高值侧':'R低值侧',nearF=Math.cos(rot)<0?'F高值侧':'F低值侧';
