@@ -25,5 +25,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run isolated Case writeback regression tests
         run: node --test tests/crm-case-*.test.js
