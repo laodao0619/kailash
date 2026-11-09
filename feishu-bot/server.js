@@ -58,6 +58,32 @@ domain: lark.Domain.Feishu, // open.feishu.cn (China)
 const crmReadonly = createCrmReadonly(client);
 const gmailBridge = createGmailBridge({ lookupCustomer: (email, context) => crmReadonly.findCustomer({email}, context) });
 
+// Group messages must explicitly mention this bot, not merely any participant.
+// Prefer a server-side environment value; otherwise resolve the bot's own open_id
+// from Feishu once. Fail closed if identity cannot be verified.
+const { isBotMentioned } = require('./message-gating');
+let botOpenIdPromise = null;
+async function getBotOpenId() {
+  if (process.env.FEISHU_BOT_OPEN_ID) return process.env.FEISHU_BOT_OPEN_ID;
+  if (!botOpenIdPromise) {
+    botOpenIdPromise = client.request({
+      url: 'https://open.feishu.cn/open-apis/bot/v3/info',
+      method: 'GET',
+    }).then((result) => {
+      const openId = result?.data?.bot?.open_id || result?.data?.open_id;
+      if (result?.code !== 0 || !openId) {
+        throw new Error('Unable to verify bot open_id from Feishu bot info');
+      }
+      return openId;
+    }).catch((error) => {
+      console.error('[feishu-bot] bot identity lookup failed; group replies disabled:', error.message);
+      botOpenIdPromise = null;
+      return null;
+    });
+  }
+  return botOpenIdPromise;
+}
+
 // ---- 常量 ----
 const HISTORY_DIR = path.join(__dirname, 'history');
 const KB_FILE = path.join(__dirname, 'knowledge.json');
@@ -1075,9 +1101,13 @@ if (!chatId) return;
 if (alreadySeen(message.message_id)) return;
 if (sender.sender_type === 'app') return; // ignore own / other bots' messages
 
-const chatType = message.chat_type || 'p2p';
+const chatType = message.chat_type || 'unknown';
 const mentions = message.mentions || [];
-if (chatType!== 'p2p' && mentions.length === 0) return; // group: only reply when @mentioned
+if (chatType !== 'p2p') {
+  if (!Array.isArray(mentions) || mentions.length === 0) return;
+  const botOpenId = await getBotOpenId();
+  if (!isBotMentioned(mentions, botOpenId)) return; // group: reply only when this bot is explicitly @mentioned
+}
 // 文字消息直接取 text；富文本（post）消息从 content JSON 里提取纯文字（标题 + 各行 text 字段）。
 let text = extractMessageText(message);
 if (text === null) {
