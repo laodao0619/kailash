@@ -10,7 +10,8 @@ test("existing Case update only sends machine-owned fields and converts multi-se
   const calls = [];
   const c = { caseId: "CASE-ABCDEF123456", category: "物流", priority: "P1", customerEmail: "case@example.invalid" };
   const schema = Object.keys(recordFields(c, 1)).map(field_name => ({
-    field_name, type: field_name === "问题类别" ? 4 : field_name === "任务优先级" ? 3 : 1
+    field_name, type: field_name === "问题类别" ? 4 : field_name === "任务优先级" ? 3 : 1,
+    ...(["问题类别","任务优先级"].includes(field_name) ? {property:{options:[{name:"物流查询"},{name:"高"}]}} : {})
   }));
   feishu.findBy = async () => [{ record_id: "rec_existing", fields: { "负责人": "人工负责人", "任务状态": "处理中" } }];
   feishu.request = async (_token, path, method = "GET", body) => {
