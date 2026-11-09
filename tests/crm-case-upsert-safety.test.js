@@ -23,7 +23,7 @@ test("existing Case update only sends machine-owned fields and converts multi-se
     assert.equal(await upsertCase("test-token", TABLE, c), "updated");
     const writes = calls.filter(x => x.method !== "GET");
     assert.equal(writes.length, 1);
-    assert.equal(writes[0].method, "PUT");
+    assert.equal(writes[0].method, "PATCH");
     assert.ok(writes[0].path.endsWith("/rec_existing"));
     assert.deepEqual(writes[0].body.fields["问题类别"], ["物流查询"]);
     assert.equal(writes[0].body.fields["任务优先级"], "高");
