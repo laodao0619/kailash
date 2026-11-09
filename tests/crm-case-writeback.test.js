@@ -36,12 +36,17 @@ test("Case updates an existing communication table record without touching task 
     assert.equal(value,"case:CASE-123456789ABC");
     return [{record_id:"rec-existing"}];
   };
-  feishu.request = async (...args) => {calls.push(args);return {};};
+  const schema = Object.keys(recordFields({caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"})).map(field_name => ({field_name,type:1}));
+  feishu.request = async (...args) => {
+    if (args[1].endsWith("/fields?page_size=100")) return {items:schema};
+    calls.push(args);
+    return {};
+  };
   try {
     const result=await upsertCase("test",TABLE,{caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"});
     assert.equal(result,"updated");
     assert.match(calls[0][1],/tblNi7C5q5FYlG06\/records\/rec-existing$/);
-    assert.equal(calls[0][2],"PUT");
+    assert.equal(calls[0][2],"PATCH");
     for (const key of HUMAN) assert.equal(Object.hasOwn(calls[0][3].fields,key),false);
   } finally { feishu.findBy=originalFind;feishu.request=originalRequest; }
 });
