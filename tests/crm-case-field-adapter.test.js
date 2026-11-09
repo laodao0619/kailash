@@ -17,3 +17,13 @@ test("invalid select shapes fail closed",()=> {
   assert.throws(()=>adaptFields({"任务优先级":["高","普通"]},schema),/single-select/);
   assert.throws(()=>adaptFields({"问题类别":[42]},schema),/multi-select/);
 });
+
+test("configured Feishu select options accept only existing names", () => {
+  const configured = [
+    {field_name:"问题类别",type:4,property:{options:[{name:"物流查询"},{name:"其他"}]}},
+    {field_name:"任务优先级",type:3,property:{options:[{name:"普通"},{name:"高"}]}}
+  ];
+  assert.deepEqual(adaptFields({"问题类别":"物流查询","任务优先级":"高"},configured),{"问题类别":["物流查询"],"任务优先级":"高"});
+  assert.throws(()=>adaptFields({"问题类别":"退款退货"},configured),/option not configured/);
+  assert.throws(()=>adaptFields({"任务优先级":"紧急"},configured),/option not configured/);
+});
