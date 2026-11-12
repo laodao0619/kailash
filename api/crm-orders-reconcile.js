@@ -6,8 +6,8 @@ const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {summarize,customerValues}=require("../lib/crm-order-aggregate");
-const STATE="crm-execution/orders-reconcile-state.json";
-const MANIFEST="crm-execution/orders-reconcile-manifest.json";
+const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
+const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
 function authorized(req){
  const a=Buffer.from((req.headers.authorization||"").replace(/^Bearer\s+/i,""));
  const b=Buffer.from(process.env.CRON_SECRET||"");
@@ -39,7 +39,7 @@ async function feishuRows(token){
    if(seen.has(id))throw Error("Duplicate Shopify Customer ID: manual resolution needed");
    seen.add(id);
    const rawOrders=val(f["历史订单数"]);
-   result.push({record_id:item.record_id,id,lifetimeOrders:rawOrders===null?NaN:Number(rawOrders),lastOrderAt:val(f["最近下单日期"])});
+   result.push({record_id:item.record_id,id,lifetimeOrders:rawOrders===null?NaN:Number(rawOrders),lifetimeSpendUSD:val(f["历史累计消费"])===null?NaN:Number(val(f["历史累计消费"])),lastOrderAt:val(f["最近下单日期"])});
   }
   if(!j.data?.has_more)break;
   cursor=j.data.page_token;if(!cursor)throw Error("Feishu cursor missing");

@@ -71,7 +71,7 @@ module.exports=async(req,res)=>{
   const today=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
   for(const r of meaningfulCustomers){
    const f=r.fields||{};
-   if(raw(f["CRM等级"])==="S+")stats.splus++;
+   if(require("../lib/crm-tier-policy").fromFields(f).tier==="S+")stats.splus++;
    if(raw(f["客户状态"])==="风险")stats.risk++;
    const d=day(f["建议下一次维护日期"]);
    if(d&&d.getTime()<=today+86400000)stats.due++;

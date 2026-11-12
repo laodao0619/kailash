@@ -19,7 +19,7 @@
      stat("当前已索引CRM客户",n(d.masterTotal),"历史客户索引"),
      stat("近30天有购买记录",n(d.customerActivity.recent30),"基于历史R值"),
      stat("近180天消费汇总",money(d.historical.m180.value),"覆盖 "+n(d.historical.m180.coverage)+"位 · 待审计"),
-     stat("已标记CRM等级",n(d.tierTotal),"历史快照分布")
+     stat("已标记CRM等级",n(d.tierTotal),"新规则暂算分布")
     ].join("");
     const colors={"S+":"#315d49","S":"#548368","A":"#719982","B":"#95b09f",
      "基础客户":"#b7c8bc","沉睡":"#d3b68e","从未购买":"#c8d5cc","待核验":"#9aa5aa"};
