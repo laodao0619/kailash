@@ -160,3 +160,27 @@ test("successful CAPTURE without SALE still proves settled funds",()=>{
  assert.equal(x.capturedCents,10000);
  assert.equal(x.refundMismatch,false);
 });
+
+test("private Shopify completed archive counts gate audit readiness",()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const audit={parsedLines:3,totals:{orders:2,lines:1,missingLineParent:0,duplicateOrderIds:0,unverifiedLines:0}};
+ const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"3"};
+ let result=verifyArchiveIntegrity(audit,archived);
+ assert.equal(result.status,"PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+ assert.equal(result.verified,false);
+ assert.equal(result.expectedOrders,2);
+ assert.equal(verifyArchiveIntegrity(audit,null).status,"BLOCKED_EXPORT_NOT_ARCHIVED");
+ assert.equal(verifyArchiveIntegrity(audit,{...archived,downloaded:false}).status,"BLOCKED_EXPORT_NOT_ARCHIVED");
+ for(const change of [{rootObjectCount:"3"},{objectCount:"4"}]){
+  assert.equal(verifyArchiveIntegrity(audit,{...archived,...change}).status,"BLOCKED_EXPORT_COUNTS_MISMATCH");
+ }
+ for(const count of ["NaN",null,"9007199254740993"]){
+  assert.equal(verifyArchiveIntegrity(audit,{...archived,rootObjectCount:count}).status,
+   "BLOCKED_EXPORT_COUNTS_MISSING_OR_INVALID");
+ }
+ for(const key of ["missingLineParent","duplicateOrderIds","unverifiedLines"]){
+  assert.equal(verifyArchiveIntegrity({...audit,totals:{...audit.totals,[key]:1}},archived).status,
+   "BLOCKED_JSONL_ASSOCIATION_INTEGRITY");
+ }
+});
