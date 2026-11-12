@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { recordFields, HUMAN, TABLE, ensureTable, upsertCase } = require("../lib/crm-case-feishu-writeback");
+const { recordFields, HUMAN, TABLE, EXTRA, ensureTable, upsertCase } = require("../lib/crm-case-feishu-writeback");
 const feishu = require("../lib/crm-feishu");
 const gmail = require("../lib/crm-gmail");
 const cases = require("../lib/crm-cases");
@@ -56,7 +56,7 @@ test("Case sync refuses to create another CRM table", async () => {
   feishu.request=async (_t,path,method="GET",body) => {
     calls.push({path,method,body});
     if(path.endsWith("/tables?page_size=100"))return {items:[{table_id:TABLE,name:"客户沟通与跟进"}]};
-    return {items:[{field_name:"Case ID"},{field_name:"关联邮箱"},{field_name:"客户原文摘录"},{field_name:"客服回复状态"},{field_name:"邮件数量"},{field_name:"CRM等级（Case核验）"}]};
+    return {items:EXTRA.map(f => ({ field_name:f.field_name, type:f.type }))};
   };
   try{
     assert.equal(await ensureTable("test"),TABLE);
