@@ -60,7 +60,7 @@ Google（权限批准后）：
 
 ## 交付状态
 
-代码与mock测试完成；2026-11-12已核实BI项目的META_SYSTEM_USER_TOKEN与META_AD_ACCOUNT_IDS仅配置在Production，未读取其值。仍缺META_GRAPH_API_VERSION、Google专用Production配置、Google项目权限批准、购买action人工确认及真实账户时区核验。任务单第6节全文和Muse交接目标尚待取得，真实对账未执行；所有业务验收与最终切换由验证方执行。
+代码与mock测试完成；2026-11-12已核实BI项目的META_SYSTEM_USER_TOKEN与META_AD_ACCOUNT_IDS仅配置在Production，未读取其值。仍缺META_GRAPH_API_VERSION、Google专用Production配置、Google项目权限批准、购买action人工确认及真实账户时区核验。任务单第6节全文已由用户提供并记录于docs/bi-ads-acceptance.md；用户指定主聊为Muse交接位置，真实对账未执行；所有业务验收与最终切换由验证方执行。
 
-## 任务单与Muse待交接
-用户指定任务单为 workspace/goals/kailash-energy/files/bi-meta-google-api/TASK_FOR_CODEX.md 第6节；该路径未在当前本地工作区找到，本轮未取得第6节完整原文。相关Muse决定据用户说明在侧边聊“接入工具并验证权限密钥”（2026-11-11 22:49–23:02）及主聊2026-11-12早间；当前可用聊天列表未能定位该侧边聊，尚未发消息或执行真实对账。
+## 任务单与Muse交接
+用户已提供任务单第6节全文，完整验收标准及本聊天已批准调整见 [bi-ads-acceptance.md](bi-ads-acceptance.md)。用户指定当前主聊作为Muse交接位置，无需另找侧边聊；尚无Muse已执行或验收通过的证据。原指定文件路径为 workspace/goals/kailash-energy/files/bi-meta-google-api/TASK_FOR_CODEX.md，本机未发现该路径，本文以用户直接提供的第6节为依据。
