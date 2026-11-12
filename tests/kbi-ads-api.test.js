@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {fetchMeta,action}=require('../lib/meta-ads');const {fetchGoogle}=require('../lib/google-ads');const {refreshAds}=require('../lib/ads-refresh');const {alignedTimezone}=require('../lib/ads-common');
 const range={start:'2026-11-10',end:'2026-11-10'},ok=data=>({ok:true,status:200,json:async()=>data});
-const metaEnv={META_SYSTEM_USER_TOKEN:'test-only-placeholder',META_GRAPH_API_VERSION:'v23.0'};
+const metaEnv={META_SYSTEM_USER_TOKEN:'test-only-placeholder',META_GRAPH_API_VERSION:'v21.0'};
 test('Meta combines the two accounts exactly once, follows cursor pagination and does not double-count action aliases',async()=>{
  const calls=[];const mock=async(url,opts)=>{
   const u=new URL(url);calls.push(u);assert.equal(opts.headers.Authorization,'Bearer test-only-placeholder');assert(!u.searchParams.has('access_token'));
@@ -17,13 +17,25 @@ test('Meta combines the two accounts exactly once, follows cursor pagination and
  const r=await fetchMeta(range,{env:metaEnv,fetchImpl:mock});
  assert.equal(r.spend,20.5);assert.equal(r.purchases,4);assert.equal(r.revenue,100);assert.equal(r.roas,100/20.5);
  assert.equal(r.daily.length,1);assert.equal(r.daily[0].spend,20.5);assert.equal(r.byAccount.length,2);assert.equal(r.byCampaign.length,2);
- assert.equal(r.byAd[0].landingPages[0],'https://kailashenergy.com/pages/ritual');assert(r.byAd[0].naming.testPoints.includes('108_style_braided'));assert(calls.every(x=>x.host==='graph.facebook.com'));
+ assert.equal(r.byAd[0].landingPages[0],'https://kailashenergy.com/pages/ritual');assert(r.byAd[0].naming.testPoints.includes('108_style_braided'));assert(calls.every(x=>x.host==='graph.facebook.com'&&x.pathname.includes('/v21.0/')));
  assert.equal(action([{action_type:'purchase',value:'0'},{action_type:'omni_purchase',value:'4'}],['purchase','omni_purchase']),0);
 });
-test('daily EST rejects native-day timezone relabeling and USD scope mismatch',async()=>{
+test('Meta account native days remain available while only EST-aligned accounts can aggregate',async()=>{
  assert(alignedTimezone('America/New_York',range));assert(!alignedTimezone('America/New_York',{start:'2026-07-01',end:'2026-07-02'}));assert(!alignedTimezone('Etc/GMT+4',range));
- await assert.rejects(fetchMeta(range,{env:metaEnv,fetchImpl:async()=>ok({currency:'USD',timezone_name:'Asia/Hong_Kong'})}),/meta_timezone_mismatch/);
+ await assert.rejects(fetchMeta(range,{env:metaEnv,fetchImpl:async()=>ok({currency:'EUR',timezone_name:'Asia/Hong_Kong'})}),/meta_currency_mismatch/);
  await assert.rejects(fetchMeta(range,{env:{...metaEnv,META_AD_ACCOUNT_IDS:'810672167888307'}}),/meta_account_scope_mismatch/);
+});
+test('Meta retains per-account native daily rows and withholds mixed-zone aggregate',async()=>{
+ const mock=async url=>{
+  const u=new URL(url),accountId=u.pathname.includes('810672167888307')?'810672167888307':'1559163378893343';
+  if(u.pathname.endsWith('/insights'))return ok({data:[{account_id:accountId,date_start:range.start,date_stop:range.end,spend:'10',impressions:'100',clicks:'5',actions:[],action_values:[]}]});
+  if(u.pathname.endsWith('/ads'))return ok({data:[]});
+  return ok({id:accountId,name:'account',currency:'USD',timezone_name:accountId==='810672167888307'?'Etc/GMT+4':'America/Chicago'});
+ };
+ const r=await fetchMeta(range,{env:{...metaEnv,META_AD_ACCOUNT_IDS:'810672167888307,1559163378893343'},fetchImpl:mock});
+ assert.equal(r.spend,null);assert.equal(r.revenue,null);assert.equal(r.timeZone,null);assert.equal(r.daily.length,0);
+ assert.deepEqual(r.byAccount.map(x=>x.timeZone),['Etc/GMT+4','America/Chicago']);
+ assert(r.byAccount.every(x=>x.daily.length===1&&x.daily[0].accountTimeZone===x.timeZone));
 });
 function ready(name){return {timeZone:/Google/i.test(name)?'Etc/GMT+4':'Etc/GMT+5',source:name,status:'ready',currency:'USD',stale:false,generatedAt:'2026-11-12T00:00:00Z',lastSuccessfulAt:'2026-11-12T00:00:00Z',range,spend:10,purchases:1,revenue:30,roas:3,daily:[]};}
 test('source failure preserves same-range last good with original timestamp and cannot erase the healthy provider',async()=>{
@@ -86,7 +98,7 @@ test('Google native GMT-04 days reject EST and mixed provider totals stay unavai
  const result=await refreshAds(range,{force:true,read:async()=>null,write:async()=>{},providers:{meta:async()=>ready('Meta'),google:async()=>ready('Google')}});
  assert.equal(result.meta.status,'ready');assert.equal(result.google.status,'ready');
  assert.equal(result.complete,false);assert.equal(result.comparable,false);assert.equal(result.totalSpend,null);assert.equal(result.totalRevenue,null);assert.equal(result.blendedRoas,null);assert.equal(result.timeZone,null);
- assert.equal(result.totalUnavailableReason,'provider_day_boundaries_differ');
+ assert.equal(result.totalUnavailableReason,'not_normalized_to_est');
  const bad=await fetchGoogle(range,{env:googleEnv,fetchImpl:async(url)=>String(url).includes('oauth2')?ok({access_token:'test'}):ok({results:[{customer:{id:'2670021803',currencyCode:'USD',timeZone:'America/New_York',manager:false}}]})}).then(()=>null,e=>e.message);
  assert.equal(bad,'google_timezone_mismatch');
 });
