@@ -11,7 +11,8 @@ module.exports = async (req, res) => {
   if (!cases.authorized(req)) return res.status(401).json({ ok: false });
   try {
     const token = await feishu.tenantToken();
-    const tableId = await writeback.ensureTable(token);
+    // One fresh, validated field schema per request, shared across up to 40 Case writes.
+    const { tableId, schema } = await writeback.ensureTable(token, { includeSchema: true });
     const events = await cases.allEvents(500);
     const grouped = cases.groupCases(events);
     const state = await cases.read(STATE) || { offset: 0 };
@@ -21,7 +22,7 @@ module.exports = async (req, res) => {
     // A failed record must be retried; no checkpoint advance on partial failure.
     for (const item of batch) {
       try {
-        result[await writeback.upsertCase(token, tableId, item)]++;
+        result[await writeback.upsertCase(token, tableId, item, schema)]++;
       } catch (err) {
         result.failed++;
         console.error("[crm-cases-feishu] upsert failed", item.caseId, String(err.message || err).slice(0, 110));
