@@ -12,7 +12,7 @@
 - Meta、Google私有缓存各自独立落盘，另一家挂起/失败不阻止已完成者保存；Shopify独立先落盘，再写合并快照。
 - 失败保留同日期范围最近成功值，标`stale`、`error`、`lastSuccessfulAt`；无成功值显示null，不填0。失败30分钟冷却，手动`refresh=1`可提前重试。
 - provider缓存30分钟；Shopify仍是2小时；现有每30分钟cron不动。默认页和同日期的自定义范围复用广告缓存。每次打开页面不强制拉平台API。自定义多个不同日期范围和强制刷新仍可能提高额度消耗，验证时不要并发批量轰炸。
-- 合计只在两平台同时新鲜且USD、日期范围和日界线均相同时计算；当前Meta EST与Google GMT−04:00不满足此条件，合计为null；总收入是平台各自归因之和，可能重复归因同一订单，不能当去重收入或Shopify MER。
+- 合计只在两平台同时新鲜且USD、日期范围和日界线均相同时计算；Meta逐账户原生日与Google账户原生日保留展示；在所有数据统一到EST（UTC−5）并验证前，合计为null；总收入是平台各自归因之和，可能重复归因同一订单，不能当去重收入或Shopify MER。
 
 ## 先纠正任务单里的两处前提
 
@@ -25,6 +25,10 @@
 - https://developers.google.com/google-ads/api/docs/conversions/reporting
 - https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adaccount.py
 - https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/adsinsights.py
+
+## Preview 隔离测试配置
+
+PR #51 的隔离 Preview 仅使用 Preview 环境变量，禁止读取或复制 Production 凭证。真实测试所需变量由用户配置在 Preview：`META_SYSTEM_USER_TOKEN`、`META_AD_ACCOUNT_IDS`、`META_GRAPH_API_VERSION=v21.0`。本 PR 不修改 Production 环境变量。
 
 ## Production 配置（只通过 Vercel 环境变量安全入口）
 
@@ -60,7 +64,7 @@ Google（权限批准后）：
 
 ## 交付状态
 
-代码与mock测试完成；2026-11-12已核实BI项目的META_SYSTEM_USER_TOKEN与META_AD_ACCOUNT_IDS仅配置在Production，未读取其值。仍缺META_GRAPH_API_VERSION、Google专用Production配置、Google项目权限批准、购买action人工确认及真实账户时区核验。任务单第6节全文已由用户提供并记录于docs/bi-ads-acceptance.md；用户指定主聊为Muse交接位置，真实对账未执行；所有业务验收与最终切换由验证方执行。
+代码更新中；用户已确认 Meta 先接、Google 等权限批准后再启用，并要求 Meta 原生日逐账户展示、跨平台总计统一到 EST（UTC−5）验证前留空。Preview 使用的三个 Meta 变量由用户补配；Graph API 版本为 v21.0。Google 仍默认停用。任务单第6节全文已由用户提供并记录于docs/bi-ads-acceptance.md；用户指定主聊为Muse交接位置，真实对账未执行；所有业务验收与最终切换由验证方执行。
 
 ## 任务单与Muse交接
 用户已提供任务单第6节全文，完整验收标准及本聊天已批准调整见 [bi-ads-acceptance.md](bi-ads-acceptance.md)。用户指定当前主聊作为Muse交接位置，无需另找侧边聊；尚无Muse已执行或验收通过的证据。原指定文件路径为 workspace/goals/kailash-energy/files/bi-meta-google-api/TASK_FOR_CODEX.md，本机未发现该路径，本文以用户直接提供的第6节为依据。
