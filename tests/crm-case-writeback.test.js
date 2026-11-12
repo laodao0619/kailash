@@ -36,7 +36,14 @@ test("Case updates an existing communication table record without touching task 
     assert.equal(value,"case:CASE-123456789ABC");
     return [{record_id:"rec-existing"}];
   };
-  const schema = Object.keys(recordFields({caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"})).map(field_name => ({field_name,type:1}));
+  const schema = Object.keys(recordFields({caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"})).map(field_name => ({
+    field_name,
+    type: field_name === "CRM等级（Case核验）" ? 4
+      : ["问题类别","任务优先级","沟通渠道","沟通方向"].includes(field_name) ? 3
+      : field_name === "邮件数量" ? 2 : 1,
+    ...(["问题类别","任务优先级","沟通渠道","沟通方向","CRM等级（Case核验）"].includes(field_name)
+      ? {property:{options:[{name:"物流查询"},{name:"紧急"},{name:"Gmail"},{name:"客户发起"},{name:"待核验"}]}} : {})
+  }));
   feishu.request = async (...args) => {
     if (args[1].endsWith("/fields?page_size=100")) return {items:schema};
     calls.push(args);
@@ -46,7 +53,7 @@ test("Case updates an existing communication table record without touching task 
     const result=await upsertCase("test",TABLE,{caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"});
     assert.equal(result,"updated");
     assert.match(calls[0][1],/tblNi7C5q5FYlG06\/records\/rec-existing$/);
-    assert.equal(calls[0][2],"PATCH");
+    assert.equal(calls[0][2],"PUT");
     for (const key of HUMAN) assert.equal(Object.hasOwn(calls[0][3].fields,key),false);
   } finally { feishu.findBy=originalFind;feishu.request=originalRequest; }
 });
