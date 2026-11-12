@@ -72,6 +72,7 @@ test("one verified Case schema snapshot is reused for a 2-record batch and seria
       assert.equal(call.body.fields["沟通渠道"], "Gmail");
       assert.equal(call.body.fields["任务优先级"], "高");
       assert.equal(call.body.fields["沟通方向"], "客户发起");
+      assert.deepEqual(call.body.fields["CRM等级（Case核验）"], ["待核验"]);
       assert.equal(call.body.fields["任务状态"], "待处理");
     }
   } finally { stub.restore(); }
