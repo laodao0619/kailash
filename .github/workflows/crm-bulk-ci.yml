@@ -1,0 +1,33 @@
+name: CRM Shopify full-history audit CI
+on:
+  pull_request:
+    paths:
+      - 'api/crm-orders-bulk*.js'
+      - 'lib/crm-orders-bulk.js'
+      - 'lib/crm-orders-ledger.js'
+      - 'tests/crm-orders-*.test.js'
+      - '.github/workflows/crm-bulk-ci.yml'
+  push:
+    branches: ['crm-bulk-accel']
+permissions:
+  contents: read
+jobs:
+  audit-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate syntax without credentials
+        run: |
+          node --check lib/crm-orders-bulk.js
+          node --check lib/crm-orders-ledger.js
+          node --check api/crm-orders-bulk.js
+          node --check api/crm-orders-bulk-audit.js
+          node --check tests/crm-orders-bulk.test.js
+          node --check tests/crm-orders-ledger.test.js
+          node --check tests/crm-orders-sample-audit.test.js
+      - name: Run synthetic Shopify orders, refunds and seven-customer sample tests
+        run: node --test tests/crm-orders-bulk.test.js tests/crm-orders-ledger.test.js tests/crm-orders-sample-audit.test.js
