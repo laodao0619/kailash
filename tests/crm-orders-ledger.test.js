@@ -120,6 +120,6 @@ test("unsafe cumulative cents block transaction and lifetime audit rather than s
  const first=order({id:"gid://shopify/Order/91",currentSubtotalPriceSet:usd(nearLimit)});
  const second=order({id:"gid://shopify/Order/92",currentSubtotalPriceSet:usd("0.01")});
  await assert.rejects(()=>auditJsonl(Readable.from([
-  JSON.stringify(first)+"\\n"+JSON.stringify(second)+"\\n"
+  JSON.stringify(first)+"\n"+JSON.stringify(second)+"\n"
  ]),{asOf:"2026-11-13T00:00:00Z"}),/Unsafe USD cent aggregate/);
 });
