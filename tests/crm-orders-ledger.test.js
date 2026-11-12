@@ -17,7 +17,9 @@ test("net merchandise isn't reduced a second time by refund",()=>{
  assert.equal(x.refundMismatch,false);
 });
 test("failed refund transactions are excluded from audit",()=>{
- const x=classifyOrder(order({transactions:[{kind:"REFUND",status:"FAILURE",amountSet:usd(20)}]}));
+ const x=classifyOrder(order({transactions:[
+  {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+  {kind:"REFUND",status:"FAILURE",amountSet:usd(20)}]}));
  assert.equal(x.eligible,true);assert.equal(x.refundMismatch,true);
 });
 test("exclude cancelled, test, unpaid, fully refunded and invalid currencies",()=>{
@@ -122,4 +124,39 @@ test("unsafe cumulative cents block transaction and lifetime audit rather than s
  await assert.rejects(()=>auditJsonl(Readable.from([
   JSON.stringify(first)+"\n"+JSON.stringify(second)+"\n"
  ]),{asOf:"2026-11-13T00:00:00Z"}),/Unsafe USD cent aggregate/);
+});
+
+test("paid order without settled capture is excluded from financial aggregates",async()=>{
+ const inputs=[
+  order({id:"gid://shopify/Order/101",transactions:[]}),
+  order({id:"gid://shopify/Order/102",transactions:undefined}),
+  order({id:"gid://shopify/Order/103",transactions:[
+   {kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)}]}),
+  order({id:"gid://shopify/Order/104",transactions:[
+   {kind:"SALE",status:"FAILURE",amountSet:usd(100)}]})
+ ];
+ for(const row of inputs){
+  assert.deepEqual(classifyOrder(row),{
+   eligible:false,reason:"missing_settled_payment_evidence"
+  });
+ }
+ const out=await auditJsonl(Readable.from([inputs.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"
+ });
+ assert.equal(out.totals.eligible,0);
+ assert.equal(out.totals.excluded.missing_settled_payment_evidence,4);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(out.aggregates.windowMerchandiseCents,0);
+ assert.equal(out.uniqueCustomers,0);
+});
+
+test("successful CAPTURE without SALE still proves settled funds",()=>{
+ const x=classifyOrder(order({transactions:[
+  {kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)},
+  {kind:"CAPTURE",status:"SUCCESS",amountSet:usd(100)},
+  {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}
+ ]}));
+ assert.equal(x.eligible,true);
+ assert.equal(x.capturedCents,10000);
+ assert.equal(x.refundMismatch,false);
 });
