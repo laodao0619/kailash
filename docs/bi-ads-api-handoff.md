@@ -12,7 +12,7 @@
 - Meta、Google私有缓存各自独立落盘，另一家挂起/失败不阻止已完成者保存；Shopify独立先落盘，再写合并快照。
 - 失败保留同日期范围最近成功值，标`stale`、`error`、`lastSuccessfulAt`；无成功值显示null，不填0。失败30分钟冷却，手动`refresh=1`可提前重试。
 - provider缓存30分钟；Shopify仍是2小时；现有每30分钟cron不动。默认页和同日期的自定义范围复用广告缓存。每次打开页面不强制拉平台API。自定义多个不同日期范围和强制刷新仍可能提高额度消耗，验证时不要并发批量轰炸。
-- 合计只在两平台同时新鲜且USD、时区均通过时计算；总收入是平台各自归因之和，可能重复归因同一订单，不能当去重收入或Shopify MER。
+- 合计只在两平台同时新鲜且USD、日期范围和日界线均相同时计算；当前Meta EST与Google GMT−04:00不满足此条件，合计为null；总收入是平台各自归因之和，可能重复归因同一订单，不能当去重收入或Shopify MER。
 
 ## 先纠正任务单里的两处前提
 
@@ -60,7 +60,7 @@ Google（权限批准后）：
 
 ## 交付状态
 
-代码与mock测试完成；缺少两平台专用Production凭证、Meta版本配置、Google项目权限批准、购买action人工确认及真实账户时区核验。所有业务验收与最终切换由验证方执行。
+代码与mock测试完成；2026-11-12已核实BI项目的META_SYSTEM_USER_TOKEN与META_AD_ACCOUNT_IDS仅配置在Production，未读取其值。仍缺META_GRAPH_API_VERSION、Google专用Production配置、Google项目权限批准、购买action人工确认及真实账户时区核验。任务单第6节全文和Muse交接目标尚待取得，真实对账未执行；所有业务验收与最终切换由验证方执行。
 
 ## 任务单与Muse待交接
 用户指定任务单为 workspace/goals/kailash-energy/files/bi-meta-google-api/TASK_FOR_CODEX.md 第6节；该路径未在当前本地工作区找到，本轮未取得第6节完整原文。相关Muse决定据用户说明在侧边聊“接入工具并验证权限密钥”（2026-11-11 22:49–23:02）及主聊2026-11-12早间；当前可用聊天列表未能定位该侧边聊，尚未发消息或执行真实对账。
