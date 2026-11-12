@@ -90,7 +90,7 @@ test("missing, blank or malformed USD evidence is unknown, not a zero-dollar fac
 test("partially paid orders are withheld from lifetime and rolling net spend",async()=>{
  const partial=order({id:"partial",displayFinancialStatus:"PARTIALLY_PAID",currentSubtotalPriceSet:usd(150)});
  assert.deepEqual(classifyOrder(partial),{eligible:false,reason:"partially_paid_unreconciled"});
- const out=await auditJsonl(Readable.from([JSON.stringify(partial)+"\\n"]),{asOf:"2026-11-08T00:00:00Z"});
+ const out=await auditJsonl(Readable.from([JSON.stringify(partial)+"\n"]),{asOf:"2026-11-08T00:00:00Z"});
  assert.equal(out.totals.eligible,0);
  assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
  assert.equal(out.totals.excluded.partially_paid_unreconciled,1);
