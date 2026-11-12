@@ -6,8 +6,8 @@
 用已知日期对账，全部通过才算接好：
 
 1. `GET /api/bi-ops-dashboard?start=2026-11-10&end=2026-11-10`（带 BI token）返回里有 `ads.meta` 和 `ads.google`，且 `generatedAt` 是本次刷新时间，不是旧快照。
-2. 2026-11-10：Shopify GMV $1,097.71、7 单不变；Google 花费与 2026-11-11 晚修日报时浏览器实查的 $25.24 对上（±$0.05）。Meta 11-10 花费与 Ads Manager 当天数对上（±$0.05），ROAS = 收入 / 花费可复算。
-3. 2026-11-09：Meta 花费与日报口径 $944.45 对上（后台结算时曾读到 $953.89，差额要在返回里注明是结算中修订，不要硬凑）。Google 11-09 花费与后台实查对上。
+2. 2026-11-10：Shopify GMV $1,097.71、7 单不变；Google 花费与 2026-11-11 晚修日报时浏览器实查的 $25.24 对上（±$0.05）。Meta 按每账户原生时区与 Ads Manager 当天数对上（±$0.05）；未统一到 EST 前 Meta 合并指标与跨平台总计保持null。
+3. 2026-11-09：Meta 每个账户分别保留原生日API金额；与日报口径 $944.45、曾读到的 $953.89 差额需记录，不强凑。Google 11-09 花费与后台实查对上。
 4. 断一家不断全家：把 Meta token 临时改错（测试环境），刷新后 Shopify + Google 仍写回，Meta 那块标 stale、有上次成功时间；恢复 token 后下一次 cron 自动恢复。
 5. 打开 BI 运营总览，能看到 Meta / Google / 合计三行，数字与接口返回一致，来源写明 API，不是 UTM 归因 GMV。
 6. Vercel 部署成功，`vercel.json` 里 `/api/bi-ops-dashboard` 的 30 分钟 cron 不变，无新增密钥进仓库（`git grep -i token` 不应命中真实 token）。
