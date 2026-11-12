@@ -49,3 +49,25 @@ test("malformed Feishu results or missing record IDs cannot be used for writes",
  await assert.rejects(()=>lookup("token",[ids[0]],async()=>null,"tblCustomers"),/Malformed Feishu/);
  await assert.rejects(()=>lookup("token",[ids[0]],async()=>[{}],"tblCustomers"),/record ID missing/);
 });
+
+test("rejects malformed Shopify pages before customer writes",()=>{
+ const good={nodes:ids.slice(0,2),pageInfo:{hasNextPage:true,endCursor:"next-cursor"}};
+ assert.equal(lookup.validatePage(good,"old-cursor"),good);
+ const invalid=[
+  null,
+  {nodes:null,pageInfo:{hasNextPage:false}},
+  {nodes:ids,pageInfo:{hasNextPage:"yes",endCursor:"next"}},
+  {nodes:[],pageInfo:{hasNextPage:true,endCursor:"next"}},
+  {nodes:ids.slice(0,1),pageInfo:{hasNextPage:true,endCursor:null}},
+  {nodes:ids.slice(0,1),pageInfo:{hasNextPage:true,endCursor:"  "}},
+  {nodes:ids.slice(0,1),pageInfo:{hasNextPage:true,endCursor:"old-cursor"}},
+  {nodes:[ids[0],ids[0]],pageInfo:{hasNextPage:false,endCursor:null}},
+  {nodes:[{id:"1000"}],pageInfo:{hasNextPage:false,endCursor:null}},
+  {nodes:[{}],pageInfo:{hasNextPage:false,endCursor:null}}
+ ];
+ for(const page of invalid)assert.throws(()=>lookup.validatePage(page,"old-cursor"),/Malformed|pagination/);
+});
+test("accepts a valid final empty Shopify page without requiring endCursor",()=>{
+ const final={nodes:[],pageInfo:{hasNextPage:false,endCursor:null}};
+ assert.equal(lookup.validatePage(final,null),final);
+});
