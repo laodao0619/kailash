@@ -27,6 +27,15 @@ test("duplicate page identities fail before any external lookup",async()=>{
 test("duplicate Feishu matching rows fail the whole page",async()=>{
  await assert.rejects(()=>lookup("token",[ids[0]],async()=>[{record_id:"a"},{record_id:"b"}],"tblCustomers"),/Ambiguous Shopify identity/);
 });
+test("distinct Shopify IDs cannot resolve to the same Feishu record",async()=>{
+ const both=[ids[0],ids[1]];
+ await assert.rejects(()=>lookup("token",both,async()=>[{record_id:"shared-record"}],"tblCustomers"),
+  /Feishu record matched multiple Shopify customer IDs/);
+});
+test("invalid Feishu record IDs are rejected before building an upsert map",async()=>{
+ await assert.rejects(()=>lookup("token",[ids[0]],async()=>[{record_id:"   "}],"tblCustomers"),/record ID missing/);
+ await assert.rejects(()=>lookup("token",[ids[0]],async()=>[{record_id:123}],"tblCustomers"),/record ID missing/);
+});
 test("a failed lookup rejects the page after in-flight lookups settle",async()=>{
  let pending=0;
  await assert.rejects(()=>lookup("token",ids.slice(0,4),async(_t,_b,_f,id)=>{
