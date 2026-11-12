@@ -25,7 +25,7 @@ test('daily EST rejects native-day timezone relabeling and USD scope mismatch',a
  await assert.rejects(fetchMeta(range,{env:metaEnv,fetchImpl:async()=>ok({currency:'USD',timezone_name:'Asia/Hong_Kong'})}),/meta_timezone_mismatch/);
  await assert.rejects(fetchMeta(range,{env:{...metaEnv,META_AD_ACCOUNT_IDS:'810672167888307'}}),/meta_account_scope_mismatch/);
 });
-function ready(name){return {source:name,status:'ready',currency:'USD',stale:false,generatedAt:'2026-11-12T00:00:00Z',lastSuccessfulAt:'2026-11-12T00:00:00Z',range,spend:10,purchases:1,revenue:30,roas:3,daily:[]};}
+function ready(name){return {timeZone:/Google/i.test(name)?'Etc/GMT+4':'Etc/GMT+5',source:name,status:'ready',currency:'USD',stale:false,generatedAt:'2026-11-12T00:00:00Z',lastSuccessfulAt:'2026-11-12T00:00:00Z',range,spend:10,purchases:1,revenue:30,roas:3,daily:[]};}
 test('source failure preserves same-range last good with original timestamp and cannot erase the healthy provider',async()=>{
  const db=new Map(),writes=[];const now=new Date('2026-11-12T01:00:00Z');
  db.set('kbi-operations/v3/ads/meta/2026-11-10_2026-11-10.json',ready('Meta Marketing API'));
@@ -50,13 +50,15 @@ test('Google separates cost from action-filtered purchases and preserves both ti
  const queries=[];const mock=async(url,o)=>{
   if(String(url).includes('oauth2'))return ok({access_token:'temporary-test'});
   assert.equal(o.headers['developer-token'],undefined);const q=JSON.parse(o.body).query;queries.push(q);
-  if(q.includes('FROM customer'))return ok({results:[{customer:{id:'2670021803',currencyCode:'USD',timeZone:'America/New_York',manager:false}}]});
+  if(q.includes('FROM customer'))return ok({results:[{customer:{id:'2670021803',currencyCode:'USD',timeZone:'Etc/GMT+4',manager:false}}]});
   if(q.includes('FROM conversion_action'))return ok({results:[{conversionAction:{id:'44',resourceName:'customers/2670021803/conversionActions/44',category:'PURCHASE',status:'ENABLED',primaryForGoal:true}},{conversionAction:{id:'99',category:'PAGE_VIEW'}}]});
   if(q.includes('cost_micros')){assert(!q.includes('conversion_action'));return ok({results:[{segments:{date:range.start},metrics:{costMicros:'25240000',impressions:'1000',clicks:'70'}}]});}
   assert(q.includes("segments.conversion_action IN ('customers/2670021803/conversionActions/44')"));assert(!q.includes('all_conversions'));
   return ok({results:[{segments:{date:range.start,conversionAction:'customers/2670021803/conversionActions/44'},metrics:{conversions:4,conversionsValue:200,conversionsByConversionDate:3,conversionsValueByConversionDate:150}}]});
  };
- const r=await fetchGoogle(range,{env:googleEnv,fetchImpl:mock});assert.equal(r.spend,25.24);assert.equal(r.purchases,4);assert.equal(r.purchasesByConversionDate,3);assert.equal(r.revenueByConversionDate,150);assert.equal(r.roas,200/25.24);
+ const r=await fetchGoogle(range,{env:googleEnv,fetchImpl:mock});assert.equal(r.timeZone,'Etc/GMT+4');assert.equal(r.dateBasis,'account_native');assert.equal(r.addToCart,null);assert.equal(r.spend,25.24);assert.equal(r.purchases,4);assert.equal(r.purchasesByConversionDate,3);assert.equal(r.revenueByConversionDate,150);assert.equal(r.roas,200/25.24);
+ const zero=await fetchGoogle(range,{env:googleEnv,fetchImpl:(url,o)=>String(url).includes('googleAds:search')&&JSON.parse(o.body).query.includes('metrics.conversions,')?ok({results:[]}):mock(url,o)});
+ assert.equal(zero.spend,25.24);assert.equal(zero.purchases,0);assert.equal(zero.revenue,0);assert.equal(zero.addToCart,null);assert.equal(zero.checkout,null);
  await assert.rejects(fetchGoogle(range,{env:{...googleEnv,GOOGLE_ADS_PURCHASE_ACTION_IDS:''},fetchImpl:mock}),/unconfirmed/);
 });
 test('dashboard checkpoints Shopify before slow ads and retains Shopify fields when one source is unavailable',async()=>{
@@ -76,4 +78,25 @@ test('dashboard checkpoints Shopify before slow ads and retains Shopify fields w
   release();const r=await job;assert.equal(writes.length,2);assert.deepEqual(r.daily,fixture.daily);assert.deepEqual(r.channelSales,fixture.channelSales);assert.equal(r.ads.meta.error,'meta_api_190');
   failShopify=true;const fallback=await refresh(range,'test-only');assert.equal(fallback.shopifyStale,true);assert.equal(fallback.generatedAt,fixture.generatedAt);assert.equal(fallback.ads.google.status,'api_application_pending');
  }finally{for(const [p,exports] of saved)require.cache[p].exports=exports;delete require.cache[handlerPath];}
+});
+
+test('Google native GMT-04 days reject EST and mixed provider totals stay unavailable',async()=>{
+ assert(alignedTimezone('Etc/GMT+4',range,'GMT-04:00'));
+ assert(!alignedTimezone('America/New_York',range,'GMT-04:00'));
+ const result=await refreshAds(range,{force:true,read:async()=>null,write:async()=>{},providers:{meta:async()=>ready('Meta'),google:async()=>ready('Google')}});
+ assert.equal(result.meta.status,'ready');assert.equal(result.google.status,'ready');
+ assert.equal(result.complete,false);assert.equal(result.comparable,false);assert.equal(result.totalSpend,null);assert.equal(result.totalRevenue,null);assert.equal(result.blendedRoas,null);assert.equal(result.timeZone,null);
+ assert.equal(result.totalUnavailableReason,'provider_day_boundaries_differ');
+ const bad=await fetchGoogle(range,{env:googleEnv,fetchImpl:async(url)=>String(url).includes('oauth2')?ok({access_token:'test'}):ok({results:[{customer:{id:'2670021803',currencyCode:'USD',timeZone:'America/New_York',manager:false}}]})}).then(()=>null,e=>e.message);
+ assert.equal(bad,'google_timezone_mismatch');
+});
+test('Google caches cannot reuse EST snapshots and default dates follow native midnight',async()=>{
+ const {reportRange,GOOGLE_TIME_ZONE}=require('../lib/ads-common');
+ const now=new Date('2026-11-12T04:30:00Z'),paths=[];
+ assert.equal(reportRange(null,now).end,'2026-11-11');assert.equal(reportRange(null,now,GOOGLE_TIME_ZONE).end,'2026-11-12');
+ const result=await refreshAds(null,{now,read:async p=>{paths.push(p);return {...ready('Meta'),range:reportRange(null,now,GOOGLE_TIME_ZONE),generatedAt:now.toISOString(),spend:999};},write:async()=>{},providers:{meta:async r=>({...ready('Meta'),range:r}),google:async r=>({...ready('Google'),range:r,spend:25.24})}});
+ assert.equal(result.google.spend,25.24);assert.equal(result.google.range.end,'2026-11-12');assert.equal(result.meta.range.end,'2026-11-11');
+ assert(paths.some(p=>p.includes('/v4/ads/google/gmt-04/')));
+ const fail=await refreshAds(range,{force:true,read:async()=>({...ready('Meta'),spend:999}),write:async()=>{},providers:{meta:async()=>ready('Meta'),google:async()=>{throw Error('google_api_403')}}});
+ assert.equal(fail.google.spend,null);assert.equal(fail.google.timeZone,'Etc/GMT+4');assert.equal(fail.google.lastSuccessfulAt,null);
 });

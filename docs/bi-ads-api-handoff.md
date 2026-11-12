@@ -17,7 +17,7 @@
 ## 先纠正任务单里的两处前提
 
 1. Google官方已于2026-09-09停用旧developer-token申请模型。新应用在Google Cloud项目的Google Ads API Overview申请Explorer（真实账户）/Basic权限，MCC和旧开发者令牌不再是新接入的强制前提。现有MCC有没有仍未核实，任务单没有MCC ID，不要填假的login-customer-id。通过经理访问客户时才配置真实的GOOGLE_ADS_LOGIN_CUSTOMER_ID。按账户界面和官方当前文档核验，不按旧API Center流程盲目申请。
-2. 任务要求固定EST（UTC-5），这不等于全年America/New_York（夏令时UTC-4）。Insights和Google每日报表按账户原生时区切日，不能把UTC-4或香港时区的天直接改标签。代码逐日校验账户时区，不匹配就返回timezone_mismatch，headline为null。要跨时区重算，须另行设计并验证可重切小时级成本与购买归因的方案；本次没有伪造这个能力，也没有修改广告账户时区。
+2. 用户于2026-11-12批准Google改用账户原生GMT−04:00日界线；Meta仍为固定EST（UTC−5）。Google真实customer.time_zone须在所选每一天均为GMT−04:00，否则返回timezone_mismatch，不能假设账户时区已核实。两平台日期边界相差1小时，跨平台合计保持null。Google缓存使用独立v4/gmt-04路径并核对时区和日期，不复用旧EST快照；默认日期按Google GMT−04:00生成。未重切小时、未修改广告账户时区。
 
 官方参考（核对于2026-11-12）：
 - https://developers.google.com/google-ads/api/docs/api-policy/developer-token
@@ -53,11 +53,14 @@ Google（权限批准后）：
 3. 调`GET /api/bi-ops-dashboard?start=2026-11-10&end=2026-11-10&refresh=1`，检查Shopify、`ads.meta`、`ads.google`分别的来源、时间、状态。Google未批显示pending且null。
 4. Meta 11/10与Ads Manager同日期/归因口径对账±0.05USD；11/09保留真实API金额，与944.45日报参考、953.89历史后台结算值的差异记录在回报中，不硬凑。两主账户必须都通过，不能把单账户部分和当总和。
 5. 用隔离测试环境mock错误，不改Production token。检查Meta失败仍保留同日期最近成功值，Google和Shopify继续保存；无旧快照时null。现有`tests/kbi-ads-api.test.js`已覆盖此逻辑，但不替代真实平台对账。
-6. Google批准后，访问`GET /api/bi-ads-config?google_actions=1`读真实客户时区/货币/购买action。核实后设置购买ID，刷新并核对11/10花费25.24USD±0.05。互动日期、转化日期购买分别验收，不以“全部转化”替代。
+6. Google批准后，访问`GET /api/bi-ads-config?google_actions=1`读真实客户时区/货币/购买action。核实后设置购买ID，刷新并核对11/10花费25.24USD±0.05、购物购买0。用户确认基准来源为2026-11-10可视化日报快照（asOf 2026-11-11T15:16:07Z），Google Ads后台Kailash Energy01-1（267-002-1803）单日实查，已写入Midas表11-10行；另含加购1、发起结账0。此为用户提供的基准说明，本轮尚未读取原始快照或Midas表，不能视为复核证据。当前Google适配器只读取购买action，未读取的加购/结账返回null，其1/0基准需单独平台证据验收，不能填0冒充实测。互动日期、转化日期购买分别验收，不以“全部转化”替代。
 7. 若时区不匹配，不能把该项验收写成通过；先记录实际时区并决定规范化方案。
-8. 前端核对Meta/Google/合计三行；展开测试点看广告组、广告、创建时间和链接；API原始details保留全部已拉行，界面最多展示200行。
+8. 前端核对Meta/Google/合计三行；展开测试点看广告组、广告、创建时间和链接；API原始details保留全部已拉行，界面最多展示200行。核对每个平台日期口径标签，以及边界不同情况下合计为空。
 9. 验证全程仅GET配置、GET运营数据；上游Meta仅GET，Google仅OAuth刷新与googleAds:search，不创建广告。
 
 ## 交付状态
 
 代码与mock测试完成；缺少两平台专用Production凭证、Meta版本配置、Google项目权限批准、购买action人工确认及真实账户时区核验。所有业务验收与最终切换由验证方执行。
+
+## 任务单与Muse待交接
+用户指定任务单为 workspace/goals/kailash-energy/files/bi-meta-google-api/TASK_FOR_CODEX.md 第6节；该路径未在当前本地工作区找到，本轮未取得第6节完整原文。相关Muse决定据用户说明在侧边聊“接入工具并验证权限密钥”（2026-11-11 22:49–23:02）及主聊2026-11-12早间；当前可用聊天列表未能定位该侧边聊，尚未发消息或执行真实对账。
