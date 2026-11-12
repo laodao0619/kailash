@@ -80,3 +80,32 @@ test("orders with invalid or future dates are quarantined from both lifetime and
  assert.equal(x.aggregates.windowMerchandiseCents,10000);
  assert.equal(x.uniqueCustomers,1);
 });
+
+
+test("non-order JSONL records and missing child parent ids are quarantined",async()=>{
+ const rows=[
+  order({id:"good"}),
+  {id:"orphan-line",title:"Pendant",quantity:1},
+  {id:"bad-parent",title:"Pendant",__parentId:""},
+  {id:"line-ok",title:"Pendant",__parentId:"good"},
+  null,
+  [],
+  {id:"missing-status",currentSubtotalPriceSet:usd(50)}
+ ];
+ const report=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]));
+ assert.equal(report.totals.orders,1);
+ assert.equal(report.totals.eligible,1);
+ assert.equal(report.totals.lines,1);
+ assert.equal(report.totals.unrecognizedRows,5);
+ assert.equal(report.uniqueCustomers,1);
+});
+test("malformed JSONL fails with line number, never with raw customer text",async()=>{
+ const payload=JSON.stringify(order())+"\n"+'{"customerEmail":"private-test@example.com",bad}'+"\n";
+ await assert.rejects(auditJsonl(Readable.from([payload])),err=>
+  err.message==="Invalid Shopify bulk JSONL at line 2"&&
+  !err.message.includes("private-test@example.com"));
+});
+test("oversize completed JSONL rows are rejected, including when a newline arrives in the same chunk",async()=>{
+ const oversized=JSON.stringify({x:"x".repeat(4*1024*1024+1)})+"\n";
+ await assert.rejects(auditJsonl(Readable.from([oversized])),/Oversized Shopify bulk JSONL line/);
+});
