@@ -80,3 +80,18 @@ test("orders with invalid or future dates are quarantined from both lifetime and
  assert.equal(x.aggregates.windowMerchandiseCents,10000);
  assert.equal(x.uniqueCustomers,1);
 });
+
+test("missing, blank or malformed USD evidence is unknown, not a zero-dollar fact",()=>{
+ for(const amount of [null,undefined,"", " ", "not-money", "-1", "Infinity", "0x10"]){
+  assert.equal(classifyOrder(order({currentSubtotalPriceSet:{shopMoney:{amount,currencyCode:"USD"}}})).eligible,false);
+ }
+ assert.equal(classifyOrder(order({currentSubtotalPriceSet:usd("0.01")})).eligible,true);
+});
+test("partially paid orders are withheld from lifetime and rolling net spend",async()=>{
+ const partial=order({id:"partial",displayFinancialStatus:"PARTIALLY_PAID",currentSubtotalPriceSet:usd(150)});
+ assert.deepEqual(classifyOrder(partial),{eligible:false,reason:"partially_paid_unreconciled"});
+ const out=await auditJsonl(Readable.from([JSON.stringify(partial)+"\\n"]),{asOf:"2026-11-08T00:00:00Z"});
+ assert.equal(out.totals.eligible,0);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(out.totals.excluded.partially_paid_unreconciled,1);
+});
