@@ -3,6 +3,7 @@ const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {queryShopify}=require("../lib/crm-shopify");
 const {build,queryBatch,dateRange}=require("../lib/kbi-ops-analytics");
+const pending=new Map();
 const PATH="kbi-operations/v1/current.json";
 async function read(path=PATH){
  const r=await get(path,{access:"private"});
@@ -10,13 +11,19 @@ async function read(path=PATH){
  const chunks=[];for await(const c of r.stream)chunks.push(c);
  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
+function configured(){return !!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||(process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));}
 async function refresh(range,path=PATH){
- const payload=await queryShopify(queryBatch(range));
- const result=build(payload);
- if(range){result.period="custom";result.range=range;}
- await put(path,JSON.stringify(result),{access:"private",allowOverwrite:true,addRandomSuffix:false,contentType:"application/json"});
- return result;
+ if(pending.has(path))return pending.get(path);
+ const task=(async()=>{
+  const payload=await queryShopify(queryBatch(range),{},{signal:AbortSignal.timeout(10000)});
+  const result=build(payload);
+  if(range){result.period="custom";result.range=range;}
+  await put(path,JSON.stringify(result),{access:"private",allowOverwrite:true,addRandomSuffix:false,contentType:"application/json"});
+  return result;
+ })().finally(()=>pending.delete(path));
+ pending.set(path,task);return task;
 }
+
 function secretMatch(given,expected){
  if(String(expected||"").length<24||!given)return false;
  return crypto.timingSafeEqual(crypto.createHash("sha256").update(expected).digest(),
@@ -36,7 +43,13 @@ module.exports=async(req,res)=>{
  try{
   const existing=await read(path);
   const age=existing?.generatedAt?Date.now()-Date.parse(existing.generatedAt):Infinity;
-  // Cron precomputes private analytics; dashboard may cold-boot once.
+  // Render the exact-range last-good snapshot immediately. Only cron or an
+  // explicit refresh waits for Shopify; opening the dashboard never does.
+  if(existing&&!isCron&&req.query?.refresh!=="1")return res.status(200).json({ok:true,cached:true,stale:age>2*3600000,data:existing});
+  if(!configured()){
+   if(existing)return res.status(200).json({ok:true,cached:true,stale:true,data:existing,warning:"shopify_source_not_configured"});
+   return res.status(503).json({ok:false,error:"shopify_source_not_configured"});
+  }
   if(isCron||!existing||age>2*3600000||req.query?.refresh==="1"){
    const data=await refresh(range,path);
    return res.status(200).json({ok:true,cached:false,data:isCron?{

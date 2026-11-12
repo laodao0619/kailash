@@ -518,10 +518,10 @@ const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
 const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
 const state={token:"",page:1,busy:false,rows:[],total:0};
 let modules=null;
-async function request(path,params={},authenticated=true){
+async function request(path,params={},authenticated=true,timeoutMs=60000){
  const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
  const url=path+(search.size?"?"+search:"");
- const response=await fetch(url,{cache:"no-store",headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
+ const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(timeoutMs),headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
  let data={};try{data=await response.json()}catch(_){}
  if(!response.ok||!data.ok)throw Error(data.error||"http_"+response.status);
  return data;
