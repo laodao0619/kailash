@@ -17,3 +17,17 @@ test("stale exact-range cache returns without querying Shopify; missing preview 
   saved=null;r=await run();assert.equal(r.code,503);assert.equal(r.body.error,"shopify_source_not_configured");assert.equal(calls,0);
  }finally{if(old===undefined)delete process.env.KBI_ACCESS_TOKEN;else process.env.KBI_ACCESS_TOKEN=old;if(domain===undefined)delete process.env.SHOPIFY_SHOP_DOMAIN;else process.env.SHOPIFY_SHOP_DOMAIN=domain;delete require.cache[path];}
 });
+
+test("preview bridge uses fixed authenticated production endpoint and rejects wrong date ranges",async()=>{
+ const {productionReport}=require("../api/bi-ops-dashboard");
+ const old=global.fetch,token=process.env.KBI_ACCESS_TOKEN;process.env.KBI_ACCESS_TOKEN="test-only-bridge-token";
+ let called;
+ global.fetch=async(url,options)=>{called={url,options};return {ok:true,json:async()=>({ok:true,data:{metrics:{gmv:123},daily:[],range:{start:"2026-10-14",end:"2026-11-12"}}})}};
+ try{
+  const r=await productionReport({start:"2026-10-14",end:"2026-11-12"});
+  assert.equal(r.data.metrics.gmv,123);assert.equal(r.bridge,"authenticated_production_analytics");
+  assert.equal(new URL(called.url).origin,"https://kailash-energy-ai-knowledge-hub.vercel.app");
+  assert.equal(called.options.headers.Authorization,"Bearer test-only-bridge-token");assert.equal(called.options.redirect,"error");
+  await assert.rejects(productionReport({start:"2026-11-06",end:"2026-11-12"}),/range_mismatch/);
+ }finally{global.fetch=old;if(token===undefined)delete process.env.KBI_ACCESS_TOKEN;else process.env.KBI_ACCESS_TOKEN=token;}
+});

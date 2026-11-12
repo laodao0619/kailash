@@ -24,6 +24,19 @@ async function refresh(range,path=PATH){
  pending.set(path,task);return task;
 }
 
+async function productionReport(range,force=false){
+ // Fixed first-party read endpoint only. Never forward caller-controlled URLs
+ // or expose upstream Shopify credentials to preview environments.
+ const q=new URLSearchParams(range||{});if(force)q.set("refresh","1");
+ const r=await fetch("https://kailash-energy-ai-knowledge-hub.vercel.app/api/bi-ops-dashboard?"+q,{
+  headers:{Authorization:"Bearer "+process.env.KBI_ACCESS_TOKEN},redirect:"error",signal:AbortSignal.timeout(40000)
+ });
+ const result=await r.json();
+ if(!r.ok||!result.ok||!result.data?.metrics||!Array.isArray(result.data.daily))throw Error("production_report_unavailable");
+ if(range&&(result.data.range?.start!==range.start||result.data.range?.end!==range.end))throw Error("production_report_range_mismatch");
+ return {...result,bridge:"authenticated_production_analytics"};
+}
+
 function secretMatch(given,expected){
  if(String(expected||"").length<24||!given)return false;
  return crypto.timingSafeEqual(crypto.createHash("sha256").update(expected).digest(),
@@ -46,6 +59,9 @@ module.exports=async(req,res)=>{
   // Render the exact-range last-good snapshot immediately. Only cron or an
   // explicit refresh waits for Shopify; opening the dashboard never does.
   if(existing&&!isCron&&req.query?.refresh!=="1")return res.status(200).json({ok:true,cached:true,stale:age>2*3600000,data:existing});
+  if(!configured()&&isUser&&process.env.VERCEL_ENV==="preview"){
+   return res.status(200).json(await productionReport(range,req.query?.refresh==="1"));
+  }
   if(!configured()){
    if(existing)return res.status(200).json({ok:true,cached:true,stale:true,data:existing,warning:"shopify_source_not_configured"});
    return res.status(503).json({ok:false,error:"shopify_source_not_configured"});
@@ -66,3 +82,5 @@ module.exports=async(req,res)=>{
 };
 module.exports.refresh=refresh;
 module.exports.read=read;
+
+module.exports.productionReport=productionReport;

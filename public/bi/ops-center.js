@@ -119,7 +119,7 @@ function initialize(ctx){
   const start=$("ops-range-start").value,end=$("ops-range-end").value;
   try{
    if(!start||!end||start>end)throw Error("请选择有效的开始和结束日期");
-   const result=await request("/api/bi-ops-dashboard",{start,end,...(force===true?{refresh:"1"}:{})},true,15000);
+   const result=await request("/api/bi-ops-dashboard",{start,end,...(force===true?{refresh:"1"}:{})},true,45000);
    if(run!==analyticsRun)return;
    if(!result.data)throw Error("empty_shopify_analytics");
    viewAnalytics(result.data);
