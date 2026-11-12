@@ -87,6 +87,19 @@ test("missing, blank or malformed USD evidence is unknown, not a zero-dollar fac
  }
  assert.equal(classifyOrder(order({currentSubtotalPriceSet:usd("0.01")})).eligible,true);
 });
+test("rejects fractional USD cents and unsafe monetary evidence rather than rounding",()=>{
+ const {money}=require("../lib/crm-orders-ledger");
+ for(const [amount,expected] of [["0",0],["0.01",1],["1.2",120],["1.20",120],["000.10",10],["12.34",1234]])
+  assert.equal(money(usd(amount)),expected,amount);
+ for(const amount of ["0.005","0.001","1.999","90071992547410","100000000000000000"])
+  assert.equal(money(usd(amount)),null,amount);
+ assert.deepEqual(classifyOrder(order({currentSubtotalPriceSet:usd("0.005")})),
+  {eligible:false,reason:"unverified_currency"});
+ const tx=classifyOrder(order({transactions:[{kind:"REFUND",status:"SUCCESS",amountSet:usd("0.005")}]}));
+ assert.equal(tx.eligible,false);
+ assert.equal(tx.reason,"unverified_transactions");
+});
+
 test("partially paid orders are withheld from lifetime and rolling net spend",async()=>{
  const partial=order({id:"partial",displayFinancialStatus:"PARTIALLY_PAID",currentSubtotalPriceSet:usd(150)});
  assert.deepEqual(classifyOrder(partial),{eligible:false,reason:"partially_paid_unreconciled"});
