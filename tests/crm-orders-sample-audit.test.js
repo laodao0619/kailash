@@ -71,6 +71,8 @@ test("duplicate Shopify order rows cannot inflate sample lifetime totals",async(
  assert.equal(x.sampleAudit.customers[0].totalOrders,1);
  assert.equal(x.sampleAudit.customers[0].lifetimeMerchandiseCents,12000);
  assert.equal(x.totals.duplicateOrderIds,1);
+ assert.equal(x.sampleAudit.customers[0].duplicateOrderIds,1);
+ assert.equal(x.sampleAudit.status,"BLOCKED_SAMPLE_ORDER_IDS_DUPLICATED");
 });
 test("large customer sample is marked incomplete rather than silently truncated",async()=>{
  const rows=Array.from({length:101},(_,i)=>order(1000+i,{customer:{id:id(1)}}))
@@ -85,4 +87,12 @@ test("sample configuration rejects duplicate, non-GID, oversized and invalid inp
  for(const ids of [[id(1),id(1)],["123"],Array(8).fill(id(1)),null]){
   assert.throws(()=>createAudit({sampleCustomerIds:ids}),/Invalid private Shopify financial audit sample identities/);
  }
+});
+test("a matching sample with no original Shopify order ID remains blocked",async()=>{
+ const rows=[order(1,{id:""}),...Array.from({length:6},(_,i)=>order(i+2))];
+ const x=await run(rows);
+ assert.equal(x.sampleAudit.matched,7);
+ assert.equal(x.sampleAudit.verified,false);
+ assert.equal(x.sampleAudit.status,"BLOCKED_SAMPLE_ORDER_IDS_INVALID");
+ assert.equal(x.sampleAudit.customers[0].invalidOrderIds,1);
 });
