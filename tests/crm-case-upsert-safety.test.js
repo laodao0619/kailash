@@ -10,8 +10,12 @@ test("existing Case update only sends machine-owned fields and converts multi-se
   const calls = [];
   const c = { caseId: "CASE-ABCDEF123456", category: "物流", priority: "P1", customerEmail: "case@example.invalid" };
   const schema = Object.keys(recordFields(c, 1)).map(field_name => ({
-    field_name, type: field_name === "问题类别" ? 4 : field_name === "任务优先级" ? 3 : 1,
-    ...(["问题类别","任务优先级"].includes(field_name) ? {property:{options:[{name:"物流查询"},{name:"高"}]}} : {})
+    field_name,
+    type: field_name === "CRM等级（Case核验）" ? 4
+      : ["问题类别","任务优先级","沟通渠道","沟通方向"].includes(field_name) ? 3
+      : field_name === "邮件数量" ? 2 : 1,
+    ...(["问题类别","任务优先级","沟通渠道","沟通方向","CRM等级（Case核验）"].includes(field_name)
+      ? {property:{options:[{name:"物流查询"},{name:"高"},{name:"Gmail"},{name:"客户发起"},{name:"待核验"},{name:"S+"}]}} : {})
   }));
   feishu.findBy = async () => [{ record_id: "rec_existing", fields: { "负责人": "人工负责人", "任务状态": "处理中" } }];
   feishu.request = async (_token, path, method = "GET", body) => {
@@ -23,9 +27,10 @@ test("existing Case update only sends machine-owned fields and converts multi-se
     assert.equal(await upsertCase("test-token", TABLE, c), "updated");
     const writes = calls.filter(x => x.method !== "GET");
     assert.equal(writes.length, 1);
-    assert.equal(writes[0].method, "PATCH");
+    assert.equal(writes[0].method, "PUT");
     assert.ok(writes[0].path.endsWith("/rec_existing"));
-    assert.deepEqual(writes[0].body.fields["问题类别"], ["物流查询"]);
+    assert.equal(writes[0].body.fields["问题类别"], "物流查询");
+    assert.deepEqual(writes[0].body.fields["CRM等级（Case核验）"], ["待核验"]);
     assert.equal(writes[0].body.fields["任务优先级"], "高");
     for (const name of HUMAN) assert.equal(Object.hasOwn(writes[0].body.fields, name), false);
   } finally {
@@ -55,9 +60,11 @@ test("Case write rejects unconfigured select values before POST or PATCH", async
   const c = { caseId: "CASE-ABCDEF123456", category: "物流", priority: "P1" };
   const schema = Object.keys(recordFields(c, 1)).map(field_name => ({
     field_name,
-    type: field_name === "问题类别" ? 4 : field_name === "任务优先级" ? 3 : 1,
-    ...(["问题类别", "任务优先级"].includes(field_name)
-      ? { property: { options: [{ name: "其他" }, { name: "普通" }] } }
+    type: field_name === "CRM等级（Case核验）" ? 4
+      : ["问题类别","任务优先级","沟通渠道","沟通方向"].includes(field_name) ? 3
+      : field_name === "邮件数量" ? 2 : 1,
+    ...(["问题类别","任务优先级","沟通渠道","沟通方向","CRM等级（Case核验）"].includes(field_name)
+      ? { property: { options: [{ name: "其他" }, { name: "普通" }, {name:"待核验"}, {name:"物流查询"}, {name:"Gmail"}, {name:"客户发起"}] } }
       : {})
   }));
   let writes = 0;
