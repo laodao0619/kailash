@@ -4,7 +4,7 @@
 
 ## 已实现
 
-- Meta 两主账户严格白名单：810672167888307、1559163378893343。USD、每日 account 汇总 headline；campaign/adset/ad 不重复计入总额。
+- Meta 两主账户严格白名单：810672167888307、1559163378893343。各账户按API返回时区保留原生日行；只有所有账户报告日均与固定EST（UTC−5）边界一致时才提供汇总，否则合并指标为空、账户数据仍可读。campaign/adset/ad 不重复计入总额。
 - actions/action_values 的 purchase/add_to_cart/initiate_checkout 别名选一个，不累加同一事件别名。以API返回标准purchase为第一优先，其次pixel，再其次omni；与后台购买列对账时必须核对这份映射。
 - 每日、账户、campaign/adset/ad 数据、命名测试点、广告创建时间、可读的创意链接。创建时间不声称是实际首发时间；没有链接就标缺失。详情分页受每账户75次调用预算与整体45秒时间预算约束；详情不完整时`detailsComplete=false`并附`detailErrors`，不得作为全量测试点验收通过。
 - Google 代码已预备，默认不拉取，`GOOGLE_ADS_ACCESS_APPROVED=true`后才尝试。先列conversion action，明确白名单且category=PURCHASE、ENABLED、primaryForGoal=true后拉购买，主/次转化不一致时拒绝默默少算。
@@ -17,7 +17,7 @@
 ## 先纠正任务单里的两处前提
 
 1. Google官方已于2026-09-09停用旧developer-token申请模型。新应用在Google Cloud项目的Google Ads API Overview申请Explorer（真实账户）/Basic权限，MCC和旧开发者令牌不再是新接入的强制前提。现有MCC有没有仍未核实，任务单没有MCC ID，不要填假的login-customer-id。通过经理访问客户时才配置真实的GOOGLE_ADS_LOGIN_CUSTOMER_ID。按账户界面和官方当前文档核验，不按旧API Center流程盲目申请。
-2. 用户于2026-11-12批准Google改用账户原生GMT−04:00日界线；Meta仍为固定EST（UTC−5）。Google真实customer.time_zone须在所选每一天均为GMT−04:00，否则返回timezone_mismatch，不能假设账户时区已核实。两平台日期边界相差1小时，跨平台合计保持null。Google缓存使用独立v4/gmt-04路径并核对时区和日期，不复用旧EST快照；默认日期按Google GMT−04:00生成。未重切小时、未修改广告账户时区。
+2. Google按账户原生GMT−04:00日界线切日，须用真实customer.time_zone核验；Meta逐账户按真实原生时区展示。Meta账户与Google数据在统一到EST（UTC−5）并验证前，跨平台日合计保持null。Google缓存使用独立v4/gmt-04路径并核对时区和日期，不复用旧EST快照；默认日期按Google GMT−04:00生成。未重切小时、未修改广告账户时区。
 
 官方参考（核对于2026-11-12）：
 - https://developers.google.com/google-ads/api/docs/api-policy/developer-token
@@ -37,7 +37,7 @@ PR #51 的隔离 Preview 仅使用 Preview 环境变量，禁止读取或复制 
 Meta：
 - `META_SYSTEM_USER_TOKEN`：管理员配置两个账户的ads_read读取授权，实际有效期以Meta生成界面为准。
 - `META_AD_ACCOUNT_IDS=810672167888307,1559163378893343`
-- `META_GRAPH_API_VERSION`：明确填写该Meta App支持的固定版本（格式vNN.0），不依赖自动最新版本。当前未配置，mock测试版本v23.0不代表已验证该App版本。
+- `META_GRAPH_API_VERSION`：Preview 固定使用 v21.0（格式vNN.0），不依赖自动最新版本；真实 API 调用结果仍待验收。Meta 版本表列 v21.0 预计于 2027-01-21 到期，参见 https://developers.facebook.com/docs/graph-api/changelog/versions/。
 
 Google（权限批准后）：
 - `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET` / `GOOGLE_ADS_REFRESH_TOKEN`
@@ -55,10 +55,10 @@ Google（权限批准后）：
 1. 先审PR，当前Production未自动切到此代码。预览环境无Production凭证，不能通过预览页面数字宣称API接通。
 2. 发布获准版本并配置Meta后，带内部BI bearer访问`GET /api/bi-ads-config`，只返回配置存在性，不返密钥。
 3. 调`GET /api/bi-ops-dashboard?start=2026-11-10&end=2026-11-10&refresh=1`，检查Shopify、`ads.meta`、`ads.google`分别的来源、时间、状态。Google未批显示pending且null。
-4. Meta 11/10与Ads Manager同日期/归因口径对账±0.05USD；11/09保留真实API金额，与944.45日报参考、953.89历史后台结算值的差异记录在回报中，不硬凑。两主账户必须都通过，不能把单账户部分和当总和。
+4. Meta 11/10逐账户按各自原生时区、同归因口径与 Ads Manager 对账±0.05USD；11/09逐账户保留真实API原生日金额，与944.45日报参考、953.89历史后台结算值的差异记录在回报中，不硬凑。两主账户必须都核对；未统一到EST前不提供账户合并或跨平台总计。
 5. 用隔离测试环境mock错误，不改Production token。检查Meta失败仍保留同日期最近成功值，Google和Shopify继续保存；无旧快照时null。现有`tests/kbi-ads-api.test.js`已覆盖此逻辑，但不替代真实平台对账。
 6. Google批准后，访问`GET /api/bi-ads-config?google_actions=1`读真实客户时区/货币/购买action。核实后设置购买ID，刷新并核对11/10花费25.24USD±0.05、购物购买0。用户确认基准来源为2026-11-10可视化日报快照（asOf 2026-11-11T15:16:07Z），Google Ads后台Kailash Energy01-1（267-002-1803）单日实查，已写入Midas表11-10行；另含加购1、发起结账0。此为用户提供的基准说明，本轮尚未读取原始快照或Midas表，不能视为复核证据。当前Google适配器只读取购买action，未读取的加购/结账返回null，其1/0基准需单独平台证据验收，不能填0冒充实测。互动日期、转化日期购买分别验收，不以“全部转化”替代。
-7. 若时区不匹配，不能把该项验收写成通过；先记录实际时区并决定规范化方案。
+7. 逐账户记录实际时区及其原生日数据；不得为了匹配而改写日期。统一到EST前，合并值保持null。
 8. 前端核对Meta/Google/合计三行；展开测试点看广告组、广告、创建时间和链接；API原始details保留全部已拉行，界面最多展示200行。核对每个平台日期口径标签，以及边界不同情况下合计为空。
 9. 验证全程仅GET配置、GET运营数据；上游Meta仅GET，Google仅OAuth刷新与googleAds:search，不创建广告。
 
