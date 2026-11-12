@@ -14,8 +14,8 @@
 
 ## 同一聊天中已批准的口径调整与基准说明
 
-- Google按账户原生GMT−04:00切日，须用真实customer.time_zone核验；Meta仍为固定EST UTC−5。原始每日数据不重切日，也不互换标签。
-- 保留Meta / Google / 合计三行，但因日界线不一致，合计花费、收入与ROAS为null；页面说明原因。不得把两种日界线的金额直接相加。
+- Google按账户原生GMT−04:00切日，须用真实customer.time_zone核验；Meta逐账户保留真实账户原生日与时区；不重切日、不互换标签。跨平台日总计在全部数据统一到EST（UTC−5）并验证前保持null。
+- 保留Meta / Google / 合计三行，但Meta各账户原生日逐账户展示；跨平台合计花费、收入与ROAS在统一到EST（UTC−5）并验证前为null。不得直接相加原生日数据。
 - Google 11-10 $25.24为用户确认的实测基准：2026-11-10可视化日报快照，asOf 2026-11-11T15:16:07Z；Google Ads后台Kailash Energy01-1（267-002-1803）11-10单日实查，购物购买0、加购1、发起结账0，已写入Midas表11-10行。本轮尚未独立读取原始快照/Midas表。当前API仅实现购买action，加购和结账为null，需另列证据和缺口。
 - Google 11-09实际后台金额尚未提供；Meta 11-10实际后台金额尚未提供，均待同口径平台证据。
 - 验收时可用refresh=1明确触发刷新，逐项核对Shopify及每个平台的generatedAt / lastSuccessfulAt / cached / stale，不能只看合并响应的generatedAt。
@@ -25,4 +25,4 @@
 
 ## 当前状态
 
-代码/模拟测试已完成；真实业务验收未执行。缺少Meta API版本、Google生产配置/权限/购买action确认及真实账户时区核验；发布门槛、明确发布授权和实际Production部署仍需按流程核实。不得把构建READY、mock测试或用户给定基准当作真实对账通过。
+PR #51 正在更新：Meta 原生日分账户展示、统一 EST 前不提供跨账户/跨平台合计；Meta Graph API Preview 版本指定 v21.0。待 Preview 环境变量补齐后再做真实 API 与 11-10 / 11-09 对账。不得把模拟测试、Preview 构建或用户给定基准当作真实对账通过。
