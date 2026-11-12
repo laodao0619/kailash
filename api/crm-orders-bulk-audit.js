@@ -16,7 +16,12 @@ module.exports=async(req,res)=>{
  try{
   const archive=await get(ARCHIVE,{access:"private"});
   if(!archive||archive.statusCode!==200)return res.status(200).json({ok:true,waiting:true,reason:"full_history_not_archived"});
-  const audit=await auditJsonl(archive.stream);
+  // Merchant-selected Shopify GIDs are confidential operational data. They
+  // must be configured server-side; this endpoint is CRON_SECRET protected.
+  // Missing/partial samples are reported as BLOCKED, never invented.
+  const sampleCustomerIds=(process.env.CRM_FINANCE_SAMPLE_CUSTOMER_IDS||"")
+   .split(",").map(x=>x.trim()).filter(Boolean);
+  const audit=await auditJsonl(archive.stream,{sampleCustomerIds});
   const reviewed={...audit,archivedAuditAt:new Date().toISOString(),status:"AUDIT_ONLY_NOT_APPROVED_FOR_RFM"};
   await put(REPORT,JSON.stringify(reviewed),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});
   return res.status(200).json({ok:true,...reviewed});
