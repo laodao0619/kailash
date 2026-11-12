@@ -14,11 +14,12 @@ const sample = {
 function approvedSchema() {
   const names = new Set([...Object.keys(recordFields(sample, 1000)), ...EXTRA.map(f => f.field_name), "任务状态"]);
   const select = {
-    "问题类别": { type: 4, choices: ["物流查询"] },
+    "问题类别": { type: 3, choices: ["物流查询"] },
     "任务优先级": { type: 3, choices: ["高"] },
-    "沟通渠道": { type: 4, choices: ["Gmail"] },
+    "沟通渠道": { type: 3, choices: ["Gmail"] },
     "沟通方向": { type: 3, choices: ["客户发起"] },
     "任务状态": { type: 3, choices: ["待处理"] },
+    "CRM等级（Case核验）": { type: 4, choices: ["S+","待核验"] },
   };
   return [...names].map(field_name => {
     const s = select[field_name];
@@ -42,7 +43,7 @@ function stubFeishu(schema, existing = false) {
       schemaReads++;
       return { items: schema, has_more: false };
     }
-    if (method === "POST" || method === "PATCH") {
+    if (method === "POST" || method === "PUT") {
       writes.push({ method, path, body });
       return { record_id: "rec-new" };
     }
@@ -67,8 +68,8 @@ test("one verified Case schema snapshot is reused for a 2-record batch and seria
     assert.equal(stub.writes.length, 2);
     for (const call of stub.writes) {
       assert.equal(call.method, "POST");
-      assert.deepEqual(call.body.fields["问题类别"], ["物流查询"]);
-      assert.deepEqual(call.body.fields["沟通渠道"], ["Gmail"]);
+      assert.equal(call.body.fields["问题类别"], "物流查询");
+      assert.equal(call.body.fields["沟通渠道"], "Gmail");
       assert.equal(call.body.fields["任务优先级"], "高");
       assert.equal(call.body.fields["沟通方向"], "客户发起");
       assert.equal(call.body.fields["任务状态"], "待处理");
@@ -76,23 +77,23 @@ test("one verified Case schema snapshot is reused for a 2-record batch and seria
   } finally { stub.restore(); }
 });
 
-test("request-local schema supports PATCH without mutating human-owned fields", async () => {
+test("request-local schema supports official PUT without mutating human-owned fields", async () => {
   const stub = stubFeishu(approvedSchema(), true);
   try {
     const { tableId, schema } = await ensureTable("fake-token", { includeSchema: true });
     assert.equal(await upsertCase("fake-token", tableId, sample, schema), "updated");
     assert.equal(stub.countSchemaReads(), 1);
     assert.equal(stub.writes.length, 1);
-    assert.equal(stub.writes[0].method, "PATCH");
+    assert.equal(stub.writes[0].method, "PUT");
     for (const key of HUMAN) {
       assert.equal(Object.hasOwn(stub.writes[0].body.fields, key), false);
     }
   } finally { stub.restore(); }
 });
 
-test("unconfigured multi-select option blocks all Case writes even with validated snapshot", async () => {
-  const schema = approvedSchema().map(f => f.field_name === "问题类别"
-    ? { ...f, property: { options: [{ name: "其他" }] } } : f);
+test("unconfigured CRM grade multi-select option blocks all Case writes even with validated snapshot", async () => {
+  const schema = approvedSchema().map(f => f.field_name === "CRM等级（Case核验）"
+    ? { ...f, property: { options: [{ name: "A" }] } } : f);
   const stub = stubFeishu(schema);
   try {
     const { tableId, schema: snapshot } = await ensureTable("fake-token", { includeSchema: true });
