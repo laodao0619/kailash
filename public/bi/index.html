@@ -287,6 +287,7 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
  <div class="ops-kpi"><small>邮件归因GMV</small><strong id="ops-email-gmv">—</strong><span>所选期间UTM最后点击归因</span></div>
  <div class="ops-kpi"><small>会话访问量</small><strong id="ops-sessions">—</strong><span>Shopify Sessions</span></div></div>
 </section>
+<section class="panel" id="ops-ads"><div class="head"><div><div class="eyebrow">PAID MEDIA · API REPORTING</div><h2>广告投入与购买回报</h2><p class="muted">Meta 两主账户合计 · Google 单账户 · 与 Shopify 最后点击归因独立</p></div></div><div class="body"><div id="ops-ads-summary">等待读取广告 API 状态…</div><p id="ops-ads-note" class="muted"></p><p id="ops-ads-google-timing" class="muted"></p><details><summary>Meta 广告组与广告测试点</summary><div id="ops-ads-tests"></div></details></div></section>
 <section class="ops-two">
  <div class="panel"><div class="head"><div><h2>GMV与流量转化趋势</h2><p class="muted">每日GMV、订单和转化率；来源Shopify Analytics，不使用历史CRM人数代替流量。</p></div></div>
  <div class="body"><div class="toolbar" id="ops-trend-metrics"><label><input type="checkbox" value="gmv" checked> GMV</label><label><input type="checkbox" value="orders" checked> 订单</label><label><input type="checkbox" value="cvr" checked> 转化率</label></div><svg id="ops-trend-chart" viewBox="0 0 870 280" role="img" aria-label="运营指标每日趋势" class="ops-trend-chart"></svg></div></div>
@@ -423,8 +424,8 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <section id="marketing-center" class="panel work-module">
 <div class="head"><div><div class="eyebrow">05 / CUSTOMER ACQUISITION</div><h2>营销触达与来源</h2><p class="muted">通过客户订单中的真实UTM访问事件追踪个人触达节奏。全平台曝光、点击和成本数据需要单独接入。</p></div></div>
 <div class="body"><div class="source-grid">
-<div class="source-card"><span class="source-mark" style="background:#3478f6"></span><b>Meta</b><span>客户360°按已记录的Facebook/Instagram UTM识别</span><em>广告曝光与花费尚未接入</em></div>
-<div class="source-card"><span class="source-mark" style="background:#e5ad30"></span><b>Google</b><span>根据订单UTM、来源或referrer识别</span><em>跨设备点击与广告花费尚未接入</em></div>
+<div class="source-card"><span class="source-mark" style="background:#3478f6"></span><b>Meta</b><span>客户360°按已记录的Facebook/Instagram UTM识别</span><em>广告曝光与花费请查看经营总览 API 状态</em></div>
+<div class="source-card"><span class="source-mark" style="background:#e5ad30"></span><b>Google</b><span>根据订单UTM、来源或referrer识别</span><em>跨设备个人触达未接入；广告花费请查看经营总览 API 状态</em></div>
 <div class="source-card"><span class="source-mark" style="background:#30a86a"></span><b>Email</b><span>已归档客户邮件与同线程客服回复</span><em>未接入营销平台完整发送日志</em></div>
 </div><div class="status" style="margin-top:15px">在客户360°中查看该客户的实际UTM与邮件历史。未记录的广告曝光和点击不会伪造成已发生。<div class="toolbar" style="margin-top:12px"><input id="marketing-customer" type="search" placeholder="输入客户姓名或邮箱，查看其触达历程"><button id="marketing-find" class="primary" type="button">查找客户</button></div></div></div></section>
 <section id="reports-center" class="panel work-module">

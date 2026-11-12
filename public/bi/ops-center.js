@@ -108,7 +108,20 @@ function initialize(ctx){
    '<div class="ops-list-item row"><span>'+(i+1)+'. '+esc(x.name)+'</span><b>'+cash(x.netSales)+'</b></div>').join("");
   $("ops-category-winners").innerHTML=(d.productCategories||[]).slice(0,5).map(x=>
    '<div class="ops-list-item row"><span>'+esc(x.name)+'</span><b>'+cash(x.netSales)+'</b></div>').join("");
-  chart();listCalendar();command.suggestions(d);
+  viewAds(d.ads);chart();listCalendar();command.suggestions(d);
+ }
+ function viewAds(ads){
+  const target=$("ops-ads-summary");if(!target)return;
+  const status=p=>!p?"尚未读取":p.status==="ready"?(p.detailsComplete===false?"API 已连接 · 明细未完整":"API 已连接"):p.status==="api_application_pending"?"API 权限待批准":p.status==="configuration_required"?"API 待配置":p.status==="timezone_mismatch"?"账户时区待统一":p.stale?"更新失败 · 上次成功快照":"API 读取失败";
+  const row=(name,p)=>'<tr><th>'+name+'</th><td>'+cash(p?.spend)+'</td><td>'+esc(p?.purchases==null?"—":p.purchases)+'</td><td>'+cash(p?.revenue)+'</td><td>'+esc(p?.roas==null?"—":Number(p.roas).toFixed(2))+'</td><td>'+esc(status(p))+'<br><small>'+esc(p?.source||name+' API')+' · '+esc(fmtDate(p?.lastSuccessfulAt||p?.generatedAt))+(p?.error?' · '+esc(p.error):'')+'</small></td></tr>';
+  target.innerHTML='<div class="table-wrap"><table><thead><tr><th>平台</th><th>花费 USD</th><th>购买</th><th>平台归因收入 USD</th><th>ROAS</th><th>来源 / 更新状态</th></tr></thead><tbody>'+row('Meta',ads?.meta)+row('Google',ads?.google)+'<tr><th>合计</th><td>'+cash(ads?.totalSpend)+'</td><td>—</td><td>'+cash(ads?.totalRevenue)+'</td><td>'+esc(ads?.blendedRoas==null?'—':Number(ads.blendedRoas).toFixed(2))+'</td><td>'+esc(ads?.complete?'两平台均可用':'等待两平台完整、同币种、同时区的新鲜数据')+'</td></tr></tbody></table></div>';
+  $("ops-ads-note").textContent='固定 EST（UTC-5）· 所选日期 · 当天为阶段数，前一日数据建议北京时间13:15后复核，平台仍可修订。'+(ads?.attributionWarning||'平台归因收入可能重复计算同一订单，不等于Shopify收入。')+' Google购买只使用已确认的购物购买转化；按转化时间另列。';
+  const g=ads?.google;
+  $("ops-ads-google-timing").textContent=g?.status==='ready'?'Google 按互动日期购买：'+g.purchases+' / 收入 '+cash(g.revenue)+'；按转化日期购买：'+g.purchasesByConversionDate+' / 收入 '+cash(g.revenueByConversionDate):'Google：等待 API 权限和购物购买 conversion action 确认；不使用全部转化，不混入浏览器同步数。';
+  const groups=ads?.meta?.byAdset||[];
+  const groupTable=groups.length?'<h3>广告组 · 每日</h3><div class="table-wrap"><table><thead><tr><th>日期 / 广告组</th><th>Campaign</th><th>测试点</th><th>花费 USD</th><th>购买</th><th>ROAS</th></tr></thead><tbody>'+groups.slice().sort((a,b)=>(b.naming?.testPoints?.length||0)-(a.naming?.testPoints?.length||0)||b.day.localeCompare(a.day)).slice(0,200).map(x=>'<tr><td>'+esc(x.day)+'<br>'+esc(x.adsetName||x.adsetId)+'</td><td>'+esc(x.campaignName)+'</td><td>'+esc(x.naming?.testPoints?.join(' / ')||'未识别')+'</td><td>'+cash(x.spend)+'</td><td>'+esc(x.purchases)+'</td><td>'+esc(x.spend>0?(x.revenue/x.spend).toFixed(2):'—')+'</td></tr>').join('')+'</tbody></table></div><h3>广告 · 每日</h3>':'';
+  const rows=ads?.meta?.byAd||[];
+  $("ops-ads-tests").innerHTML=groupTable+(rows.length?'<div class="table-wrap"><table><thead><tr><th>日期 / 广告</th><th>广告组 / Campaign</th><th>测试点</th><th>花费 / 购买</th><th>创建时间</th><th>落地页证据</th></tr></thead><tbody>'+rows.slice().sort((a,b)=>(b.naming?.testPoints?.length||0)-(a.naming?.testPoints?.length||0)||b.day.localeCompare(a.day)).slice(0,200).map(x=>'<tr><td>'+esc(x.day)+'<br>'+esc(x.adName||x.adId)+'</td><td>'+esc(x.adsetName)+'<br>'+esc(x.campaignName)+'</td><td>'+esc(x.naming?.testPoints?.join(' / ')||'未识别')+'</td><td>'+cash(x.spend)+' / '+esc(x.purchases)+'</td><td>'+esc(x.createdAt?fmtDate(x.createdAt):'未提供')+'<br><small>创建时间不等于首次发布时间</small></td><td>'+esc((x.landingPages||[]).join(' / ')||'未读取到创意链接')+'</td></tr>').join('')+'</tbody></table></div><p class="muted">展示前200行；完整 campaign / adset / ad 数据由接口保留。命名解析仅为线索，不推断真实发布时间。</p>':'<p class="muted">Meta API 接通后展示广告组与广告测试点。不会用 Shopify UTM 数据替代。</p>');
  }
  let analyticsRun=0;
  async function analytics(){
