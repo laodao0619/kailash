@@ -108,3 +108,18 @@ test("partially paid orders are withheld from lifetime and rolling net spend",as
  assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
  assert.equal(out.totals.excluded.partially_paid_unreconciled,1);
 });
+
+
+test("unsafe cumulative cents block transaction and lifetime audit rather than silently rounding",async()=>{
+ const nearLimit="90071992547409.91"; // exactly Number.MAX_SAFE_INTEGER cents
+ const txOrder=order({transactions:[
+  {kind:"SALE",status:"SUCCESS",amountSet:usd(nearLimit)},
+  {kind:"CAPTURE",status:"SUCCESS",amountSet:usd("0.01")}
+ ]});
+ assert.throws(()=>classifyOrder(txOrder),/Unsafe USD cent aggregate/);
+ const first=order({id:"gid://shopify/Order/91",currentSubtotalPriceSet:usd(nearLimit)});
+ const second=order({id:"gid://shopify/Order/92",currentSubtotalPriceSet:usd("0.01")});
+ await assert.rejects(()=>auditJsonl(Readable.from([
+  JSON.stringify(first)+"\\n"+JSON.stringify(second)+"\\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"}),/Unsafe USD cent aggregate/);
+});
