@@ -21,8 +21,15 @@ function order(n,opts={}){
 }
 const sampleCustomerIds=Array.from({length:7},(_,i)=>id(i+1));
 async function run(rows,ids=sampleCustomerIds,
- sampleExpectedOrderCounts=Object.fromEntries(ids.map(id=>[id,1]))){
- return auditJsonl(Readable.from([rows.map(x=>JSON.stringify(x)).join("\n")+"\n"]),{
+ sampleExpectedOrderCounts=Object.fromEntries(ids.map(id=>[id,1])),
+ {includeFixtureLines=true}={}){
+ const evidence=rows.flatMap(row=>{
+  if(row.__parentId||!includeFixtureLines||!row.id)return [row];
+  return [row,{__parentId:row.id,id:"gid://shopify/LineItem/"+row.id.split("/").pop(),
+   title:"Synthetic test line",quantity:1,
+   originalUnitPriceSet:usd(120),discountedTotalSet:usd(120)}];
+ });
+ return auditJsonl(Readable.from([evidence.map(x=>JSON.stringify(x)).join("\n")+"\n"]),{
   asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:ids,sampleExpectedOrderCounts
  });
 }
@@ -168,4 +175,19 @@ test("seven-customer samples block missing line-item amount evidence even with c
  const good=await run([...rows,completeLine]);
  assert.equal(good.sampleAudit.customers[0].unverifiedLineFinancials,0);
  assert.equal(good.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
+});
+
+
+test("seven-customer sample blocks missing order child lines even when root/source counts match",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ const missing=await run(rows,sampleCustomerIds,
+  Object.fromEntries(sampleCustomerIds.map(id=>[id,1])),
+  {includeFixtureLines:false});
+ assert.equal(missing.sampleAudit.status,"BLOCKED_SAMPLE_MISSING_LINE_ITEMS");
+ assert.equal(missing.sampleAudit.verified,false);
+ assert.equal(missing.sampleAudit.customers[0].missingLineItems,1);
+ assert.equal(missing.totals.missingLineItems,7);
+ const withLines=await run(rows);
+ assert.equal(withLines.totals.missingLineItems,0);
+ assert.equal(withLines.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
 });
