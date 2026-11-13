@@ -247,7 +247,7 @@ test("archive counts cannot excuse malformed Shopify root IDs or malformed suppl
  const validLine={__parentId:"gid://shopify/Order/1",id:"gid://shopify/LineItem/1",
   title:"Test item",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(80)};
  const complete=await auditJsonl(Readable.from([
-  JSON.stringify(order())+"\\n"+JSON.stringify(validLine)+"\\n"
+  JSON.stringify(order())+"\n"+JSON.stringify(validLine)+"\n"
  ]),{asOf:"2026-11-13T00:00:00Z"});
  assert.equal(complete.totals.missingLineItems,0);
  assert.equal(verifyArchiveIntegrity(complete,{...archived,rootObjectCount:"1",objectCount:"2"}).status,
