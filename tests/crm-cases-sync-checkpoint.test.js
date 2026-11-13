@@ -126,3 +126,52 @@ test("missing private Blob credential fails before reading Gmail", async () => {
     if (prevStore !== undefined) process.env.BLOB_STORE_ID = prevStore;
   }
 });
+
+
+test("403 insufficientPermissions is isolated as OAuth scope blocker without moving Case cursor", async () => {
+  const sample = fixtures({ failed: true, gmailReason: "insufficientPermissions" });
+  const old = console.error;
+  console.error = () => {};
+  try {
+    const out = response();
+    await handler(sample.req, out);
+    assert.equal(out.code, 502);
+    assert.equal(out.body.failureTypes.gmail_403_scope, 1);
+    assert.equal(out.body.failureTypes.gmail_403, 0);
+    const persisted = sample.writes.at(-1);
+    assert.equal(persisted.path, cases.STATE);
+    assert.equal(persisted.value.pageToken, "existing-cursor");
+    assert.equal(persisted.value.scanned, 10);
+    assert.equal(persisted.value.lastErrorTypes.gmail_403_scope, 1);
+    assert.equal(JSON.stringify(persisted.value).includes("bad-2"), false);
+  } finally {
+    console.error = old;
+    sample.restore();
+  }
+});
+
+test("Gmail adapter exposes only allowlisted reason, never provider body or customer PII", async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({
+      ok: false, status: 403,
+      json: async () => ({ error: { message: "private customer@example.invalid token",
+        errors: [{ reason: "insufficientPermissions" }] } })
+    });
+    await assert.rejects(gmail.message("fake-token", "synthetic-id"), err => {
+      assert.equal(err.message, "Gmail request failed: 403");
+      assert.equal(err.gmailReason, "insufficientPermissions");
+      assert.equal(JSON.stringify(err).includes("customer@example.invalid"), false);
+      return true;
+    });
+    globalThis.fetch = async () => ({
+      ok: false, status: 403,
+      json: async () => ({ error: { errors: [{ reason: "private customer@example.invalid token" }] } })
+    });
+    await assert.rejects(gmail.message("fake-token", "synthetic-id"), err => {
+      assert.equal(err.message, "Gmail request failed: 403");
+      assert.equal(err.gmailReason, undefined);
+      return true;
+    });
+  } finally { globalThis.fetch = original; }
+});
