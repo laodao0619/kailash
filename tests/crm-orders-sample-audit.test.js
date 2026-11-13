@@ -20,9 +20,10 @@ function order(n,opts={}){
  };
 }
 const sampleCustomerIds=Array.from({length:7},(_,i)=>id(i+1));
-async function run(rows,ids=sampleCustomerIds){
+async function run(rows,ids=sampleCustomerIds,
+ sampleExpectedOrderCounts=Object.fromEntries(ids.map(id=>[id,1]))){
  return auditJsonl(Readable.from([rows.map(x=>JSON.stringify(x)).join("\n")+"\n"]),{
-  asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:ids
+  asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:ids,sampleExpectedOrderCounts
  });
 }
 test("exactly seven existing samples yield evidence awaiting manual finance review, not verified grades",async()=>{
@@ -95,4 +96,29 @@ test("a matching sample with no original Shopify order ID remains blocked",async
  assert.equal(x.sampleAudit.verified,false);
  assert.equal(x.sampleAudit.status,"BLOCKED_SAMPLE_ORDER_IDS_INVALID");
  assert.equal(x.sampleAudit.customers[0].invalidOrderIds,1);
+});
+
+test("seven-customer historical source counts must be present and complete",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ const missing=await run(rows,sampleCustomerIds,{});
+ assert.equal(missing.sampleAudit.status,"BLOCKED_SAMPLE_SOURCE_COUNTS_MISSING");
+ assert.equal(missing.sampleAudit.verified,false);
+ assert.equal(missing.sampleAudit.customers[0].expectedOrderCount,null);
+
+ const source=Object.fromEntries(sampleCustomerIds.map(id=>[id,1]));
+ source[id(3)]=2; // Customer API says two orders, Bulk only contains one.
+ const incomplete=await run(rows,sampleCustomerIds,source);
+ assert.equal(incomplete.sampleAudit.status,"BLOCKED_SAMPLE_SOURCE_COUNT_MISMATCH");
+ assert.equal(incomplete.sampleAudit.customers[2].expectedOrderCount,2);
+ assert.equal(incomplete.sampleAudit.customers[2].totalOrders,1);
+ assert.equal(incomplete.sampleAudit.verified,false);
+});
+
+test("untrusted sample count configuration is rejected before a financial audit",()=>{
+ for(const sampleExpectedOrderCounts of [
+  null,[],{[id(1)]:-1},{[id(1)]:1.5},{[id(1)]:"1"},{[id(999)]:1}
+ ]){
+  assert.throws(()=>createAudit({sampleCustomerIds,
+   sampleExpectedOrderCounts}),/Invalid private Shopify sample order-count evidence/);
+ }
 });
