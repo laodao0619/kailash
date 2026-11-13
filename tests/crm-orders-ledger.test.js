@@ -167,7 +167,7 @@ test("fully refunded orders reconcile successful refund evidence even when exclu
  const unknownRefund=order({...full,id:"gid://shopify/Order/203",
   transactions:[{kind:"REFUND",status:"SUCCESS",amountSet:usd("0.005")}]});
  assert.deepEqual(classifyOrder(unknownRefund),{eligible:false,reason:"unverified_transactions"});
- const result=await auditJsonl(Readable.from([JSON.stringify(full)+"\\n"+JSON.stringify(missingRefund)+"\\n"]),{
+ const result=await auditJsonl(Readable.from([JSON.stringify(full)+"\n"+JSON.stringify(missingRefund)+"\n"]),{
   asOf:"2026-11-13T00:00:00Z"
  });
  assert.equal(result.totals.eligible,0);
