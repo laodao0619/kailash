@@ -63,7 +63,7 @@ test("a failed concurrent identity lookup never writes a page or advances its cu
   p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
  const query=mock.method(shopify,"queryShopify",async()=>({customers:{
   nodes:ids.map(id=>({id,numberOfOrders:1,
-   defaultEmailAddress:{emailAddress:id.split("/").pop()+"@example.invalid",marketingState:"SUBSCRIBED"}})),
+   defaultEmailAddress:{emailAddress:("buyer"+id.split("/").pop()+"@outlook.com"),marketingState:"SUBSCRIBED"}})),
   pageInfo:{hasNextPage:false,endCursor:null}
  }}));
  const token=mock.method(feishu,"tenantToken",async()=> "feishu-test");
