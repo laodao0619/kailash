@@ -158,7 +158,7 @@ test("seven-customer sample blocks missing payment evidence before manual financ
 test("seven-customer samples block missing line-item amount evidence even with complete Shopify order counts",async()=>{
  const rows=Array.from({length:7},(_,i)=>order(i+1));
  const brokenLine={
-  __parentId:"gid://shopify/Order/1",id:"gid://shopify/LineItem/7",
+  __parentId:"gid://shopify/Order/1",id:"gid://shopify/LineItem/7001",
   title:"Pendant",quantity:2,originalUnitPriceSet:usd(120)
   // discountedTotalSet is missing; neither product value nor USD currency is verifiable.
  };
