@@ -222,6 +222,30 @@ test("private Shopify completed archive counts gate audit readiness",()=>{
  }
 });
 
+test("archive counts cannot excuse malformed Shopify root IDs or malformed supplied customer IDs",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const rows=[
+  order({id:"not-an-order-gid"}),
+  order({id:"gid://shopify/Order/2",customer:{id:"2"}})
+ ];
+ const out=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"
+ });
+ assert.equal(out.totals.orders,2);
+ assert.equal(out.totals.invalidOrderIds,1);
+ assert.equal(out.totals.invalidCustomerIds,1);
+ const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"2"};
+ assert.equal(verifyArchiveIntegrity(out,archived).status,"BLOCKED_JSONL_ASSOCIATION_INTEGRITY");
+ const good=await auditJsonl(Readable.from([JSON.stringify(order())+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"
+ });
+ assert.equal(good.totals.invalidOrderIds,0);
+ assert.equal(good.totals.invalidCustomerIds,0);
+ assert.equal(verifyArchiveIntegrity(good,{...archived,rootObjectCount:"1",objectCount:"1"}).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
+
 test("count-consistent archive is blocked when finance evidence cannot be reconciled",()=>{
  const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
  const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
