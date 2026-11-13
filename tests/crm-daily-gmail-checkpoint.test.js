@@ -81,3 +81,16 @@ test("repeated Gmail continuation token blocks writes and cursor movement",async
   assert.equal(f.actions.filter(x=>x.type==="save").length,0);
  }finally{f.restore();}
 });
+
+test("public Gmail status reports only aggregate pending page progress",()=>{
+ const {pendingGmailProgress}=require("../api/crm-status");
+ const pending={ids:["secret-mail-id-a","secret-mail-id-b"],offset:1,nextCursor:"secret-cursor"};
+ const snapshot=pendingGmailProgress(pending);
+ assert.deepEqual(snapshot,{page_size:2,processed:1,remaining:1});
+ const json=JSON.stringify(snapshot);
+ assert.equal(json.includes("secret"),false);
+ assert.equal(json.includes("ids"),false);
+ assert.equal(pendingGmailProgress(null),null);
+ assert.equal(pendingGmailProgress({ids:["a"],offset:2}),null);
+ assert.equal(pendingGmailProgress({ids:["a"],offset:"0"}),null);
+});
