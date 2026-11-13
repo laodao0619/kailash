@@ -1,0 +1,83 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict"),{mock}=require("node:test");
+const handler=require("../api/crm-daily-gmail");
+const state=require("../lib/crm-daily-state"),gmail=require("../lib/crm-gmail"),feishu=require("../lib/crm-feishu");
+function res(){return{code:200,body:null,setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;return this;}};}
+function setup({pages,failOnce=null,repeatCursor=false}={}){
+ const restores=[],stored={},seen=new Set(),actions=[];
+ const spy=(obj,k,fn)=>{const s=mock.method(obj,k,fn);restores.push(s);return s;};
+ spy(state,"authorized",()=>true);
+ spy(state,"read",async p=>p.includes("gmail-filtered-cursor")?{finished:true}:p.includes("import-cursor")?{shopifyCycleComplete:true}:structuredClone(stored[p]||null));
+ spy(state,"save",async(p,v)=>{stored[p]=structuredClone(v);actions.push({type:"save",offset:v.pendingPage?.offset,cursor:v.cursor,complete:v.completed});});
+ spy(gmail,"token",async()=>"g");
+ spy(feishu,"tenantToken",async()=>"f");
+ spy(gmail,"listMessages",async(_t,a)=>{
+  const i=a.pageToken?Number(a.pageToken.slice(1)):0;
+  const ids=pages[i]||[];
+  assert.equal(a.maxResults,6);
+  actions.push({type:"list",i});
+  return{messages:ids.map(id=>({id})),nextPageToken:repeatCursor?a.pageToken:(i<pages.length-1?"p"+(i+1):null)};
+ });
+ let fail=failOnce;
+ spy(gmail,"message",async(_t,id)=>{
+  actions.push({type:"message",id});
+  if(fail===id){fail=null;throw Error("Gmail request failed: 403");}
+  return{id,from:"synthetic@example.invalid"};
+ });
+ spy(gmail,"classifyMessage",()=>"candidate");
+ spy(gmail,"compactMessage",m=>m);
+ spy(feishu,"findBy",async(_t,_table,field,val)=>field==="邮箱"?[{fields:{"客户数据状态":"有效"}}]:seen.has(val)?[{record_id:"r1"}]:[]);
+ spy(feishu,"upsertGmail",async(_t,m)=>{seen.add("gmail:"+m.id);return"created";});
+ const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-blob-only";
+ return {stored,seen,actions,restore(){
+  for(const x of restores)x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }};
+}
+test("Gmail 403 resumes at failed message without skipping the stored page",async()=>{
+ const f=setup({pages:[["a","b","c","d"]],failOnce:"c"});
+ try{
+  const first=res();await handler({method:"GET",headers:{}},first);
+  assert.equal(first.code,502);
+  const p=f.stored["crm-execution/daily-v1/gmail-state.json"];
+  assert.equal(p.pendingPage.offset,2);
+  assert.equal(p.counters.scanned,2);
+  assert.equal(p.completed,false);
+  const second=res();await handler({method:"GET",headers:{}},second);
+  assert.equal(second.code,200);
+  assert.equal(second.body.completed,true);
+  assert.equal(second.body.counters.scanned,4);
+  assert.equal(second.body.counters.created,4);
+  assert.deepEqual(f.actions.filter(x=>x.type==="list").map(x=>x.i),[0]);
+  assert.deepEqual(f.actions.filter(x=>x.type==="message").map(x=>x.id),["a","b","c","c","d"]);
+ }finally{f.restore();}
+});
+test("12-message invocation budget resumes later pages without replaying historical Gmail",async()=>{
+ const pages=Array.from({length:4},(_,n)=>Array.from({length:6},(_,i)=>"m"+(n*6+i)));
+ const f=setup({pages});
+ try{
+  const first=res();await handler({method:"GET",headers:{}},first);
+  assert.equal(first.code,200);assert.equal(first.body.completed,false);
+  assert.equal(first.body.messagesThisRun,12);
+  assert.equal(first.body.counters.pages,2);
+  const second=res();await handler({method:"GET",headers:{}},second);
+  assert.equal(second.code,200);assert.equal(second.body.completed,true);
+  assert.equal(second.body.counters.scanned,24);
+  assert.equal(f.seen.size,24);
+  assert.deepEqual(f.actions.filter(x=>x.type==="list").map(x=>x.i),[0,1,2,3]);
+ }finally{f.restore();}
+});
+test("repeated Gmail continuation token blocks writes and cursor movement",async()=>{
+ const f=setup({pages:[["a"],["b"]],repeatCursor:true});
+ try{
+  f.stored["crm-execution/daily-v1/gmail-state.json"]={
+   version:2,day:"2026-11-13",slot:"before_close",slotKey:"2026-11-13/before_close",
+   windowStart:"2026-11-12T00:00:00Z",cursor:"p1",completed:false,
+   counters:{scanned:0,accepted:0,excluded:0,created:0,updated:0,duplicates:0,pages:0}
+  };
+  const o=res();await handler({method:"GET",headers:{}},o);
+  assert.equal(o.code,502);
+  assert.equal(f.actions.filter(x=>x.type==="message").length,0);
+  assert.equal(f.actions.filter(x=>x.type==="save").length,0);
+ }finally{f.restore();}
+});
