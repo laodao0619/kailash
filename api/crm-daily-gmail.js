@@ -12,6 +12,7 @@ const PAGE_SIZE=6,MAX_MESSAGES_PER_RUN=12,MAX_PAGES_PER_RUN=3,SOFT_DEADLINE_MS=6
 function validPage(p){
  return p&&Array.isArray(p.ids)&&p.ids.length<=PAGE_SIZE&&
   p.ids.every(id=>typeof id==="string"&&id.length>0)&&
+  new Set(p.ids).size===p.ids.length&&
   Number.isSafeInteger(p.offset)&&p.offset>=0&&p.offset<=p.ids.length&&
   (p.nextCursor===null||(typeof p.nextCursor==="string"&&p.nextCursor.length>0));
 }
@@ -27,7 +28,9 @@ module.exports=async(req,res)=>{
   const historicalGmailComplete=initial?.finished===true;
   const checkpoint=state.cycle(await state.read(SOURCE));
   if(checkpoint.completed)return res.status(200).json({ok:true,completed:true,day:checkpoint.day,slot:checkpoint.slot,counters:checkpoint.counters});
-  if(checkpoint.pendingPage&&!validPage(checkpoint.pendingPage))throw Error("Invalid pending Gmail page checkpoint");
+  if(checkpoint.pendingPage&&(!validPage(checkpoint.pendingPage)||
+     (checkpoint.pendingPage.nextCursor&&checkpoint.pendingPage.nextCursor===checkpoint.cursor)))
+   throw Error("Invalid pending Gmail page checkpoint");
   const [mailToken,feishuToken]=await Promise.all([gmail.token(),feishu.tenantToken()]);
   let pages=0,messages=0;
   const began=Date.now();
@@ -42,6 +45,7 @@ module.exports=async(req,res)=>{
     const ids=(list.messages||[]).map(x=>x?.id);
     const nextCursor=list.nextPageToken||null;
     if(ids.length>PAGE_SIZE||ids.some(x=>typeof x!=="string"||!x)||
+      new Set(ids).size!==ids.length||
       (nextCursor&&nextCursor===checkpoint.cursor))throw Error("Invalid Gmail incremental page cursor");
     // Save exact message IDs privately before processing; Gmail pages can shift.
     checkpoint.pendingPage={ids,offset:0,nextCursor};
