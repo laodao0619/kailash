@@ -191,3 +191,28 @@ test("seven-customer sample blocks missing order child lines even when root/sour
  assert.equal(withLines.totals.missingLineItems,0);
  assert.equal(withLines.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
 });
+
+
+test("duplicate Shopify line-item IDs block seven-customer finance evidence",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ const duplicate={__parentId:"gid://shopify/Order/1",
+  id:"gid://shopify/LineItem/1",title:"Duplicate item",
+  quantity:1,originalUnitPriceSet:usd(120),discountedTotalSet:usd(120)};
+ const result=await run([...rows,duplicate]);
+ assert.equal(result.totals.duplicateLineItemIds,1);
+ assert.equal(result.sampleAudit.customers[0].duplicateLineItemIds,1);
+ assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_LINE_ITEM_IDS_DUPLICATED");
+ assert.equal(result.sampleAudit.verified,false);
+});
+
+test("malformed line-item GID or blank title cannot count as verified Shopify evidence",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ const invalid={__parentId:"gid://shopify/Order/1",
+  id:"line-item-not-a-shopify-gid",title:"",
+  quantity:1,originalUnitPriceSet:usd(120),discountedTotalSet:usd(120)};
+ const result=await run([...rows,invalid]);
+ assert.equal(result.totals.unverifiedLines,1);
+ assert.equal(result.sampleAudit.customers[0].invalidLineItems,1);
+ assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_LINE_ITEM_IDENTITIES_INVALID");
+ assert.equal(result.sampleAudit.verified,false);
+});
