@@ -7,7 +7,11 @@ const enrichment = require("../lib/crm-case-enrichment");
 // Only expose coarse error categories in logs/status: never Gmail IDs or PII.
 function failureType(err) {
   const message = String(err?.message || err);
-  if (/^Gmail request failed: 403$/.test(message)) return "gmail_403";
+  if (/^Gmail request failed: 403$/.test(message)) {
+    if (err?.gmailReason === "insufficientPermissions") return "gmail_403_scope";
+    if (["rateLimitExceeded","userRateLimitExceeded"].includes(err?.gmailReason)) return "gmail_rate_limit";
+    return "gmail_403";
+  }
   if (/^Gmail request failed: 404$/.test(message)) return "gmail_404";
   if (/^Gmail request failed: 429$/.test(message)) return "gmail_rate_limit";
   return "other";
