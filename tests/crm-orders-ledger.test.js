@@ -167,6 +167,13 @@ test("fully refunded orders reconcile successful refund evidence even when exclu
  const unknownRefund=order({...full,id:"gid://shopify/Order/203",
   transactions:[{kind:"REFUND",status:"SUCCESS",amountSet:usd("0.005")}]});
  assert.deepEqual(classifyOrder(unknownRefund),{eligible:false,reason:"unverified_transactions"});
+ const noCapture=order({...full,id:"gid://shopify/Order/204",transactions:[
+  {kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}]});
+ assert.deepEqual(classifyOrder(noCapture),{eligible:false,reason:"missing_settled_payment_evidence"});
+ const failedCapture=order({...full,id:"gid://shopify/Order/205",transactions:[
+  {kind:"SALE",status:"FAILURE",amountSet:usd(100)},
+  {kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}]});
+ assert.deepEqual(classifyOrder(failedCapture),{eligible:false,reason:"missing_settled_payment_evidence"});
  const result=await auditJsonl(Readable.from([JSON.stringify(full)+"\n"+JSON.stringify(missingRefund)+"\n"]),{
   asOf:"2026-11-13T00:00:00Z"
  });
@@ -225,6 +232,7 @@ test("count-consistent archive is blocked when finance evidence cannot be reconc
   [{missingOrderDate:1},"BLOCKED_ORDER_DATE_EVIDENCE"],
   [{futureOrders:1},"BLOCKED_ORDER_DATE_EVIDENCE"],
   [{refundMismatch:1},"BLOCKED_REFUND_RECONCILIATION"],
+  [{excluded:{partially_paid_unreconciled:1}},"BLOCKED_PARTIAL_PAYMENT_RECONCILIATION"],
   [{excluded:{unverified_currency:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"],
   [{excluded:{unverified_transactions:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"],
   [{excluded:{missing_settled_payment_evidence:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"]
