@@ -91,4 +91,5 @@ module.exports=async(req,res)=>{
     });
   }catch(e){return res.status(502).json({ok:false,status:"unavailable"});}
 };
-\nmodule.exports.pendingGmailProgress=pendingGmailProgress;\n
+
+module.exports.pendingGmailProgress=pendingGmailProgress;
