@@ -150,6 +150,36 @@ test("paid order without settled capture is excluded from financial aggregates",
  assert.equal(out.uniqueCustomers,0);
 });
 
+test("fully refunded orders reconcile successful refund evidence even when excluded from F",async()=>{
+ const full=order({
+  id:"gid://shopify/Order/201",
+  displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(0),
+  totalRefundedSet:usd(100),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}
+  ]
+ });
+ assert.deepEqual(classifyOrder(full),{eligible:false,reason:"fully_refunded_or_zero"});
+ const missingRefund=order({...full,id:"gid://shopify/Order/202",
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"FAILURE",amountSet:usd(100)}]});
+ assert.deepEqual(classifyOrder(missingRefund),{eligible:false,reason:"refunded_order_refund_mismatch"});
+ const unknownRefund=order({...full,id:"gid://shopify/Order/203",
+  transactions:[{kind:"REFUND",status:"SUCCESS",amountSet:usd("0.005")}]});
+ assert.deepEqual(classifyOrder(unknownRefund),{eligible:false,reason:"unverified_transactions"});
+ const result=await auditJsonl(Readable.from([JSON.stringify(full)+"\\n"+JSON.stringify(missingRefund)+"\\n"]),{
+  asOf:"2026-11-13T00:00:00Z"
+ });
+ assert.equal(result.totals.eligible,0);
+ assert.equal(result.totals.excluded.fully_refunded_or_zero,1);
+ assert.equal(result.totals.excluded.refunded_order_refund_mismatch,1);
+ assert.equal(result.aggregates.lifetimeMerchandiseCents,0);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const archive={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"2"};
+ assert.equal(verifyArchiveIntegrity(result,archive).status,"BLOCKED_REFUND_RECONCILIATION");
+});
+
 test("successful CAPTURE without SALE still proves settled funds",()=>{
  const x=classifyOrder(order({transactions:[
   {kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)},
