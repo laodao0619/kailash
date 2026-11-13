@@ -25,6 +25,7 @@ jobs:
       - name: Syntax checks
         run: |
           node --check api/crm-cases-sync.js
+          node --check lib/crm-gmail.js
           node --check api/crm-status.js
           node --check tests/crm-cases-sync-checkpoint.test.js
       - name: Verify fail-closed checkpoint and Case enrichment
