@@ -243,6 +243,14 @@ test("archive counts cannot excuse malformed Shopify root IDs or malformed suppl
  assert.equal(good.totals.invalidOrderIds,0);
  assert.equal(good.totals.invalidCustomerIds,0);
  assert.equal(verifyArchiveIntegrity(good,{...archived,rootObjectCount:"1",objectCount:"1"}).status,
+  "BLOCKED_ORDER_LINE_ITEMS_MISSING");
+ const validLine={__parentId:"gid://shopify/Order/1",id:"gid://shopify/LineItem/1",
+  title:"Test item",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(80)};
+ const complete=await auditJsonl(Readable.from([
+  JSON.stringify(order())+"\\n"+JSON.stringify(validLine)+"\\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(complete.totals.missingLineItems,0);
+ assert.equal(verifyArchiveIntegrity(complete,{...archived,rootObjectCount:"1",objectCount:"2"}).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
 
