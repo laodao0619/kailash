@@ -31,7 +31,7 @@ module.exports = async (req, res) => {
       after: new Date(Date.now() - cases.DAYS * 86400000).toISOString(), query: "in:inbox",
     });
     const counts = { scanned: 0, accepted: 0, excluded: 0, errors: 0 };
-    const failureTypes = { gmail_403: 0, gmail_404: 0, gmail_rate_limit: 0, other: 0 };
+    const failureTypes = { gmail_403_scope: 0, gmail_403: 0, gmail_404: 0, gmail_rate_limit: 0, other: 0 };
     for (const row of result.messages || []) {
       try {
         const msg = await gmail.message(oauth, row.id);
