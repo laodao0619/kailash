@@ -146,3 +146,26 @@ test("seven-customer sample blocks missing payment evidence before manual financ
  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(out.sampleAudit.verified,false);
 });
+
+
+test("seven-customer samples block missing line-item amount evidence even with complete Shopify order counts",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ const brokenLine={
+  __parentId:"gid://shopify/Order/1",id:"gid://shopify/LineItem/7",
+  title:"Pendant",quantity:2,originalUnitPriceSet:usd(120)
+  // discountedTotalSet is missing; neither product value nor USD currency is verifiable.
+ };
+ const out=await run([...rows,brokenLine]);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].expectedOrderCount,1);
+ assert.equal(out.sampleAudit.customers[0].totalOrders,1);
+ assert.equal(out.sampleAudit.customers[0].unverifiedLineFinancials,1);
+ assert.equal(out.totals.unverifiedLineFinancials,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_LINE_ITEM_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.verified,false);
+
+ const completeLine={...brokenLine,discountedTotalSet:usd(120)};
+ const good=await run([...rows,completeLine]);
+ assert.equal(good.sampleAudit.customers[0].unverifiedLineFinancials,0);
+ assert.equal(good.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
+});
