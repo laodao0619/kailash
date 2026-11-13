@@ -5,7 +5,6 @@ on:
     paths:
       - 'lib/crm-case-*.js'
       - 'api/crm-cases-schema-preflight.js'
-      - 'api/crm-cases-schema-preflight.js'
       - 'lib/crm-feishu.js'
       - 'tests/crm-case-*.test.js'
       - '.github/workflows/case-writeback-tests.yml'
@@ -14,6 +13,7 @@ on:
       - main
     paths:
       - 'lib/crm-case-*.js'
+      - 'api/crm-cases-schema-preflight.js'
       - 'lib/crm-feishu.js'
       - 'tests/crm-case-*.test.js'
       - '.github/workflows/case-writeback-tests.yml'
