@@ -17,11 +17,12 @@ test.after(() => {
 function response() {
   return { code: 200, body: null, setHeader() {}, status(x) { this.code = x; return this; }, json(x) { this.body = x; return this; } };
 }
-function fixtures({ failed = false, dryRun = false, gmailReason = null } = {}) {
+function fixtures({ failed = false, dryRun = false, gmailReason = null, messageIds = ["ok-1", "bad-2"] } = {}) {
   const restores = [];
   const stub = (obj, key, fn) => restores.push(mock.method(obj, key, fn));
   const checkpoint = { pageToken: "existing-cursor", scanned: 10, accepted: 4, excluded: 6, lastRunAt: "2026-11-13T00:00:00Z" };
   const writes = [];
+  const messageReads = [];
   stub(cases, "authorized", () => true);
   stub(cases, "read", async () => checkpoint);
   stub(cases, "save", async (path, value) => writes.push({ path, value: structuredClone(value) }));
@@ -29,9 +30,10 @@ function fixtures({ failed = false, dryRun = false, gmailReason = null } = {}) {
   stub(feishu, "tenantToken", async () => "fake-feishu");
   stub(gmail, "listMessages", async (_token, args) => {
     assert.equal(args.pageToken, "existing-cursor");
-    return { messages: [{ id: "ok-1" }, { id: "bad-2" }], nextPageToken: "new-cursor" };
+    return { messages: messageIds.map(id => ({ id })), nextPageToken: "new-cursor" };
   });
   stub(gmail, "message", async (_token, id) => {
+    messageReads.push(id);
     if (failed && id === "bad-2") {
       const err = Error("Gmail request failed: 403");
       if (gmailReason) err.gmailReason = gmailReason;
@@ -43,7 +45,7 @@ function fixtures({ failed = false, dryRun = false, gmailReason = null } = {}) {
   stub(cases, "event", m => ({ eventId: "gmail:" + m.id }));
   stub(enrichment, "enrich", async event => event);
   return {
-    writes, checkpoint,
+    writes, messageReads, checkpoint,
     req: { method: "GET", query: dryRun ? { dry_run: "1" } : {}, headers: {} },
     restore() { for (const item of restores) item.mock.restore(); },
   };
@@ -174,4 +176,41 @@ test("Gmail adapter exposes only allowlisted reason, never provider body or cust
       return true;
     });
   } finally { globalThis.fetch = original; }
+});
+
+
+test("Gmail scope denial stops remaining fetches and retries the same page", async () => {
+  const sample = fixtures({ failed: true, gmailReason: "insufficientPermissions",
+    messageIds: ["ok-1", "bad-2", "must-not-fetch"] });
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const out = response();
+    await handler(sample.req, out);
+    assert.equal(out.code, 502);
+    assert.deepEqual(sample.messageReads, ["ok-1", "bad-2"]);
+    assert.equal(out.body.counts.errors, 1);
+    assert.equal(out.body.failureTypes.gmail_403_scope, 1);
+    assert.equal(out.body.cursorAdvanced, false);
+    assert.equal(sample.writes.filter(x => x.path.startsWith(cases.PREFIX)).length, 1);
+    const written = sample.writes.at(-1);
+    assert.equal(written.path, cases.STATE);
+    assert.equal(written.value.pageToken, "existing-cursor");
+    assert.equal(written.value.scanned, 10);
+  } finally { console.error = originalError; sample.restore(); }
+});
+
+test("Gmail 403 rate-limit stops subsequent message reads without cursor loss", async () => {
+  const sample = fixtures({ failed: true, gmailReason: "userRateLimitExceeded",
+    messageIds: ["ok-1", "bad-2", "must-not-fetch"] });
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    const out = response();
+    await handler(sample.req, out);
+    assert.equal(out.code, 502);
+    assert.deepEqual(sample.messageReads, ["ok-1", "bad-2"]);
+    assert.equal(out.body.failureTypes.gmail_rate_limit, 1);
+    assert.equal(sample.writes.at(-1).value.pageToken, "existing-cursor");
+  } finally { console.error = originalError; sample.restore(); }
 });
