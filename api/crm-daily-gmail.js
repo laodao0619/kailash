@@ -56,10 +56,14 @@ module.exports=async(req,res)=>{
    while(page.offset<page.ids.length&&messages<MAX_MESSAGES_PER_RUN&&Date.now()-began<SOFT_DEADLINE_MS){
     const id=page.ids[page.offset];
     const m=await gmail.message(mailToken,id);
+    // Preserve the queued Gmail identity across API reads and Feishu writes.
+    // A mismatched message must never be attached to the wrong customer.
+    if(!m||m.id!==id)throw Error("Gmail message identity mismatch");
     checkpoint.counters.scanned++;
     if(gmail.classifyMessage(m)!=="candidate")checkpoint.counters.excluded++;
     else{
      const c=gmail.compactMessage(m);
+     if(!c||c.id!==id)throw Error("Gmail compact identity mismatch");
      const email=c.from?.trim().toLowerCase();
      if(!email)checkpoint.counters.excluded++;
      else{
