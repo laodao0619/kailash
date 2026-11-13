@@ -8,6 +8,7 @@ const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {classify}=require("../lib/crm-customer-quality");
+const {mapBounded}=require("../lib/crm-bounded-map");
 const SOURCE=state.ROOT+"/shopify-state.json";
 const BASELINE="crm-execution/import-cursor.json";
 const QUERY=`query CrmCustomerDelta($filter:String!,$cursor:String){
@@ -51,9 +52,16 @@ module.exports=async(req,res)=>{
      continue;
     }
     valid.push(c);
-    const existing=await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id);
+   }
+   // Limit Feishu reads to three concurrent requests. Validate the entire
+   // page before any writes: failures leave this page's cursor unchanged.
+   const matches=await mapBounded(valid,3,c=>
+    feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id));
+   for(let i=0;i<valid.length;i++){
+    const existing=matches[i];
+    if(!Array.isArray(existing))throw Error("Malformed Feishu customer lookup");
     if(existing.length>1)throw Error("Ambiguous Shopify identity in CRM mirror");
-    if(existing.length===1)index.set(c.id,existing[0].record_id);
+    if(existing.length===1)index.set(valid[i].id,existing[0].record_id);
    }
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
