@@ -3,7 +3,7 @@ const test=require("node:test"),assert=require("node:assert/strict"),{mock}=requ
 const handler=require("../api/crm-daily-gmail");
 const state=require("../lib/crm-daily-state"),gmail=require("../lib/crm-gmail"),feishu=require("../lib/crm-feishu");
 function res(){return{code:200,body:null,setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;return this;}};}
-function setup({pages,failOnce=null,repeatCursor=false}={}){
+function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,compactIdOverride=null}={}){
  const restores=[],stored={},seen=new Set(),actions=[];
  const spy=(obj,k,fn)=>{const s=mock.method(obj,k,fn);restores.push(s);return s;};
  spy(state,"authorized",()=>true);
@@ -22,10 +22,10 @@ function setup({pages,failOnce=null,repeatCursor=false}={}){
  spy(gmail,"message",async(_t,id)=>{
   actions.push({type:"message",id});
   if(fail===id){fail=null;throw Error("Gmail request failed: 403");}
-  return{id,from:"synthetic@example.invalid"};
+  return{id:messageIdOverride?.[id]||id,from:"synthetic@example.invalid"};
  });
  spy(gmail,"classifyMessage",()=>"candidate");
- spy(gmail,"compactMessage",m=>m);
+ spy(gmail,"compactMessage",m=>({...m,id:compactIdOverride?.[m.id]||m.id}));
  spy(feishu,"findBy",async(_t,_table,field,val)=>field==="邮箱"?[{fields:{"客户数据状态":"有效"}}]:seen.has(val)?[{record_id:"r1"}]:[]);
  spy(feishu,"upsertGmail",async(_t,m)=>{seen.add("gmail:"+m.id);return"created";});
  const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-blob-only";
@@ -125,6 +125,27 @@ test("tampered saved pending page blocks Gmail processing without advancing curs
    assert.equal(f.actions.filter(x=>x.type==="list").length,0);
    assert.equal(f.actions.filter(x=>x.type==="save").length,0);
    assert.equal(f.seen.size,0);
+  }finally{f.restore();}
+ }
+});
+
+
+test("mismatched Gmail response or compacted ID blocks Feishu writes and cursor advancement",async()=>{
+ for(const options of [
+  {messageIdOverride:{"a":"other-message"}},
+  {compactIdOverride:{"a":"other-message"}}
+ ]){
+  const f=setup({pages:[["a"]],...options});
+  try{
+   const out=res();await handler({method:"GET",headers:{}},out);
+   assert.equal(out.code,502);
+   assert.equal(out.body.error,"daily_gmail_delta_failed");
+   const state=f.stored["crm-execution/daily-v1/gmail-state.json"];
+   assert.equal(state.pendingPage.offset,0);
+   assert.equal(state.cursor,null);
+   assert.equal(state.counters.scanned,0);
+   assert.equal(f.seen.size,0);
+   assert.equal(f.actions.filter(x=>x.type==="save").length,1);
   }finally{f.restore();}
  }
 });
