@@ -268,3 +268,42 @@ test("count-consistent archive is blocked when finance evidence cannot be reconc
  assert.equal(verifyArchiveIntegrity(base,archived).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+
+test("line item financial evidence blocks count-consistent archives without verified quantity/prices",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const base=order();
+ const line={__parentId:base.id,id:"gid://shopify/LineItem/1",title:"Pendant",quantity:1,
+  originalUnitPriceSet:usd(100),discountedTotalSet:usd(80)};
+ const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"2"};
+ async function check(item){
+  const out=await auditJsonl(Readable.from([JSON.stringify(base)+"\n"+JSON.stringify(item)+"\n"]),{
+   asOf:"2026-11-13T00:00:00Z"
+  });
+  assert.equal(out.totals.orders,1);
+  assert.equal(out.totals.lines,1);
+  assert.equal(out.totals.missingLineParent,0);
+  return {out,status:verifyArchiveIntegrity(out,archived).status};
+ }
+ const good=await check(line);
+ assert.equal(good.out.totals.unverifiedLineFinancials,0);
+ assert.equal(good.status,"PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+ for(const invalid of [
+  {...line,quantity:undefined},
+  {...line,quantity:-1},
+  {...line,quantity:1.5},
+  {...line,originalUnitPriceSet:null},
+  {...line,discountedTotalSet:undefined},
+  {...line,discountedTotalSet:{shopMoney:{amount:"80",currencyCode:"EUR"}}},
+  {...line,discountedTotalSet:usd("0.005")}
+ ]){
+  const result=await check(invalid);
+  assert.equal(result.out.totals.unverifiedLineFinancials,1);
+  assert.equal(result.status,"BLOCKED_LINE_ITEM_FINANCIAL_EVIDENCE");
+ }
+ // Returned/removed line items can legitimately have zero quantity/price.
+ const zero=await check({...line,quantity:0,discountedTotalSet:usd(0)});
+ assert.equal(zero.out.totals.unverifiedLineFinancials,0);
+ assert.equal(zero.status,"PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
