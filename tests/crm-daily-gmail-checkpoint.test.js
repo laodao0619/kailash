@@ -94,3 +94,37 @@ test("public Gmail status reports only aggregate pending page progress",()=>{
  assert.equal(pendingGmailProgress({ids:["a"],offset:2}),null);
  assert.equal(pendingGmailProgress({ids:["a"],offset:"0"}),null);
 });
+
+test("duplicate message IDs in a new Gmail page fail closed before any checkpoint or Feishu write",async()=>{
+ const f=setup({pages:[["a","a"]]});
+ try{
+  const out=res();await handler({method:"GET",headers:{}},out);
+  assert.equal(out.code,502);
+  assert.equal(out.body.error,"daily_gmail_delta_failed");
+  assert.equal(f.actions.filter(x=>x.type==="message").length,0);
+  assert.equal(f.actions.filter(x=>x.type==="save").length,0);
+  assert.equal(f.seen.size,0);
+ }finally{f.restore();}
+});
+
+test("tampered saved pending page blocks Gmail processing without advancing cursor",async()=>{
+ for(const pendingPage of [
+  {ids:["a","a"],offset:0,nextCursor:"p2"},
+  {ids:["a"],offset:0,nextCursor:"p1"}
+ ]){
+  const f=setup({pages:[["a"]]});
+  try{
+   f.stored["crm-execution/daily-v1/gmail-state.json"]={
+    version:2,day:"2026-11-13",slot:"before_close",slotKey:"2026-11-13/before_close",
+    windowStart:"2026-11-12T00:00:00Z",cursor:"p1",completed:false,pendingPage,
+    counters:{scanned:0,accepted:0,excluded:0,created:0,updated:0,duplicates:0,pages:0}
+   };
+   const out=res();await handler({method:"GET",headers:{}},out);
+   assert.equal(out.code,502);
+   assert.equal(f.actions.filter(x=>x.type==="message").length,0);
+   assert.equal(f.actions.filter(x=>x.type==="list").length,0);
+   assert.equal(f.actions.filter(x=>x.type==="save").length,0);
+   assert.equal(f.seen.size,0);
+  }finally{f.restore();}
+ }
+});
