@@ -184,3 +184,25 @@ test("private Shopify completed archive counts gate audit readiness",()=>{
    "BLOCKED_JSONL_ASSOCIATION_INTEGRITY");
  }
 });
+
+test("count-consistent archive is blocked when finance evidence cannot be reconciled",()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"1"};
+ const base={parsedLines:1,totals:{orders:1,missingLineParent:0,duplicateOrderIds:0,
+  unverifiedLines:0,missingOrderDate:0,futureOrders:0,refundMismatch:0,excluded:{}}};
+ for(const [changes,status] of [
+  [{missingOrderDate:1},"BLOCKED_ORDER_DATE_EVIDENCE"],
+  [{futureOrders:1},"BLOCKED_ORDER_DATE_EVIDENCE"],
+  [{refundMismatch:1},"BLOCKED_REFUND_RECONCILIATION"],
+  [{excluded:{unverified_currency:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"],
+  [{excluded:{unverified_transactions:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"],
+  [{excluded:{missing_settled_payment_evidence:1}},"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE"]
+ ]){
+  const audit={...base,totals:{...base.totals,...changes}};
+  assert.equal(verifyArchiveIntegrity(audit,archived).status,status);
+  assert.equal(verifyArchiveIntegrity(audit,archived).verified,false);
+ }
+ assert.equal(verifyArchiveIntegrity(base,archived).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
