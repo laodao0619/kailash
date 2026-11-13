@@ -42,7 +42,12 @@ module.exports = async (req, res) => {
         counts.accepted++;
       } catch (err) {
         counts.errors++;
-        failureTypes[failureType(err)]++;
+        const kind = failureType(err);
+        failureTypes[kind]++;
+        // A Gmail permission/rate-limit failure blocks this whole page. Stop
+        // immediately: continuing to fetch 49 more messages only amplifies
+        // provider denials. The unchanged page cursor retries every item.
+        if (kind === "gmail_403_scope" || kind === "gmail_403" || kind === "gmail_rate_limit") break;
       }
     }
     // Cursor never advances when an event failed: retries are idempotent by Gmail ID.
