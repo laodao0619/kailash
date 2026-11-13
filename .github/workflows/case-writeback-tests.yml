@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'lib/crm-case-*.js'
+      - 'api/crm-cases-schema-preflight.js'
+      - 'api/crm-cases-schema-preflight.js'
       - 'lib/crm-feishu.js'
       - 'tests/crm-case-*.test.js'
       - '.github/workflows/case-writeback-tests.yml'
@@ -27,5 +29,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install isolated dependencies (repository has no package-lock)
         run: npm install --ignore-scripts --no-audit --no-fund --no-save --package-lock=false
+      - name: Check protected Case schema preflight syntax
+        run: |
+          node --check api/crm-cases-schema-preflight.js
+          node --check lib/crm-case-schema-preflight.js
       - name: Run isolated Case writeback regression tests
         run: node --test tests/crm-case-*.test.js
