@@ -58,3 +58,29 @@ test("missing live option schema rejects both single and multi selects", () => {
   assert.throws(()=>adaptFields({"问题类别":"物流查询"},[{field_name:"问题类别",type:3}]),/options unavailable/);
   assert.throws(()=>adaptFields({"CRM等级（Case核验）":"S+"},[{field_name:"CRM等级（Case核验）",type:4}]),/options unavailable/);
 });
+
+test("duplicate Feishu field names fail closed before coercion", () => {
+  const duplicate = [
+    {field_name:"CRM等级（Case核验）",type:4,property:{options:allowedGrades.map(name=>({name}))}},
+    {field_name:"CRM等级（Case核验）",type:1},
+  ];
+  assert.throws(
+    () => adaptFields({"CRM等级（Case核验）":"S+"},duplicate),
+    /duplicate field name/
+  );
+});
+
+test("malformed Feishu schema names and types fail closed", () => {
+  assert.throws(
+    () => adaptFields({"沟通渠道":"Gmail"},[{field_name:"",type:3}]),
+    /missing field name/
+  );
+  assert.throws(
+    () => adaptFields({"沟通渠道":"Gmail"},[{field_name:"沟通渠道",type:null}]),
+    /invalid type/
+  );
+  assert.throws(
+    () => adaptFields({"沟通渠道":"Gmail"},[{field_name:"沟通渠道"}]),
+    /invalid type/
+  );
+});
