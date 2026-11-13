@@ -32,7 +32,11 @@ function fixtures({ failed = false, dryRun = false, gmailReason = null } = {}) {
     return { messages: [{ id: "ok-1" }, { id: "bad-2" }], nextPageToken: "new-cursor" };
   });
   stub(gmail, "message", async (_token, id) => {
-    if (failed && id === "bad-2") throw Error("Gmail request failed: 403");
+    if (failed && id === "bad-2") {
+      const err = Error("Gmail request failed: 403");
+      if (gmailReason) err.gmailReason = gmailReason;
+      throw err;
+    }
     return { id };
   });
   stub(gmail, "classifyMessage", () => "candidate");
