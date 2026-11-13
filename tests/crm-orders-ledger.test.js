@@ -197,7 +197,7 @@ test("refunds exceeding proven settled captures block both paid and fully refund
  for(const row of [partial,full])assert.deepEqual(classifyOrder(row),{
   eligible:false,reason:"refund_exceeds_captured"});
  const result=await auditJsonl(Readable.from([
-  JSON.stringify(partial)+"\\n"+JSON.stringify(full)+"\\n"
+  JSON.stringify(partial)+"\n"+JSON.stringify(full)+"\n"
  ]),{asOf:"2026-11-13T00:00:00Z"});
  assert.equal(result.totals.eligible,0);
  assert.equal(result.totals.excluded.refund_exceeds_captured,2);
