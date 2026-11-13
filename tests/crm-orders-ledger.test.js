@@ -187,6 +187,26 @@ test("fully refunded orders reconcile successful refund evidence even when exclu
  assert.equal(verifyArchiveIntegrity(result,archive).status,"BLOCKED_REFUND_RECONCILIATION");
 });
 
+test("refunds exceeding proven settled captures block both paid and fully refunded orders",async()=>{
+ const partial=order({id:"gid://shopify/Order/301",displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(40),totalRefundedSet:usd(120),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(120)}]});
+ const full=order({...partial,id:"gid://shopify/Order/302",
+  displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(0)});
+ for(const row of [partial,full])assert.deepEqual(classifyOrder(row),{
+  eligible:false,reason:"refund_exceeds_captured"});
+ const result=await auditJsonl(Readable.from([
+  JSON.stringify(partial)+"\\n"+JSON.stringify(full)+"\\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(result.totals.eligible,0);
+ assert.equal(result.totals.excluded.refund_exceeds_captured,2);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(result,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"2",objectCount:"2"}).status,
+  "BLOCKED_REFUND_RECONCILIATION");
+});
+
 test("successful CAPTURE without SALE still proves settled funds",()=>{
  const x=classifyOrder(order({transactions:[
   {kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)},
