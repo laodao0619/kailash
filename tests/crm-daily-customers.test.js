@@ -55,3 +55,38 @@ test("completed baseline: upsert only changed Shopify customers and save new del
  }finally{for(const x of [read,save,query,token,lookup,upsert])x.mock.restore();
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
+
+test("a failed concurrent identity lookup never writes a page or advances its cursor",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ const ids=[1,2,3,4].map(n=>"gid://shopify/Customer/"+n);
+ const read=mock.method(state,"read",async p=>
+  p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+  nodes:ids.map(id=>({id,numberOfOrders:1,
+   defaultEmailAddress:{emailAddress:id.split("/").pop()+"@example.invalid",marketingState:"SUBSCRIBED"}})),
+  pageInfo:{hasNextPage:false,endCursor:null}
+ }}));
+ const token=mock.method(feishu,"tenantToken",async()=> "feishu-test");
+ const lookup=mock.method(feishu,"findBy",async (_token,_table,_field,id)=>{
+  if(id===ids[1])return [{record_id:"duplicate-A"},{record_id:"duplicate-B"}];
+  return [{record_id:"existing"}];
+ });
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{
+  throw Error("Must not write a partly validated page");
+ });
+ const save=mock.method(state,"save",async()=>{
+  throw Error("Must not advance checkpoint after identity failure");
+ });
+ try{
+  const result=res();await handler(req,result);
+  assert.equal(result.code,502);
+  assert.equal(result.value.retryable,true);
+  assert.equal(query.mock.callCount(),1);
+  assert.equal(upsert.mock.callCount(),0);
+  assert.equal(save.mock.callCount(),0);
+ }finally{
+  for(const x of [read,query,token,lookup,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
