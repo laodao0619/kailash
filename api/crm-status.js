@@ -55,6 +55,11 @@ module.exports=async(req,res)=>{
         scanned:caseSync?.scanned||0,
         accepted_events:caseSync?.accepted||0,
         excluded:caseSync?.excluded||0,
+        blocked:caseSync?.blocked===true,
+        last_attempt_at:caseSync?.lastAttemptAt||null,
+        last_error_at:caseSync?.lastErrorAt||null,
+        last_error_count:caseSync?.lastErrorCount||0,
+        last_error_types:caseSync?.lastErrorTypes||null,
         note:"Case numbers are candidate events, not unique verified unresolved cases; detail endpoint requires authorization"
       },
       case_feishu_writeback:{
