@@ -145,6 +145,19 @@ test("seven-customer sample explicitly blocks unreconciled refunds even when sou
  assert.equal(out.sampleAudit.verified,false);
 });
 
+test("seven-customer finance sample blocks a refund larger than verified capture",async()=>{
+ const rows=[order(1,{displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(150),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(150)}]}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
+ assert.equal(out.sampleAudit.customers[0].excluded.refund_exceeds_captured,1);
+ assert.equal(out.sampleAudit.verified,false);
+});
+
 test("seven-customer sample blocks missing payment evidence before manual financial readiness",async()=>{
  const rows=[order(1,{transactions:[]}),...Array.from({length:6},(_,i)=>order(i+2))];
  const out=await run(rows);
