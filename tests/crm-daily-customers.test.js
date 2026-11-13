@@ -90,3 +90,35 @@ test("a failed concurrent identity lookup never writes a page or advances its cu
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+test("invalid or repeated Shopify continuation cursors fail closed before writes or checkpoint updates",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ let checkpointCursor=null,returnedCursor=null;
+ const read=mock.method(state,"read",async p=>p.includes("import-cursor")
+  ?{shopifyCycleComplete:true}
+  :{version:2,day:"2026-11-13",windowStart:"2026-11-12T00:00:00Z",
+    cursor:checkpointCursor,completed:false,
+    counters:{scanned:0,accepted:0,excluded:0,created:0,updated:0,pages:0}});
+ const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+  nodes:[],pageInfo:{hasNextPage:true,endCursor:returnedCursor}
+ }}));
+ const token=mock.method(feishu,"tenantToken",async()=>"synthetic-feishu-token");
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{throw Error("Must not write");});
+ const save=mock.method(state,"save",async()=>{throw Error("Must not save cursor");});
+ try{
+  for(const [from,to] of [[null,null],["previous","previous"],["previous",""]]){
+   checkpointCursor=from;returnedCursor=to;
+   const result=res();await handler(req,result);
+   assert.equal(result.code,502);
+   assert.equal(result.value.retryable,true);
+  }
+  assert.equal(upsert.mock.callCount(),0);
+  assert.equal(save.mock.callCount(),0);
+  assert.equal(query.mock.callCount(),3);
+ }finally{
+  for(const x of [read,query,token,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
