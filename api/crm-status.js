@@ -42,10 +42,16 @@ module.exports=async(req,res)=>{
       },
       daily_incremental:{
         customers:{started:!!dailyCustomers,completed:!!dailyCustomers?.completed,day:dailyCustomers?.day||null,
+          slot:dailyCustomers?.slot||null,slot_key:dailyCustomers?.slotKey||null,
+          completed_at:dailyCustomers?.completedAt||null,
           updated_at:dailyCustomers?.updatedAt||null,totals:dailyCustomers?.counters||null},
         orders:{started:!!dailyOrders,completed:!!dailyOrders?.completed,day:dailyOrders?.day||null,
+          slot:dailyOrders?.slot||null,slot_key:dailyOrders?.slotKey||null,
+          completed_at:dailyOrders?.completedAt||null,
           updated_at:dailyOrders?.updatedAt||null,totals:dailyOrders?.counters||null},
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
+          slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,
+          completed_at:dailyGmail?.completedAt||null,
           updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null}
       },
       customer_cases:{
