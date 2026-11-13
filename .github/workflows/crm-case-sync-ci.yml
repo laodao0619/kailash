@@ -5,6 +5,7 @@ on:
       - 'api/crm-cases-sync.js'
       - 'api/crm-status.js'
       - 'lib/crm-cases.js'
+      - 'lib/crm-gmail.js'
       - 'lib/crm-case-enrichment.js'
       - 'tests/crm-cases-sync-checkpoint.test.js'
       - '.github/workflows/crm-case-sync-ci.yml'
