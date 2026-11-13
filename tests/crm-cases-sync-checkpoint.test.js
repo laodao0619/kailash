@@ -17,7 +17,7 @@ test.after(() => {
 function response() {
   return { code: 200, body: null, setHeader() {}, status(x) { this.code = x; return this; }, json(x) { this.body = x; return this; } };
 }
-function fixtures({ failed = false, dryRun = false } = {}) {
+function fixtures({ failed = false, dryRun = false, gmailReason = null } = {}) {
   const restores = [];
   const stub = (obj, key, fn) => restores.push(mock.method(obj, key, fn));
   const checkpoint = { pageToken: "existing-cursor", scanned: 10, accepted: 4, excluded: 6, lastRunAt: "2026-11-13T00:00:00Z" };
