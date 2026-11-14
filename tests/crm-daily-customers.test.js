@@ -398,3 +398,49 @@ test("malformed CRM identity references never create duplicates or advance custo
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+
+test("incomplete or malformed Feishu batch acknowledgements preserve customer cursor",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ try{
+  for(const [label,ack] of [
+   ["partial success",{created:0,updated:1}],
+   ["negative counts",{created:-1,updated:3}],
+   ["string counts",{created:"0",updated:2}],
+   ["missing acknowledgement",null]
+  ]){
+   let writes=0,saves=0;
+   const checkpoint={version:2,day:"2026-11-12",slot:"after_store_midnight",
+    slotKey:"2026-11-12/after_store_midnight",windowStart:"2026-11-11T00:00:00.000Z",
+    cursor:"opaque-prior",completed:false,
+    counters:{scanned:570,accepted:570,excluded:0,created:0,updated:570,duplicates:0,pages:19}};
+   const reader=mock.method(state,"read",async path=>
+    path.includes("import-cursor")?{shopifyCycleComplete:true}:checkpoint);
+   const token=mock.method(feishu,"tenantToken",async()=>"synthetic-token");
+   const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+    nodes:[syntheticCustomer(71),syntheticCustomer(72)],
+    pageInfo:{hasNextPage:true,endCursor:"opaque-next"}
+   }}));
+   const lookup=mock.method(feishu,"findBy",async()=>[{record_id:"record-unique"}]);
+   const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return ack;});
+   const save=mock.method(state,"save",async()=>{saves++;});
+   try{
+    const response=res();await handler(req,response);
+    assert.equal(response.code,502,label);
+    assert.equal(response.value.blockedStage,"feishu_batch_write",label);
+    assert.equal(response.value.retryable,true,label);
+    assert.equal(writes,1,label);
+    assert.equal(saves,0,label);
+    assert.equal(checkpoint.cursor,"opaque-prior",label);
+    assert.equal(checkpoint.counters.scanned,570,label);
+    assert.equal(checkpoint.counters.updated,570,label);
+   }finally{
+    for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+   }
+  }
+ }finally{
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
