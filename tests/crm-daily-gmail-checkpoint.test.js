@@ -3,7 +3,7 @@ const test=require("node:test"),assert=require("node:assert/strict"),{mock}=requ
 const handler=require("../api/crm-daily-gmail");
 const state=require("../lib/crm-daily-state"),gmail=require("../lib/crm-gmail"),feishu=require("../lib/crm-feishu");
 function res(){return{code:200,body:null,setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;return this;}};}
-function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,compactIdOverride=null,failSaveOnceAtOffset=null}={}){
+function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,compactIdOverride=null,failSaveOnceAtOffset=null,duplicateOwners=false,duplicatePrior=false}={}){
  const restores=[],stored={},seen=new Set(),actions=[];
  const spy=(obj,k,fn)=>{const s=mock.method(obj,k,fn);restores.push(s);return s;};
  spy(state,"authorized",()=>true);
@@ -33,7 +33,13 @@ function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,co
  });
  spy(gmail,"classifyMessage",()=>"candidate");
  spy(gmail,"compactMessage",m=>({...m,id:compactIdOverride?.[m.id]||m.id}));
- spy(feishu,"findBy",async(_t,_table,field,val)=>field==="邮箱"?[{fields:{"客户数据状态":"有效"}}]:seen.has(val)?[{record_id:"r1"}]:[]);
+ spy(feishu,"findBy",async(_t,_table,field,val)=>{
+  if(field==="邮箱")return duplicateOwners
+   ?[{record_id:"customer-1",fields:{"客户数据状态":"有效"}},{record_id:"customer-2",fields:{"客户数据状态":"有效"}}]
+   :[{record_id:"customer-1",fields:{"客户数据状态":"有效"}}];
+  if(duplicatePrior)return[{record_id:"mail-1"},{record_id:"mail-2"}];
+  return seen.has(val)?[{record_id:"r1"}]:[];
+ });
  spy(feishu,"upsertGmail",async(_t,m)=>{seen.add("gmail:"+m.id);return"created";});
  const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-blob-only";
  return {stored,seen,actions,restore(){
@@ -176,4 +182,23 @@ test("checkpoint save fails after Feishu creates: retry deduplicates without dup
    ["mail-a","mail-a","mail-b"]);
   assert.equal(f.actions.filter(x=>x.type==="list").length,1);
  }finally{f.restore();}
+});
+
+
+test("ambiguous customer or duplicate Gmail identity blocks without silently skipping a message",async()=>{
+ for(const options of [{duplicateOwners:true},{duplicatePrior:true}]){
+  const f=setup({pages:[["mail-a"]],...options});
+  try{
+   const out=res();await handler({method:"GET",headers:{}},out);
+   assert.equal(out.code,502);
+   assert.equal(out.body.error,"daily_gmail_delta_failed");
+   const saved=f.stored["crm-execution/daily-v1/gmail-state.json"];
+   assert.equal(saved.pendingPage.offset,0);
+   assert.equal(saved.counters.scanned,0);
+   assert.equal(saved.counters.excluded,0);
+   assert.equal(saved.completed,false);
+   assert.equal(f.seen.size,0);
+   assert.equal(f.actions.filter(x=>x.type==="save").length,1);
+  }finally{f.restore();}
+ }
 });
