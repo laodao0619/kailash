@@ -77,3 +77,74 @@ test("partial batch failure retains checkpoint; replay is idempotent and then ad
     }
   }
 });
+
+test("Feishu select conversion failure halts batch, preserves cursor, and replays without lost Cases", async () => {
+  const originals = {
+    authorized: cases.authorized, allEvents: cases.allEvents, groupCases: cases.groupCases,
+    read: cases.read, save: cases.save, tenantToken: feishu.tenantToken,
+    ensureTable: writeback.ensureTable, upsertCase: writeback.upsertCase,
+  };
+  const rows = ["CASE-111111111111","CASE-222222222222","CASE-333333333333"]
+    .map(caseId => ({ caseId }));
+  let checkpoint = { offset: 0 };
+  let saved = 0, attempted = [];
+  let failSchema = true;
+  const stored = new Set();
+  const invoke = async () => {
+    const res = { code: 200, body: null, setHeader() {},
+      status(code) { this.code = code; return this; },
+      json(body) { this.body = body; return this; } };
+    await handler({ method: "GET" }, res);
+    return res;
+  };
+  const oldError = console.error;
+  try {
+    cases.authorized = () => true;
+    cases.allEvents = async () => rows;
+    cases.groupCases = () => rows;
+    cases.read = async () => checkpoint;
+    cases.save = async (_path, data) => { saved++; checkpoint = data; };
+    feishu.tenantToken = async () => "fake-token";
+    writeback.ensureTable = async () => ({ tableId: writeback.TABLE, schema: [] });
+    writeback.upsertCase = async (_token, tableId, item) => {
+      assert.equal(tableId, writeback.TABLE);
+      attempted.push(item.caseId);
+      if (failSchema && item.caseId === rows[1].caseId) {
+        throw Error("Feishu Bitable 200 / MultiSelectFieldConvFail");
+      }
+      const result = stored.has(item.caseId) ? "updated" : "created";
+      stored.add(item.caseId);
+      return result;
+    };
+    const logged = [];
+    console.error = (...args) => logged.push(args.map(String).join(" "));
+    const first = await invoke();
+    assert.equal(first.code, 502);
+    assert.equal(first.body.blockedReason, "case_schema_conversion");
+    assert.equal(first.body.processed, 2);
+    assert.equal(first.body.batchSize, 3);
+    assert.equal(first.body.failed, 1);
+    assert.deepEqual(attempted, [rows[0].caseId, rows[1].caseId]);
+    assert.equal(saved, 0);
+    assert.equal(checkpoint.offset, 0);
+    assert.equal(stored.size, 1);
+    assert.equal(logged.some(line => line.includes("schema_conversion_blocked")), true);
+
+    failSchema = false;
+    const second = await invoke();
+    assert.equal(second.code, 200);
+    assert.equal(second.body.blockedReason, null);
+    assert.equal(second.body.created, 2);
+    assert.equal(second.body.updated, 1);
+    assert.equal(stored.size, 3);
+    assert.equal(saved, 1);
+    assert.equal(checkpoint.offset, 0);
+  } finally {
+    console.error = oldError;
+    for (const [key, value] of Object.entries(originals)) {
+      if (key === "tenantToken") feishu.tenantToken = value;
+      else if (key === "ensureTable" || key === "upsertCase") writeback[key] = value;
+      else cases[key] = value;
+    }
+  }
+});
