@@ -2,7 +2,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const feishu = require("../lib/crm-feishu");
-const { upsertCase, TABLE, HUMAN, recordFields } = require("../lib/crm-case-feishu-writeback");
+const { upsertCase, TABLE, HUMAN, recordFields, assertNoHumanFields } = require("../lib/crm-case-feishu-writeback");
 
 // Match the actual approved table: four single-select fields and exactly one
 // multi-select, CRM等级（Case核验）. Never treat 问题类别 as a multi-select.
@@ -89,4 +89,29 @@ test("unknown CRM grade option fails closed before POST or PUT", async () => {
     await assert.rejects(upsertCase("fake-token",TABLE,c),/option not configured/);
     assert.equal(writes,0);
   } finally {feishu.request=originalRequest;feishu.findBy=originalFind;}
+});
+
+test("Case writer guards every human-owned field, permitting only the create-time pending state", () => {
+  for (const field of HUMAN) {
+    assert.throws(
+      () => assertNoHumanFields({ [field]: "synthetic human value" }),
+      /Refusing Case write to human-owned field/
+    );
+  }
+  assert.deepEqual(
+    assertNoHumanFields({ "任务状态": "待处理", "数据来源ID": "case:CASE-ABCDEF123456" }, { initialCreate: true }),
+    { "任务状态": "待处理", "数据来源ID": "case:CASE-ABCDEF123456" }
+  );
+  for (const forbidden of ["处理中", "已完成", "", null]) {
+    assert.throws(
+      () => assertNoHumanFields({ "任务状态": forbidden }, { initialCreate: true }),
+      /Refusing Case write to human-owned field/
+    );
+  }
+  assert.throws(
+    () => assertNoHumanFields({ "负责人": "synthetic owner", "任务状态": "待处理" }, { initialCreate: true }),
+    /human-owned field/
+  );
+  assert.throws(() => assertNoHumanFields(null), /Invalid Case write fields/);
+  assert.throws(() => assertNoHumanFields([]), /Invalid Case write fields/);
 });
