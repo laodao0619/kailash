@@ -119,6 +119,12 @@ module.exports=async(req,res)=>{
     // consent rules, and doesn't modify manually entered CRM grades or notes.
     blockedStage="feishu_batch_write";
     const result=await bulk.batchCustomers(token,valid,index);
+    // A partial or malformed acknowledgement must never mark the page done.
+    // Retrying the unchanged cursor is safe: Feishu upsert keys by Shopify GID.
+    if(!result||!Number.isSafeInteger(result.created)||result.created<0||
+       !Number.isSafeInteger(result.updated)||result.updated<0||
+       result.created+result.updated!==valid.length)
+     throw Error("Incomplete Feishu customer batch acknowledgement");
     pageCounters.created=result.created;
     pageCounters.updated=result.updated;
     pageCounters.accepted=result.created+result.updated;
