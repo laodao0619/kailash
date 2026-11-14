@@ -93,8 +93,39 @@ test("authenticated Case dryRun returns only safe counts, no upsert or checkpoin
     await handler({method:"GET", query:{dryRun:"1"}}, blocked);
     assert.equal(blocked.code,409);
     assert.equal(blocked.body.blockedReason,"case_schema_preflight");
+    assert.deepEqual(blocked.body.diagnostic, {
+      code:"field_missing", field:"任务状态"
+    });
+    assert.equal(JSON.stringify(blocked.body).includes("fake@example.invalid"),false);
     assert.equal(blocked.body.checkpointAdvanced,false);
     assert.equal(blocked.body.processed,0);
+    assert.equal(writes,0);
+    assert.equal(saves,0);
+
+    // Only known select-field labels can appear. Other schema field names
+    // are suppressed even for an authenticated diagnostic request.
+    writeback.ensureTable = async () => ({
+      tableId:writeback.TABLE,
+      schema:approvedSchema().filter(f => f.field_name !== "客户邮箱"),
+    });
+    const hiddenField = makeRes();
+    await handler({method:"GET", query:{dryRun:"1"}}, hiddenField);
+    assert.equal(hiddenField.code,409);
+    assert.deepEqual(hiddenField.body.diagnostic,{code:"field_missing",field:null});
+
+    // Real option mismatches are distinguishable from field omission without
+    // revealing Case values, email, note content or Feishu response bodies.
+    writeback.ensureTable = async () => ({
+      tableId:writeback.TABLE,
+      schema:approvedSchema().map(f => f.field_name === "CRM等级（Case核验）"
+        ? {...f, property:{options:[{name:"S+"}]}} : f),
+    });
+    const badOption = makeRes();
+    await handler({method:"GET", query:{dryRun:"1"}}, badOption);
+    assert.equal(badOption.code,409);
+    assert.deepEqual(badOption.body.diagnostic,{
+      code:"option_not_configured",field:"CRM等级（Case核验）"
+    });
     assert.equal(writes,0);
     assert.equal(saves,0);
 
