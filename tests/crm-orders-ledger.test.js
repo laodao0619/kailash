@@ -5,11 +5,15 @@ const {Readable}=require("node:stream");
 const {classifyOrder,auditJsonl}=require("../lib/crm-orders-ledger");
 const usd=n=>({shopMoney:{amount:String(n),currencyCode:"USD"}});
 function order(overrides={}){
- return {id:"gid://shopify/Order/1",createdAt:"2026-08-01T12:00:00Z",processedAt:"2026-08-01T12:00:00Z",
+ const result={id:"gid://shopify/Order/1",createdAt:"2026-08-01T12:00:00Z",processedAt:"2026-08-01T12:00:00Z",
   customer:{id:"gid://shopify/Customer/1"},displayFinancialStatus:"PARTIALLY_REFUNDED",
   currentSubtotalPriceSet:usd(80),totalRefundedSet:usd(20),transactions:[
    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
    {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}],...overrides};
+ if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
+  ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(i+1):tx.id
+ }));
+ return result;
 }
 test("net merchandise isn't reduced a second time by refund",()=>{
  const x=classifyOrder(order());assert.equal(x.eligible,true);
@@ -359,4 +363,28 @@ test("duplicate Shopify transaction IDs cannot inflate captured funds or pass ar
  assert.equal(verifyArchiveIntegrity(result,{status:"COMPLETED",downloaded:true,
   archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"1",objectCount:"2"}).status,
   "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+});
+
+test("unidentified successful payment blocks all-history evidence",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const o=order({id:"gid://shopify/Order/999",transactions:[
+  {id:null,kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+  {id:"gid://shopify/OrderTransaction/1002",kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}
+ ]});
+ assert.equal(classifyOrder(o).reason,"unverified_transaction_identity");
+ const out=await auditJsonl(Readable.from([JSON.stringify(o)+"\n"]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(out.totals.excluded.unverified_transaction_identity,1);
+ assert.equal(verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"1",objectCount:"1"}).status,
+  "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+ const bad=order({transactions:[{id:"plain-string",kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]});
+ assert.equal(classifyOrder(bad).reason,"unverified_transaction_identity");
+});
+test("failed or authorization transactions need not have settlement IDs",()=>{
+ const o=order({displayFinancialStatus:"PAID",totalRefundedSet:usd(0),transactions:[
+  {id:"gid://shopify/OrderTransaction/2001",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+  {id:null,kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)},
+  {id:null,kind:"REFUND",status:"FAILURE",amountSet:usd(20)}
+ ]});
+ assert.equal(classifyOrder(o).eligible,true);
 });
