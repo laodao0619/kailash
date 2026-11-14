@@ -7,7 +7,7 @@ const {auditJsonl,createAudit}=require("../lib/crm-orders-ledger");
 const id=n=>"gid://shopify/Customer/"+n;
 const usd=n=>({shopMoney:{amount:String(n),currencyCode:"USD"}});
 function order(n,opts={}){
- return {
+ const result={
   id:"gid://shopify/Order/"+n,
   customer:{id:id(n)},
   createdAt:"2026-10-01T00:00:00Z",
@@ -18,6 +18,10 @@ function order(n,opts={}){
   transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}],
   ...opts
  };
+ if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
+  ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(n*1000+i+1):tx.id
+ }));
+ return result;
 }
 const sampleCustomerIds=Array.from({length:7},(_,i)=>id(i+1));
 async function run(rows,ids=sampleCustomerIds,
@@ -240,4 +244,13 @@ test("seven-customer sample blocks repeated Shopify payment transaction identiti
  assert.equal(result.sampleAudit.customers[0].excluded.duplicate_transaction_ids,1);
  assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(result.sampleAudit.verified,false);
+});
+
+test("seven-customer sample flags a settled payment without verified Shopify transaction ID",async()=>{
+ const rows=[order(1,{transactions:[{id:null,kind:"SALE",status:"SUCCESS",amountSet:usd(120)}]}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.customers[0].excluded.unverified_transaction_identity,1);
+ assert.equal(out.sampleAudit.verified,false);
 });
