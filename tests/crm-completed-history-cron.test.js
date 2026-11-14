@@ -11,7 +11,7 @@ const schedules = route => crons.filter(job => job.path === route).map(job => jo
 test("completed historical Gmail backfill no longer has an automatic trigger", () => {
   // The production /api/crm-status imports.gmail.completed flag was
   // independently read as true on 2026-11-14. Do not re-enable this cron
-  // in a stale PR merge; retain the route for manually authorized diagnosis.
+  // in a future config change; retain the route for manually authorized diagnosis.
   assert.deepEqual(schedules("/api/crm-gmail-filtered"), []);
 });
 
