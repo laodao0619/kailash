@@ -123,6 +123,43 @@ test("ambiguous Feishu identity fails closed before any customer write or cursor
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+test("distinct Shopify GIDs resolving to the same Feishu record fail closed before writes",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ let writes=0,saves=0,lookups=0;
+ const reader=mock.method(state,"read",async path=>
+  path.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const token=mock.method(feishu,"tenantToken",async()=>"synthetic-token");
+ const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+  nodes:[syntheticCustomer(41),syntheticCustomer(42)],
+  pageInfo:{hasNextPage:false,endCursor:null}
+ }}));
+ const lookup=mock.method(feishu,"findBy",async()=>{
+  lookups++;
+  return [{record_id:"same-existing-customer"}];
+ });
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{
+  writes++;
+  return {created:0,updated:2};
+ });
+ const save=mock.method(state,"save",async()=>{saves++;});
+ try{
+  const response=res();
+  await handler(req,response);
+  assert.equal(response.code,502);
+  assert.equal(response.value.error,"daily_customer_delta_failed");
+  assert.equal(response.value.blockedStage,"customer_identity_lookup");
+  assert.equal(lookups,2);
+  assert.equal(writes,0,"must not overwrite the same CRM record from two customers");
+  assert.equal(saves,0,"must preserve the exact checkpoint");
+  assert.equal(JSON.stringify(response.value).includes("same-existing-customer"),false);
+ }finally{
+  for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
+
 test("repeated customer GID within a Shopify delta page is rejected before Feishu reads",async()=>{
  const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
  let lookups=0,writes=0,saves=0;
