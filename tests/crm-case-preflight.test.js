@@ -92,6 +92,17 @@ test("authenticated Case dryRun returns only safe counts, no upsert or checkpoin
     assert.equal(blocked.body.processed,0);
     assert.equal(writes,0);
     assert.equal(saves,0);
+
+    // The regular cron path must also stop before its first write when any
+    // Case schema option is unavailable, and must leave the checkpoint alone.
+    const scheduled = makeRes();
+    await handler({method:"GET", query:{}}, scheduled);
+    assert.equal(scheduled.code,409);
+    assert.equal(scheduled.body.dryRun,false);
+    assert.equal(scheduled.body.processed,0);
+    assert.equal(scheduled.body.checkpointAdvanced,false);
+    assert.equal(writes,0);
+    assert.equal(saves,0);
   } finally {
     for (const [k,v] of Object.entries(originals)) {
       if (k === "tenantToken") feishu.tenantToken = v;
