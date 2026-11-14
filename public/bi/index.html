@@ -310,10 +310,10 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <section id="customers" class="panel">
 <div class="head"><div><div class="eyebrow">客户管理 / 全量筛选</div><h2>客户列表与分群</h2></div>
 <div class="toolbar"><span class="pill" id="match-count">未加载</span><button id="export" disabled>导出当前筛选</button><button id="refresh" disabled>刷新客户索引</button></div></div>
-<div class="warn" style="margin:15px 20px 0" id="data-caveat">CRM等级及180天M/F/R来自今天既有历史回写；在完整退款/全历史财务审计完成前，不代表最终已核验账本。</div>
+<div class="warn" style="margin:15px 20px 0" id="data-caveat">客户等级按历史累计消费（不限时间）＋近180天订单数重新计算；行为RFM仍使用近180天M/F/R。源数据的完整退款与全历史财务审计待完成，当前等级为暂算。</div>
 <div class="filters">
 <div class="filter-row"><input type="search" id="q" placeholder="搜索客户姓名、邮箱、编号、地区或跟进备注">
-<label>CRM等级<select id="tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
+<label>CRM等级<select id="tier"><option value="">全部等级</option><option value="S+">S+｜专属服务客户</option><option value="S">S｜重点客户</option><option value="A">A｜成长客户</option><option value="B">B｜基础客户</option><option value="沉睡">沉睡客户</option><option>从未购买</option><option>待核验</option></select></label>
 <label>国家 / 地区<select id="country"><option value="">全部国家/地区</option></select></label>
 <label>邮件订阅<select id="subscription"><option value="">全部状态</option></select></label>
 <label>数据质量<select id="quality"><option value="">全部状态</option></select></label></div>
@@ -345,7 +345,7 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
  <div class="rfm-model-head"><div><h3>RFM 三维健康分布</h3><p class="muted">R 最近购买 · F 购买次数 · M 180天消费。立体色块分别代表8个RFM行为分群，方块体积与颜色深浅反映相对人数；遮挡的分群可旋转后查看，或点击右侧列表。</p></div>
  <div class="toolbar"><button id="rfm-reset-view">主视角 / 重置</button><button id="rfm-back-view">背视角</button><button id="rfm-save" class="primary">保存当前模型</button></div></div>
  <div class="rfm-model-filters">
- <label>客户等级<select id="rfm-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option><option>从未购买</option><option>待核验</option></select></label>
+ <label>客户等级<select id="rfm-tier"><option value="">全部等级</option><option value="S+">S+｜专属服务客户</option><option value="S">S｜重点客户</option><option value="A">A｜成长客户</option><option value="B">B｜基础客户</option><option value="沉睡">沉睡客户</option><option>从未购买</option><option>待核验</option></select></label>
  <label>AOV客群<select id="rfm-aov"><option value="all">全部客单价</option><option value="high">≥ $400</option><option value="low">＜ $400</option><option value="unknown">AOV未知</option></select></label>
  <label>R 高值阈值 (天) <input id="rfm-r" type="number" value="90" min="1" max="3650"></label>
  <label>F 高值阈值 (单) <input id="rfm-f" type="number" value="2" min="1" max="200"></label>
@@ -362,12 +362,13 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
  <p class="muted">健康度采用“R高值用户占已完整分类用户比例”，不是净利润、ROAS或业务好坏的统一结论。阈值可调整，数据来自现有CRM历史快照，最终净额仍待核验。</p>
  </div>
 <div class="rfm-layout"><div><h3>各等级客户占比</h3><div id="rfm-bars" class="rfm-bars"><p class="muted">等待客户索引…</p></div><p class="muted">点击任意等级，跳转客户列表并筛选该等级。</p></div>
-<div><h3>RFM 计算口径</h3><div class="rule-list">
-<div><b>S+</b><span>M ≥ $3,000 · R ≤ 45天 · F ≥ 5笔</span></div>
-<div><b>S</b><span>M ≥ $1,500 · R ≤ 90天 · F ≥ 3笔</span></div>
-<div><b>A</b><span>M ≥ $800 · R ≤ 180天 · F ≥ 2笔</span></div>
-<div><b>B</b><span>M ＞ $0 · R ≤ 180天 · F ≥ 1笔</span></div>
-</div><p class="muted">按S+→S→A→B顺序、三个条件同时符合；基础、沉睡、从未购买单独管理。客单价$400高低分组独立于等级。</p></div></div>
+<div><h3>客户等级 · 2026-11-12新规则</h3><div class="rule-list">
+<div><b>S+｜专属服务客户</b><span>历史累计 ≥ $3,000 · 近180天 ≥ 1单</span></div>
+<div><b>S｜重点客户</b><span>历史累计 $1,500–＜$3,000 · 近180天 ≥ 1单</span></div>
+<div><b>A｜成长客户</b><span>历史累计 $800–＜$1,500 · 近180天 ≥ 1单</span></div>
+<div><b>B｜基础客户</b><span>历史累计 ＞$0–＜$800 · 近180天 ≥ 1单</span></div>
+<div><b>沉睡客户</b><span>历史累计 ＞$0 · 近180天 0单</span></div>
+</div><p class="muted">历史消费不限时间。行为RFM独立使用近180天净消费M、距最近购买天数R及近180天订单数F；可调阈值不改变客户等级。客单价$400高低分组独立。从未购买、数据缺失及有订单但累计净消费为0的客户单独管理或待核验。</p></div></div>
 <div id="rfm-coverage" class="status">尚未完成覆盖率检查。</div>
 </div></section>
 <section id="case-center" class="panel work-module">
@@ -410,7 +411,7 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <label>分组名称<input id="audience-name" maxlength="100" placeholder="例：重要挽留 · 高客单价"></label>
 <div class="ops-fields">
 <label>RFM行为分群<select id="audience-rfm"><option value="">全部RFM分群</option><option value="HHH">重要价值 HHH</option><option value="HHL">重要保持 HHL</option><option value="HLH">重要发展 HLH</option><option value="HLL">一般发展 HLL</option><option value="LHH">重要挽留 LHH</option><option value="LHL">一般挽留 LHL</option><option value="LLH">一般价值 LLH</option><option value="LLL">一般保持 LLL</option></select></label>
-<label>CRM等级<select id="audience-tier"><option value="">全部等级</option><option>S+</option><option>S</option><option>A</option><option>B</option><option>基础客户</option><option>沉睡</option></select></label>
+<label>CRM等级<select id="audience-tier"><option value="">全部等级</option><option value="S+">S+｜专属服务客户</option><option value="S">S｜重点客户</option><option value="A">A｜成长客户</option><option value="B">B｜基础客户</option><option value="沉睡">沉睡客户</option></select></label>
 <label>客单价<select id="audience-aov"><option value="all">全部AOV</option><option value="high">≥$400</option><option value="low">＜$400</option></select></label>
 <label>国家代码/地区<input id="audience-country" placeholder="留空不限"></label>
 <label>180天最低消费<input id="audience-minM" type="number" min="0" placeholder="不限制"></label>
@@ -517,10 +518,10 @@ const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
 const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
 const state={token:"",page:1,busy:false,rows:[],total:0};
 let modules=null;
-async function request(path,params={},authenticated=true){
+async function request(path,params={},authenticated=true,timeoutMs=60000){
  const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
  const url=path+(search.size?"?"+search:"");
- const response=await fetch(url,{cache:"no-store",headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
+ const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(timeoutMs),headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
  let data={};try{data=await response.json()}catch(_){}
  if(!response.ok||!data.ok)throw Error(data.error||"http_"+response.status);
  return data;
@@ -838,7 +839,7 @@ async function profile(c){
  timelineState.view=null;timelineState.preset="180";document.querySelectorAll("[data-range]").forEach(b=>b.classList.toggle("active",b.dataset.range==="180"));$("timeline-custom").hidden=true;
  if(!$("customer-dialog").open)$("customer-dialog").showModal();
  $("customer-name").textContent=c.name||"未填写姓名";$("customer-email").textContent=c.email||"无邮箱";
- const facts=[["等级（历史快照）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
+ const facts=[["等级（新规则暂算）",c.tier],["180天净消费",money(c.m180)],["180天订单",n(c.f180)],
  ["最近购买 R",Number.isFinite(c.rDays)?n(c.rDays)+" 天":"—"],["历史累计消费",money(c.spendLifetime)],
  ["历史订单",n(c.ordersLifetime)],["国家/地区",c.country],["邮件订阅",c.subscription],["最近订单",fmt(c.lastOrderAt)]];
  $("profile-kpis").innerHTML=facts.map(x=>'<div><small>'+esc(x[0])+'</small><strong>'+esc(x[1]??"—")+'</strong></div>').join("");

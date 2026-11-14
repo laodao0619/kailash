@@ -17,7 +17,7 @@ function cell(input){
 function toCSV(rows){
  const keys=[
   ["id","Shopify客户编号"],["name","客户姓名"],["email","邮箱"],["country","国家地区"],
-  ["tier","客户等级(历史快照)"],["m180","近180天净消费(历史快照USD)"],
+  ["tier","客户等级(2026-11-12新规则暂算)"],["m180","近180天净消费(历史快照USD)"],
   ["f180","近180天有效订单数(历史快照)"],["rDays","最近购买天数R(历史快照)"],
   ["spendLifetime","历史累计消费USD"],["ordersLifetime","历史订单数"],
   ["aov","平均客单价USD"],["subscription","邮件订阅状态"],["quality","客户数据状态"],

@@ -111,7 +111,7 @@ function initialize(ctx){
   chart();listCalendar();command.suggestions(d);
  }
  let analyticsRun=0;
- async function analytics(){
+ async function analytics(force=false){
   if(!state.token)return;
   $("ops-data-state").textContent="正在读取Shopify指标…";
   const run=++analyticsRun;
@@ -119,13 +119,20 @@ function initialize(ctx){
   const start=$("ops-range-start").value,end=$("ops-range-end").value;
   try{
    if(!start||!end||start>end)throw Error("请选择有效的开始和结束日期");
-   const result=await request("/api/bi-ops-dashboard",{start,end});
+   const result=await request("/api/bi-ops-dashboard",{start,end,...(force===true?{refresh:"1"}:{})},true,45000);
    if(run!==analyticsRun)return;
    if(!result.data)throw Error("empty_shopify_analytics");
    viewAnalytics(result.data);
    $("ops-period-label").textContent="Shopify Analytics · "+start+" 至 "+end+" · 店铺时区与货币";
    if(result.stale)$("ops-data-state").textContent+=" · 云端快照待更新";
-  }catch(e){$("ops-data-state").textContent="读取失败，当前仍为上次成功数据："+e.message}
+  }catch(e){
+   if(run!==analyticsRun)return;
+   const reason=e.message==="shopify_source_not_configured"?"当前预览未接入Shopify实时经营数据，可继续验证客户等级与RFM。":/timeout|abort/i.test(e.name+" "+e.message)?"读取超时，请稍后重试。":("读取失败："+e.message);
+   $("ops-data-state").textContent=reason;
+   if(!op.data){
+    for(const id of ["ops-channel-bars","ops-customer-mix","ops-product-winners","ops-category-winners"]){const node=$(id);if(node)node.textContent="本次数据未加载。";}
+   }
+  }
   finally{if(run===analyticsRun)$("ops-range-apply").disabled=false;}
  }
  function allAudiences(){
@@ -290,7 +297,7 @@ function initialize(ctx){
  preset();$("ops-range-preset").onchange=preset;
  for(const id of ["ops-range-start","ops-range-end"])$(id).onchange=()=>{$("ops-range-preset").value="custom";};
  $("ops-range-apply").onclick=analytics;
- $("ops-refresh").onclick=analytics;
+ $("ops-refresh").onclick=()=>analytics(true);
  $("ops-products-link").onclick=()=>document.getElementById("product-center")?.scrollIntoView({behavior:"smooth"});
  document.querySelectorAll("#ops-trend-metrics input").forEach(x=>x.onchange=chart);
  $("calendar-brand-template").onclick=()=>{

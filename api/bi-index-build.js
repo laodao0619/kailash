@@ -31,7 +31,7 @@ function normalize(item){
  const f=item.fields||{};
  const gid=textValue(f["Shopify客户ID"]);
  if(!/^gid:\/\/shopify\/Customer\/\d+$/.test(gid))return null;
- return {
+ return require("../lib/crm-tier-policy").applyRow({
   id:gid.split("/").at(-1),gid,recordId:item.record_id,
   name:textValue(f["客户姓名"]),email:textValue(f["邮箱"]).toLowerCase(),
   country:textValue(f["国家地区"]),quality:textValue(f["客户数据状态"])||"未核验",
@@ -51,7 +51,7 @@ function normalize(item){
   nextFollowupAt:millis(f["建议下一次维护日期"]),
   aov:num(f["历史累计消费"])!==null&&num(f["历史订单数"])>0?
    Math.round(num(f["历史累计消费"])/num(f["历史订单数"])*100)/100:null
- };
+ });
 }
 function authorized(req){
  const expected=process.env.CRON_SECRET||"",actual=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");

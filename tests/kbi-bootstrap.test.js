@@ -22,7 +22,7 @@ test("bootstraps all 1001 existing Feishu CRM rows and supports global grade fil
     has_more:page<2,page_token:page<2?"cursor-"+(page+1):undefined,
     items:Array.from({length:count},(_,i)=>({record_id:"record-"+(base+i),fields:{
      "Shopify客户ID":"gid://shopify/Customer/"+(10000+base+i),
-     "CRM等级":(base+i)%2?"S+":"B","近180天净消费":(base+i)%2?3200:80,
+     "历史累计消费":3200,"历史订单数":6,"CRM等级":(base+i)%2?"S+":"B","近180天净消费":(base+i)%2?3200:80,
      "近180天有效订单数":(base+i)%2?5:1,"最近购买距今天数R":(base+i)%2?4:90,
      "客户姓名":"Customer "+(base+i),"邮箱":"c"+(base+i)+"@example.test",
      "客户数据状态":"有效"

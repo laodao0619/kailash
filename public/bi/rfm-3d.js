@@ -122,7 +122,7 @@ function initialize({$,request,state,esc,n}){
   document.querySelectorAll("#rfm-8segments [data-rfm-code]").forEach(b=>b.classList.toggle("active",b.dataset.rfmCode===code));
   const seg=current?.segments?.find(s=>s.code===code);
   if(seg)$("rfm-segment-detail").textContent=seg.label+"（"+code+"）· "+seg.count+"位 · 已分类客户中的"+seg.pct+
-   "% · 180天历史消费汇总 $"+seg.m180.toLocaleString()+"。R/F/M高低基于当前可调阈值，并非客户S/A/B等级。";
+   "% · 180天历史消费汇总 $"+seg.m180.toLocaleString()+"。R/F/M高低基于当前可调阈值，独立于按历史累计消费＋180天订单数计算的S+/S/A/B等级。";
   render();
  }
  function paint(){
@@ -172,6 +172,7 @@ function initialize({$,request,state,esc,n}){
   const id=$("rfm-snapshot-select").value;if(!id||!current)return;
   try{
    const d=await request("/api/bi-rfm-snapshots",{id});compare=d.snapshot;
+   if(compare.summary?.tierPolicyVersion!==current.tierPolicyVersion){$("rfm-comparison").hidden=false;$("rfm-comparison").textContent="该历史快照采用旧版客户分层口径，请保存新规则基线后再对比。";return;}
    const baseline=compare.summary;
    const same=JSON.stringify(baseline.scope)===JSON.stringify(current.scope);
    const head='<strong>保存的模型：'+esc(compare.label)+'</strong> · '+esc(new Date(compare.at).toLocaleString("zh-CN"))+

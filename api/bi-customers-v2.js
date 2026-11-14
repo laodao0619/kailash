@@ -47,6 +47,7 @@ async function snapshot(){
   try{data=await read(CURRENT);}catch(_){data=null;}
   if(!data||data.version!==2||!Array.isArray(data.customers)||data.customers.length<1000)
    data=await liveCRMScan();
+  data={...data,sourceGrading:"2026-11-12 lifetime spend + 180d orders; provisional financial audit",tierPolicyVersion:require("../lib/crm-tier-policy").POLICY_VERSION,customers:data.customers.map(require("../lib/crm-tier-policy").applyRow)};
   cache={at:Date.now(),data};return data;
  })().finally(()=>{inflight=null;});
  return inflight;
@@ -123,7 +124,8 @@ module.exports=async(req,res)=>{
    customers:view,facets:facets(data.customers),
    coverage:{
     snapshot:"existing_feishu_customer_master",
-    tier:"existing_historical_writeback_not_final_financial_audit",
+    tier:"lifetime_USD_and_180d_orders_provisional_not_final_financial_audit",
+    tierPolicyVersion:data.tierPolicyVersion,
     m180:"existing_180d_snapshot_not_full_history",
     lastUpdated:data.generatedAt
    }

@@ -15,7 +15,7 @@ function fixture(){
  };
 }
 const reviewed={complete:true,financialReconciled:true};
-test("PR4 aggregate maps to the verified Nov 8 S+ rubric only after review",()=>{
+test("PR4 aggregate maps to the verified Nov 12 lifetime S+ rubric only after review",()=>{
  const x=prepareGrades(fixture(),reviewed);
  assert.equal(x.ok,true);
  const customer=x.grades.get("gid://shopify/Customer/101");
@@ -58,4 +58,11 @@ test("zero-order customers are never inferred from the paid-order ledger",()=>{
  assert.equal(x.ok,true);
  assert.equal(x.grades.has("gid://shopify/Customer/999"),false);
  assert.equal(x.missingNeverPurchased,true);
+});
+
+test("full ledger lifetime spend governs tier even when recent spend and frequency are low",()=>{
+ const f=fixture();const c=f.customers.get("gid://shopify/Customer/101");
+ c.windowOrders=1;c.windowMerchandiseCents=2000;c.lastAt=Date.parse("2026-06-01T00:00:00Z");
+ const result=prepareGrades(f,reviewed).grades.get("gid://shopify/Customer/101");
+ assert.equal(result.tier,"S+");assert.equal(result.M,20);assert.equal(result.F,1);
 });

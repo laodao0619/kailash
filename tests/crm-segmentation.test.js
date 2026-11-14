@@ -14,9 +14,9 @@ test("missing order values cannot become low value",()=>{
  assert.equal(segment({m:null,r:30,f:2}).verified,false);
  assert.equal(grade({m:null,r:30,f:2,lifetimeOrders:4}).grade,"待核验");
 });
-test("CRM grades require every threshold",()=>{
- assert.equal(grade({m:3100,r:40,f:5,lifetimeOrders:5}).grade,"S+");
- assert.equal(grade({m:3100,r:40,f:1,lifetimeOrders:5}).grade,"B");
- assert.equal(grade({m:3100,r:190,f:5,lifetimeOrders:5}).grade,"沉睡");
- assert.equal(grade({m:0,r:0,f:0,lifetimeOrders:0}).grade,"从未购买");
+test("CRM grades use lifetime spend and one recent order",()=>{
+ assert.equal(grade({lifetimeSpendUSD:3100,r:170,f:1,lifetimeOrders:5}).grade,"S+");
+ assert.equal(grade({m:3100,r:40,f:1,lifetimeOrders:5}).grade,"待核验");
+ assert.equal(grade({lifetimeSpendUSD:3100,f:0,lifetimeOrders:5}).grade,"沉睡");
+ assert.equal(grade({lifetimeSpendUSD:0,f:0,lifetimeOrders:0}).grade,"从未购买");
 });
