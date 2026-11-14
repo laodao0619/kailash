@@ -41,6 +41,15 @@ module.exports=async(req,res)=>{
    const filter="updated_at:>="+checkpoint.windowStart;
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
    if(!response?.customers?.nodes||!response.customers.pageInfo)throw Error("Malformed customer delta response");
+   const pageInfo=response.customers.pageInfo;
+   // A non-advancing or missing cursor would replay already-written rows
+   // indefinitely. Validate it before any Feishu lookups or writes.
+   if(typeof pageInfo.hasNextPage!=="boolean"||
+      (pageInfo.hasNextPage&&(
+       typeof pageInfo.endCursor!=="string"||
+       !pageInfo.endCursor.trim()||
+       pageInfo.endCursor===checkpoint.cursor)))
+    throw Error("Invalid or non-advancing Shopify customer delta cursor");
    const pageCounters={excluded:0,created:0,updated:0,accepted:0};
    const valid=[],index=new Map();
    for(const c of response.customers.nodes){
