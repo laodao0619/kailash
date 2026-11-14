@@ -43,7 +43,9 @@ module.exports=async(req,res)=>{
   while(pages<6&&Date.now()-began<90000){
    const filter="updated_at:>="+checkpoint.windowStart;
    blockedStage="shopify_page";
+   const shopifyPageStarted=Date.now();
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
+   const shopifyPageMs=Date.now()-shopifyPageStarted;
    if(!response?.customers?.nodes||!response.customers.pageInfo)throw Error("Malformed customer delta response");
    const pageInfo=response.customers.pageInfo;
    // A non-advancing or missing cursor would replay already-written rows
@@ -70,6 +72,7 @@ module.exports=async(req,res)=>{
    // Resolve *all* identities before any batch write. A failed/ambiguous
    // lookup must leave both Feishu and the saved page cursor untouched.
    blockedStage="customer_identity_lookup";
+   const identityLookupStarted=Date.now();
    const ids=valid.map(c=>c.id);
    if(new Set(ids).size!==ids.length)throw Error("Duplicate Shopify customer identity in delta page");
    const LOOKUP_BATCH=3;
@@ -88,11 +91,14 @@ module.exports=async(req,res)=>{
    // every Feishu customer identity, then exits without writing customer
    // records, checkpoints, or historical baselines. Return only aggregate
    // counts; never return Shopify GIDs, emails, cursors, or Feishu IDs.
+   const identityLookupMs=Date.now()-identityLookupStarted;
    if(req.query?.dryRun==="1"){
     return res.status(200).json({ok:true,dryRun:true,
      mode:"daily_customer_delta",checkpointAdvanced:false,
      scannedOnPage:response.customers.nodes.length,
      eligibleOnPage:valid.length,excludedOnPage:pageCounters.excluded,
+     matchedExistingOnPage:index.size,unmatchedNewOnPage:valid.length-index.size,
+     stageLatencyMs:{shopifyPage:shopifyPageMs,feishuIdentity:identityLookupMs},
      hasNextPage:pageInfo.hasNextPage});
    }
    if(valid.length){
