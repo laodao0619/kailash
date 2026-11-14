@@ -26,6 +26,10 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authorized(req))return res.status(401).json({ok:false});
  try{
+  // Never initiate a full-history export just because a preview or cron was deployed.
+  // Merchant opt-in is required independently of Shopify API scopes.
+  if(!bulk.isExplicitBulkExportEnabled(process.env))
+   return res.status(200).json({ok:true,paused:true,reason:"bulk_requires_explicit_approval"});
   const scopes=await shopify.orderAccess();
   if(!scopes.read_orders||!scopes.read_all_orders||!scopes.read_products)
    return res.status(200).json({ok:true,paused:true,reason:"missing_shopify_scopes",scopes});
