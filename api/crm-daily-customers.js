@@ -84,6 +84,17 @@ module.exports=async(req,res)=>{
      if(existing.length===1)index.set(batch[i].id,existing[0].record_id);
     }
    }
+   // Authorized diagnostic reads the exact unfinished page and validates
+   // every Feishu customer identity, then exits without writing customer
+   // records, checkpoints, or historical baselines. Return only aggregate
+   // counts; never return Shopify GIDs, emails, cursors, or Feishu IDs.
+   if(req.query?.dryRun==="1"){
+    return res.status(200).json({ok:true,dryRun:true,
+     mode:"daily_customer_delta",checkpointAdvanced:false,
+     scannedOnPage:response.customers.nodes.length,
+     eligibleOnPage:valid.length,excludedOnPage:pageCounters.excluded,
+     hasNextPage:pageInfo.hasNextPage});
+   }
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
     // consent rules, and doesn't modify manually entered CRM grades or notes.
