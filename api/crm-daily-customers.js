@@ -95,7 +95,7 @@ module.exports=async(req,res)=>{
      }
     }
    }
-   // Authorized diagnostic reads the exact unfinished page and validates
+   // A Feishu record must never be shared by different Shopify identities.\n   // Reject the whole page before any update to prevent customer record clobbering.\n   const existingRecordIds=[...index.values()];\n   if(new Set(existingRecordIds).size!==existingRecordIds.length)\n    throw Error("Duplicate Feishu record identity in customer delta page");\n   // Authorized diagnostic reads the exact unfinished page and validates
    // every Feishu customer identity, then exits without writing customer
    // records, checkpoints, or historical baselines. Return only aggregate
    // counts; never return Shopify GIDs, emails, cursors, or Feishu IDs.
