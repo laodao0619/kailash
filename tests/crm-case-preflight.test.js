@@ -38,7 +38,12 @@ function makeRes() {
 
 test("preflight checks every Case, including create-only task status, without Feishu requests", () => {
   const schema = approvedSchema();
-  assert.equal(writeback.preflightCaseBatch([example, example], schema), 2);
+  const differentCase = {...example, caseId: "CASE-ABCDEF012345"};
+  assert.equal(writeback.preflightCaseBatch([example, differentCase], schema), 2);
+  assert.throws(
+    () => writeback.preflightCaseBatch([example, example], schema),
+    /Duplicate Case ID in batch/,
+  );
   assert.throws(
     () => writeback.preflightCaseBatch([example, {...example, crmVerified: true, crmGrade: "legacy"}], schema),
     /option not configured/,
