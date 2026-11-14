@@ -422,7 +422,8 @@ test("incomplete or malformed Feishu batch acknowledgements preserve customer cu
     nodes:[syntheticCustomer(71),syntheticCustomer(72)],
     pageInfo:{hasNextPage:true,endCursor:"opaque-next"}
    }}));
-   const lookup=mock.method(feishu,"findBy",async()=>[{record_id:"record-unique"}]);
+   const lookup=mock.method(feishu,"findBy",async (_t,_tb,_field,id)=>
+    [{record_id:"record-"+id.split("/").pop()}]);
    const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return ack;});
    const save=mock.method(state,"save",async()=>{saves++;});
    try{
