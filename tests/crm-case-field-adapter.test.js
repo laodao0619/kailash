@@ -84,3 +84,17 @@ test("malformed Feishu schema names and types fail closed", () => {
     /invalid type/
   );
 });
+
+test("single-select rejects non-string scalars and malformed arrays before Feishu writes", () => {
+  for (const invalid of [42, true, {name:"Gmail"}, [], ["Gmail","Gmail"], [null], "   "]) {
+    assert.throws(
+      () => adaptFields({"沟通渠道":invalid},schema),
+      /Invalid single-select value/
+    );
+  }
+});
+test("single-select accepts one trimmed configured option; null and empty are omitted", () => {
+  assert.deepEqual(adaptFields({"沟通渠道":[" Gmail "]},schema),{"沟通渠道":"Gmail"});
+  assert.deepEqual(adaptFields({"沟通渠道":null},schema),{});
+  assert.deepEqual(adaptFields({"沟通渠道":""},schema),{});
+});
