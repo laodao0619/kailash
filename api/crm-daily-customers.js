@@ -51,9 +51,23 @@ module.exports=async(req,res)=>{
      continue;
     }
     valid.push(c);
-    const existing=await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id);
-    if(existing.length>1)throw Error("Ambiguous Shopify identity in CRM mirror");
-    if(existing.length===1)index.set(c.id,existing[0].record_id);
+   }
+   // Read-only, bounded concurrency cuts latency without a whole-table scan.
+   // Resolve *all* identities before any batch write. A failed/ambiguous
+   // lookup must leave both Feishu and the saved page cursor untouched.
+   const ids=valid.map(c=>c.id);
+   if(new Set(ids).size!==ids.length)throw Error("Duplicate Shopify customer identity in delta page");
+   const LOOKUP_BATCH=3;
+   for(let offset=0;offset<valid.length;offset+=LOOKUP_BATCH){
+    const batch=valid.slice(offset,offset+LOOKUP_BATCH);
+    const matches=await Promise.all(batch.map(c=>
+     feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id)));
+    for(let i=0;i<batch.length;i++){
+     const existing=matches[i];
+     if(!Array.isArray(existing)||existing.length>1)
+      throw Error("Ambiguous Shopify identity in CRM mirror");
+     if(existing.length===1)index.set(batch[i].id,existing[0].record_id);
+    }
    }
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
