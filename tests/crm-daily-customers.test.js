@@ -146,3 +146,44 @@ test("repeated customer GID within a Shopify delta page is rejected before Feish
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+test("invalid Shopify cursor never writes Feishu customers or advances private checkpoint",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ try{
+  for(const [label,pageInfo,priorCursor] of [
+   ["missing next cursor",{hasNextPage:true,endCursor:null},null],
+   ["blank next cursor",{hasNextPage:true,endCursor:"  "},null],
+   ["repeated next cursor",{hasNextPage:true,endCursor:"old-cursor"},"old-cursor"],
+   ["malformed pageInfo",{hasNextPage:"true",endCursor:"next-cursor"},null]
+  ]){
+   let lookups=0,writes=0,saves=0;
+   const checkpoint={version:2,day:"2026-11-14",slot:"before_close",
+    slotKey:"2026-11-14/before_close",windowStart:"2026-11-12T01:00:00.000Z",
+    cursor:priorCursor,completed:false,counters:{
+     scanned:30,accepted:30,excluded:0,created:0,updated:30,duplicates:0,pages:1}};
+   const reader=mock.method(state,"read",async path=>path.includes("import-cursor")?
+    {shopifyCycleComplete:true}:checkpoint);
+   const token=mock.method(feishu,"tenantToken",async()=> "synthetic-token");
+   const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+    nodes:[syntheticCustomer(9)],pageInfo}}));
+   const lookup=mock.method(feishu,"findBy",async()=>{lookups++;return [];});
+   const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return {created:1,updated:0};});
+   const save=mock.method(state,"save",async()=>{saves++;});
+   try{
+    const response=res();await handler(req,response);
+    assert.equal(response.code,502,label);
+    assert.equal(response.value.retryable,true,label);
+    assert.equal(lookups,0,label);
+    assert.equal(writes,0,label);
+    assert.equal(saves,0,label);
+    assert.equal(checkpoint.cursor,priorCursor,label);
+    assert.equal(checkpoint.counters.scanned,30,label);
+   }finally{
+    for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+   }
+  }
+ }finally{
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
