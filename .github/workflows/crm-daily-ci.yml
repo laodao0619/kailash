@@ -34,9 +34,10 @@ jobs:
           node --check tests/crm-daily-customers.test.js
           node --check tests/crm-daily-orders.test.js
           node --check tests/crm-daily-gmail.test.js
+          node --check tests/crm-daily-gmail-checkpoint.test.js
           node --check tests/crm-daily-cron.test.js
       - name: Verify cron is incremental-only
         run: |
-          node -e 'const c=require("./vercel.json").crons;const names=c.map(x=>x.path);if(names.some(x=>["/api/crm-backfill","/api/crm-gmail-stage","/api/crm-orders-stage","/api/crm-orders-reconcile"].includes(x)))process.exit(1);for(const name of ["/api/crm-daily-customers","/api/crm-daily-orders","/api/crm-daily-gmail","/api/crm-gmail-filtered"])if(!names.includes(name))process.exit(1)'
+          node -e 'const c=require("./vercel.json").crons;const names=c.map(x=>x.path);if(names.some(x=>["/api/crm-backfill","/api/crm-gmail-stage","/api/crm-gmail-filtered","/api/crm-orders-stage","/api/crm-orders-reconcile"].includes(x)))process.exit(1);for(const name of ["/api/crm-daily-customers","/api/crm-daily-orders","/api/crm-daily-gmail"])if(!names.includes(name))process.exit(1)'
       - name: Run pure and mock connector tests
-        run: node --test tests/crm-daily-state.test.js tests/crm-daily-customers.test.js tests/crm-daily-orders.test.js tests/crm-daily-gmail.test.js tests/crm-daily-cron.test.js
+        run: node --test tests/crm-daily-state.test.js tests/crm-daily-customers.test.js tests/crm-daily-orders.test.js tests/crm-daily-gmail.test.js tests/crm-daily-gmail-checkpoint.test.js tests/crm-daily-cron.test.js

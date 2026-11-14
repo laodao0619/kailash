@@ -7,6 +7,13 @@ async function readJson(path){
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
  }catch{return null;}
 }
+// Only expose aggregate continuation progress. Never reveal private Gmail IDs,
+// continuation tokens or the complete checkpoint through this public status API.
+function pendingGmailProgress(page){
+  if(!page||!Array.isArray(page.ids)||!Number.isSafeInteger(page.offset)||
+     page.offset<0||page.offset>page.ids.length)return null;
+  return {page_size:page.ids.length,processed:page.offset,remaining:page.ids.length-page.offset};
+}
 module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
   if(req.method!=="GET") return res.status(405).json({ok:false});
@@ -42,11 +49,18 @@ module.exports=async(req,res)=>{
       },
       daily_incremental:{
         customers:{started:!!dailyCustomers,completed:!!dailyCustomers?.completed,day:dailyCustomers?.day||null,
+          slot:dailyCustomers?.slot||null,slot_key:dailyCustomers?.slotKey||null,
+          completed_at:dailyCustomers?.completedAt||null,
           updated_at:dailyCustomers?.updatedAt||null,totals:dailyCustomers?.counters||null},
         orders:{started:!!dailyOrders,completed:!!dailyOrders?.completed,day:dailyOrders?.day||null,
+          slot:dailyOrders?.slot||null,slot_key:dailyOrders?.slotKey||null,
+          completed_at:dailyOrders?.completedAt||null,
           updated_at:dailyOrders?.updatedAt||null,totals:dailyOrders?.counters||null},
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
-          updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null}
+          slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,
+          completed_at:dailyGmail?.completedAt||null,
+          updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null,
+          pending_page:pendingGmailProgress(dailyGmail?.pendingPage)}
       },
       customer_cases:{
         started:!!caseSync,
@@ -77,3 +91,5 @@ module.exports=async(req,res)=>{
     });
   }catch(e){return res.status(502).json({ok:false,status:"unavailable"});}
 };
+
+module.exports.pendingGmailProgress=pendingGmailProgress;
