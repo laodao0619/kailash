@@ -5,6 +5,26 @@ const writeback = require("../lib/crm-case-feishu-writeback");
 
 const STATE = "crm-cases/v1/feishu-writeback-state.json";
 const BATCH_LIMIT = 40;
+// Authenticated UAT may expose a fixed diagnostic code and a known field label,
+// never source Case text, customer values, Feishu response bodies or tokens.
+const SAFE_PREFLIGHT_FIELDS = new Set([
+  "CRM等级（Case核验）", "问题类别", "任务优先级", "沟通渠道", "沟通方向", "任务状态"
+]);
+function safePreflightDiagnostic(error) {
+  const message = String(error?.message || error);
+  let code = "schema_mismatch";
+  if (/Duplicate Case ID/.test(message)) code = "duplicate_case_id";
+  else if (/Invalid Case ID/.test(message)) code = "invalid_case_id";
+  else if (/select option not configured/.test(message)) code = "option_not_configured";
+  else if (/select options unavailable/.test(message)) code = "select_options_missing";
+  else if (/schema missing:/.test(message)) code = "field_missing";
+  else if (/duplicate field name/.test(message)) code = "duplicate_schema_field";
+  else if (/Invalid (?:single|multi)-select value/.test(message)) code = "invalid_select_value";
+  else if (/human-owned field/.test(message)) code = "human_field_guard";
+  const match = message.match(/(?:for:|missing:|mismatch:) (.+)$/);
+  const candidate = match ? match[1].trim() : null;
+  return { code, field: SAFE_PREFLIGHT_FIELDS.has(candidate) ? candidate : null };
+}
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ ok: false });
@@ -26,12 +46,13 @@ module.exports = async (req, res) => {
     try {
       checked = writeback.preflightCaseBatch(batch, schema);
     } catch (err) {
-      const message = String(err.message || err);
-      // Log only the fixed schema error category, not a Case or its contents.
-      console.error("[crm-cases-feishu] schema preflight blocked",
-        /Invalid Case ID/.test(message) ? "invalid_id" : "field_or_option_mismatch");
+      const diagnostic = safePreflightDiagnostic(err);
+      // The scheduled cron emits only a fixed error code. The authorized
+      // dryRun exposes only known schema field labels for isolated diagnosis.
+      console.error("[crm-cases-feishu] schema preflight blocked", diagnostic.code);
       return res.status(409).json({
         ok: false, dryRun, blockedReason: "case_schema_preflight",
+        ...(dryRun ? { diagnostic } : {}),
         totalCases: grouped.length, processed: 0,
         checkpointAdvanced: false,
       });
