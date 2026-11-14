@@ -74,6 +74,9 @@ module.exports=async(req,res)=>{
    blockedStage="customer_identity_lookup";
    const identityLookupStarted=Date.now();
    const ids=valid.map(c=>c.id);
+   // A missing/malformed customer GID must never become an accidental new CRM row.
+   if(ids.some(id=>typeof id!=="string"||!/^gid:\/\/shopify\/Customer\/[1-9][0-9]*$/.test(id)))
+    throw Error("Invalid Shopify customer identity in delta page");
    if(new Set(ids).size!==ids.length)throw Error("Duplicate Shopify customer identity in delta page");
    const LOOKUP_BATCH=3;
    for(let offset=0;offset<valid.length;offset+=LOOKUP_BATCH){
@@ -84,7 +87,12 @@ module.exports=async(req,res)=>{
      const existing=matches[i];
      if(!Array.isArray(existing)||existing.length>1)
       throw Error("Ambiguous Shopify identity in CRM mirror");
-     if(existing.length===1)index.set(batch[i].id,existing[0].record_id);
+     if(existing.length===1){
+      const recordId=existing[0]?.record_id;
+      if(typeof recordId!=="string"||!recordId.trim())
+       throw Error("Malformed Feishu customer identity reference");
+      index.set(batch[i].id,recordId);
+     }
     }
    }
    // Authorized diagnostic reads the exact unfinished page and validates
