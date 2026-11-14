@@ -165,8 +165,8 @@ test("fully refunded orders reconcile successful refund evidence even when exclu
  });
  assert.deepEqual(classifyOrder(full),{eligible:false,reason:"fully_refunded_or_zero"});
  const missingRefund=order({...full,id:"gid://shopify/Order/202",
-  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
-   {kind:"REFUND",status:"FAILURE",amountSet:usd(100)}]});
+  transactions:[{id:"gid://shopify/OrderTransaction/2021",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/2022",kind:"REFUND",status:"FAILURE",amountSet:usd(100)}]});
  assert.deepEqual(classifyOrder(missingRefund),{eligible:false,reason:"refunded_order_refund_mismatch"});
  const unknownRefund=order({...full,id:"gid://shopify/Order/203",
   transactions:[{kind:"REFUND",status:"SUCCESS",amountSet:usd("0.005")}]});
@@ -197,7 +197,8 @@ test("refunds exceeding proven settled captures block both paid and fully refund
    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
    {kind:"REFUND",status:"SUCCESS",amountSet:usd(120)}]});
  const full=order({...partial,id:"gid://shopify/Order/302",
-  displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(0)});
+  displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(0),
+  transactions:partial.transactions.map((tx,i)=>({...tx,id:"gid://shopify/OrderTransaction/"+(3021+i)}))});
  for(const row of [partial,full])assert.deepEqual(classifyOrder(row),{
   eligible:false,reason:"refund_exceeds_captured"});
  const result=await auditJsonl(Readable.from([
