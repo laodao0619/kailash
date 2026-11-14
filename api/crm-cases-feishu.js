@@ -18,6 +18,29 @@ module.exports = async (req, res) => {
     const state = await cases.read(STATE) || { offset: 0 };
     const start = Number(state.offset) >= grouped.length ? 0 : Number(state.offset) || 0;
     const batch = grouped.slice(start, start + BATCH_LIMIT);
+    // Authenticated, read-only UAT mode: checks the real approved Feishu
+    // field schema/options and the next Case batch; never writes or advances
+    // the checkpoint. No source events or customer PII in the response.
+    const dryRun = req.query?.dryRun === "1";
+    let checked;
+    try {
+      checked = writeback.preflightCaseBatch(batch, schema);
+    } catch (err) {
+      const message = String(err.message || err);
+      // Log only the fixed schema error category, not a Case or its contents.
+      console.error("[crm-cases-feishu] schema preflight blocked",
+        /Invalid Case ID/.test(message) ? "invalid_id" : "field_or_option_mismatch");
+      return res.status(409).json({
+        ok: false, dryRun, blockedReason: "case_schema_preflight",
+        totalCases: grouped.length, processed: 0,
+        checkpointAdvanced: false,
+      });
+    }
+    if (dryRun) return res.status(200).json({
+      ok: true, dryRun: true, tableId, checked,
+      totalCases: grouped.length, processed: 0,
+      checkpointAdvanced: false,
+    });
     const result = { created: 0, updated: 0, failed: 0 };
     let attempted = 0;
     let blockedReason = null;
