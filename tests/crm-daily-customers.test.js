@@ -241,3 +241,73 @@ test("checkpoint save failure is distinguished from Shopify and Feishu writes",a
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+test("authorized customer dryRun inspects the exact unfinished page without any writes or checkpoint movement",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ const checkpoint={version:2,day:"2026-11-12",slot:"after_store_midnight",
+  slotKey:"2026-11-12/after_store_midnight",windowStart:"2026-11-11T00:00:00.000Z",
+  cursor:"opaque-prior",completed:false,
+  counters:{scanned:570,accepted:570,excluded:0,created:0,updated:570,duplicates:0,pages:19}};
+ let lookups=0,writes=0,saves=0,queries=0;
+ const reader=mock.method(state,"read",async path=>
+  path.includes("import-cursor")?{shopifyCycleComplete:true}:checkpoint);
+ const token=mock.method(feishu,"tenantToken",async()=> "synthetic-token");
+ const query=mock.method(shopify,"queryShopify",async(_q,vars)=>{
+  queries++;
+  assert.equal(vars.cursor,"opaque-prior");
+  return {customers:{nodes:[syntheticCustomer(1),syntheticCustomer(2)],
+   pageInfo:{hasNextPage:true,endCursor:"opaque-next"}}};
+ });
+ const lookup=mock.method(feishu,"findBy",async()=>{
+  lookups++;return [{record_id:"existing-synthetic-record"}];
+ });
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{
+  writes++;throw Error("dryRun must never write");
+ });
+ const save=mock.method(state,"save",async()=>{
+  saves++;throw Error("dryRun must never advance");
+ });
+ try{
+  const response=res();
+  await handler({...req,query:{dryRun:"1"}},response);
+  assert.equal(response.code,200);
+  assert.equal(response.value.ok,true);
+  assert.equal(response.value.dryRun,true);
+  assert.equal(response.value.scannedOnPage,2);
+  assert.equal(response.value.eligibleOnPage,2);
+  assert.equal(response.value.excludedOnPage,0);
+  assert.equal(response.value.hasNextPage,true);
+  assert.equal(response.value.checkpointAdvanced,false);
+  assert.equal(queries,1,"diagnostic never fetches a second page");
+  assert.equal(lookups,2);
+  assert.equal(writes,0);
+  assert.equal(saves,0);
+  assert.equal(checkpoint.cursor,"opaque-prior");
+  assert.equal(checkpoint.counters.scanned,570);
+  const publicResult=JSON.stringify(response.value);
+  assert.equal(publicResult.includes("opaque-"),false);
+  assert.equal(publicResult.includes("buyer"),false);
+  assert.equal(publicResult.includes("existing-synthetic-record"),false);
+ }finally{
+  for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
+
+test("unauthorized customer dryRun cannot access Shopify or Feishu",async()=>{
+ const read=mock.method(state,"read",async()=>{throw Error("unauthorized baseline read");});
+ const query=mock.method(shopify,"queryShopify",async()=>{throw Error("unauthorized Shopify read");});
+ const feishuToken=mock.method(feishu,"tenantToken",async()=>{throw Error("unauthorized Feishu read");});
+ try{
+  const response=res();
+  await handler({method:"GET",headers:{},query:{dryRun:"1"}},response);
+  assert.equal(response.code,401);
+  assert.equal(read.mock.callCount(),0);
+  assert.equal(query.mock.callCount(),0);
+  assert.equal(feishuToken.mock.callCount(),0);
+ }finally{
+  for(const x of [read,query,feishuToken])x.mock.restore();
+ }
+});
