@@ -388,3 +388,47 @@ test("failed or authorization transactions need not have settlement IDs",()=>{
  ]});
  assert.equal(classifyOrder(o).eligible,true);
 });
+
+test("a settled transaction reused across orders blocks both archive and seven-customer finance sample",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const customerIds=Array.from({length:7},(_,i)=>"gid://shopify/Customer/"+(7801+i));
+ const rows=[];
+ for(let i=0;i<7;i++){
+  const id="gid://shopify/Order/"+(7801+i);
+  rows.push(order({id,customer:{id:customerIds[i]},displayFinancialStatus:"PAID",
+   currentSubtotalPriceSet:usd(100),totalRefundedSet:usd(0),transactions:[
+    {id:"gid://shopify/OrderTransaction/"+(i<2?9001:9001+i),
+     kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]}));
+  rows.push({__parentId:id,id:"gid://shopify/LineItem/"+(7801+i),
+   title:"Pendant",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(100)});
+ }
+ const archived={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"7",objectCount:"14"};
+ const out=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:customerIds,
+  sampleExpectedOrderCounts:Object.fromEntries(customerIds.map(id=>[id,1]))
+ });
+ assert.equal(out.totals.duplicateTransactionIdsAcrossOrders,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_TRANSACTION_IDS_REUSED_ACROSS_ORDERS");
+ assert.equal(verifyArchiveIntegrity(out,archived).status,"BLOCKED_TRANSACTION_ASSOCIATION_INTEGRITY");
+ assert.equal(out.sampleAudit.verified,false);
+ // Identity uniqueness is independent of settled totals; no inferred financial signoff.
+ assert.equal(out.totals.eligible,7);
+});
+
+test("different settled transaction IDs across orders do not trigger false association failures",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const orders=[1,2].map(i=>order({id:"gid://shopify/Order/"+(8100+i),
+  transactions:[{id:"gid://shopify/OrderTransaction/"+(8200+i),
+   kind:"SALE",status:"SUCCESS",amountSet:usd(100)}],
+  currentSubtotalPriceSet:usd(100),totalRefundedSet:usd(0),displayFinancialStatus:"PAID"}));
+ const rows=orders.flatMap((o,i)=>[o,{__parentId:o.id,id:"gid://shopify/LineItem/"+(8100+i),
+  title:"Pendant",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(100)}]);
+ const out=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"
+ });
+ assert.equal(out.totals.duplicateTransactionIdsAcrossOrders,0);
+ assert.equal(verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"2",objectCount:"4"}).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
