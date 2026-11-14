@@ -187,3 +187,57 @@ test("invalid Shopify cursor never writes Feishu customers or advances private c
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+
+test("customer identity failure returns safe stage without PII, write, or cursor advance",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ let writes=0,saves=0;
+ const reader=mock.method(state,"read",async path=>path.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const token=mock.method(feishu,"tenantToken",async()=> "synthetic-token");
+ const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+  nodes:[syntheticCustomer(5)],pageInfo:{hasNextPage:false,endCursor:null}
+ }}));
+ const lookup=mock.method(feishu,"findBy",async()=>{throw Error("secret-customer@example.invalid and secret-token");});
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return {created:1,updated:0};});
+ const save=mock.method(state,"save",async()=>{saves++;});
+ try{
+  const response=res();await handler(req,response);
+  assert.equal(response.code,502);
+  assert.equal(response.value.blockedStage,"customer_identity_lookup");
+  assert.equal(response.value.error,"daily_customer_delta_failed");
+  assert.equal(JSON.stringify(response.value).includes("secret-"),false);
+  assert.equal(writes,0);
+  assert.equal(saves,0);
+ }finally{
+  for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
+
+test("checkpoint save failure is distinguished from Shopify and Feishu writes",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ let writes=0,saves=0;
+ const reader=mock.method(state,"read",async path=>path.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const token=mock.method(feishu,"tenantToken",async()=> "synthetic-token");
+ const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+  nodes:[syntheticCustomer(7)],pageInfo:{hasNextPage:false,endCursor:null}
+ }}));
+ const lookup=mock.method(feishu,"findBy",async()=>[]);
+ const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return {created:1,updated:0};});
+ const save=mock.method(state,"save",async()=>{saves++;throw Error("private blob write failed");});
+ try{
+  const response=res();await handler(req,response);
+  assert.equal(response.code,502);
+  assert.equal(response.value.blockedStage,"checkpoint_save");
+  assert.equal(response.value.retryable,true);
+  assert.equal(writes,1,"idempotent upsert can be retried against unchanged cursor");
+  assert.equal(saves,1);
+ }finally{
+  for(const x of [reader,token,query,lookup,upsert,save])x.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
