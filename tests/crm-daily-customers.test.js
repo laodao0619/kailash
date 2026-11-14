@@ -260,7 +260,7 @@ test("authorized customer dryRun inspects the exact unfinished page without any 
    pageInfo:{hasNextPage:true,endCursor:"opaque-next"}}};
  });
  const lookup=mock.method(feishu,"findBy",async()=>{
-  lookups++;return [{record_id:"existing-synthetic-record"}];
+  lookups++;return lookups===1?[{record_id:"existing-synthetic-record"}]:[];
  });
  const upsert=mock.method(bulk,"batchCustomers",async()=>{
   writes++;throw Error("dryRun must never write");
@@ -277,6 +277,12 @@ test("authorized customer dryRun inspects the exact unfinished page without any 
   assert.equal(response.value.scannedOnPage,2);
   assert.equal(response.value.eligibleOnPage,2);
   assert.equal(response.value.excludedOnPage,0);
+  assert.equal(response.value.matchedExistingOnPage,1);
+  assert.equal(response.value.unmatchedNewOnPage,1);
+  assert.ok(Number.isInteger(response.value.stageLatencyMs.shopifyPage));
+  assert.ok(response.value.stageLatencyMs.shopifyPage>=0);
+  assert.ok(Number.isInteger(response.value.stageLatencyMs.feishuIdentity));
+  assert.ok(response.value.stageLatencyMs.feishuIdentity>=0);
   assert.equal(response.value.hasNextPage,true);
   assert.equal(response.value.checkpointAdvanced,false);
   assert.equal(queries,1,"diagnostic never fetches a second page");
