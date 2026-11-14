@@ -68,11 +68,13 @@ module.exports=async(req,res)=>{
      if(!email)checkpoint.counters.excluded++;
      else{
       const owners=await feishu.findBy(feishuToken,TABLE,"邮箱",email);
-      if(owners.length!==1||owners[0]?.fields?.["客户数据状态"]==="待人工复核")
+      if(owners.length>1)throw Error("Ambiguous customer email identity in CRM Gmail delta");
+      if(owners.length===0||owners[0]?.fields?.["客户数据状态"]==="待人工复核")
        checkpoint.counters.excluded++;
       else{
        const prior=await feishu.findBy(feishuToken,"tblNi7C5q5FYlG06","数据来源ID","gmail:"+c.id);
-       if(prior.length)checkpoint.counters.duplicates++;
+       if(prior.length>1)throw Error("Duplicate Gmail source identity in CRM delta");
+       if(prior.length===1)checkpoint.counters.duplicates++;
        else{
         const result=await feishu.upsertGmail(feishuToken,{...c,customerEmail:email});
         checkpoint.counters[result==="created"?"created":"updated"]++;
