@@ -3,12 +3,19 @@ const test=require("node:test"),assert=require("node:assert/strict"),{mock}=requ
 const handler=require("../api/crm-daily-gmail");
 const state=require("../lib/crm-daily-state"),gmail=require("../lib/crm-gmail"),feishu=require("../lib/crm-feishu");
 function res(){return{code:200,body:null,setHeader(){},status(n){this.code=n;return this;},json(v){this.body=v;return this;}};}
-function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,compactIdOverride=null}={}){
+function setup({pages,failOnce=null,repeatCursor=false,messageIdOverride=null,compactIdOverride=null,failSaveOnceAtOffset=null}={}){
  const restores=[],stored={},seen=new Set(),actions=[];
  const spy=(obj,k,fn)=>{const s=mock.method(obj,k,fn);restores.push(s);return s;};
  spy(state,"authorized",()=>true);
  spy(state,"read",async p=>p.includes("gmail-filtered-cursor")?{finished:true}:p.includes("import-cursor")?{shopifyCycleComplete:true}:structuredClone(stored[p]||null));
- spy(state,"save",async(p,v)=>{stored[p]=structuredClone(v);actions.push({type:"save",offset:v.pendingPage?.offset,cursor:v.cursor,complete:v.completed});});
+ let pendingSaveFailure=failSaveOnceAtOffset;
+ spy(state,"save",async(p,v)=>{
+  if(pendingSaveFailure!==null&&v.pendingPage?.offset===pendingSaveFailure){
+   pendingSaveFailure=null;actions.push({type:"save-failed",offset:v.pendingPage.offset});
+   throw Error("Synthetic private checkpoint write failure");
+  }
+  stored[p]=structuredClone(v);actions.push({type:"save",offset:v.pendingPage?.offset,cursor:v.cursor,complete:v.completed});
+ });
  spy(gmail,"token",async()=>"g");
  spy(feishu,"tenantToken",async()=>"f");
  spy(gmail,"listMessages",async(_t,a)=>{
@@ -148,4 +155,25 @@ test("mismatched Gmail response or compacted ID blocks Feishu writes and cursor 
    assert.equal(f.actions.filter(x=>x.type==="save").length,1);
   }finally{f.restore();}
  }
+});
+
+
+test("checkpoint save fails after Feishu creates: retry deduplicates without duplicate Case or skipped Gmail ID",async()=>{
+ const f=setup({pages:[["mail-a","mail-b"]],failSaveOnceAtOffset:1});
+ try{
+  const first=res();await handler({method:"GET",headers:{}},first);
+  assert.equal(first.code,502);
+  assert.equal(f.seen.size,1); // Feishu write succeeded before private state write failed.
+  assert.equal(f.stored["crm-execution/daily-v1/gmail-state.json"].pendingPage.offset,0);
+  assert.equal(f.actions.filter(x=>x.type==="save-failed").length,1);
+  const second=res();await handler({method:"GET",headers:{}},second);
+  assert.equal(second.code,200);
+  assert.equal(second.body.completed,true);
+  assert.equal(f.seen.size,2); // No duplicate record; mail-b was not lost.
+  assert.equal(second.body.counters.created,1);
+  assert.equal(second.body.counters.duplicates,1);
+  assert.deepEqual(f.actions.filter(x=>x.type==="message").map(x=>x.id),
+   ["mail-a","mail-a","mail-b"]);
+  assert.equal(f.actions.filter(x=>x.type==="list").length,1);
+ }finally{f.restore();}
 });
