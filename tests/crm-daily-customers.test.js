@@ -317,3 +317,47 @@ test("unauthorized customer dryRun cannot access Shopify or Feishu",async()=>{
   for(const x of [read,query,feishuToken])x.mock.restore();
  }
 });
+
+
+test("malformed CRM identity references never create duplicates or advance customer delta",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ try{
+  for(const [label,customer,lookupResult,expectedLookups] of [
+   ["missing Shopify GID",{...syntheticCustomer(61),id:null},[],0],
+   ["noncanonical Shopify GID",{...syntheticCustomer(62),id:"62"},[],0],
+   ["Feishu record missing ID",syntheticCustomer(63),[{}],1],
+   ["Feishu record ID blank",syntheticCustomer(64),[{record_id:"   "}],1]
+  ]){
+   let reads=0,lookups=0,writes=0,saves=0;
+   const read=mock.method(state,"read",async path=>{
+    reads++;
+    return path.includes("import-cursor")?{shopifyCycleComplete:true}:null;
+   });
+   const token=mock.method(feishu,"tenantToken",async()=>"synthetic-feishu-token");
+   const query=mock.method(shopify,"queryShopify",async()=>({customers:{
+    nodes:[customer],pageInfo:{hasNextPage:false,endCursor:null}
+   }}));
+   const lookup=mock.method(feishu,"findBy",async()=>{lookups++;return lookupResult;});
+   const upsert=mock.method(bulk,"batchCustomers",async()=>{writes++;return {created:1,updated:0};});
+   const save=mock.method(state,"save",async()=>{saves++;});
+   try{
+    const response=res();await handler(req,response);
+    assert.equal(response.code,502,label);
+    assert.equal(response.value.blockedStage,"customer_identity_lookup",label);
+    assert.equal(response.value.retryable,true,label);
+    assert.equal(response.value.error,"daily_customer_delta_failed",label);
+    assert.equal(lookups,expectedLookups,label);
+    assert.equal(writes,0,label);
+    assert.equal(saves,0,label);
+    assert.equal(reads,2,label);
+    assert.equal(JSON.stringify(response.value).includes("synthetic-feishu-token"),false,label);
+   }finally{
+    for(const x of [read,token,query,lookup,upsert,save])x.mock.restore();
+   }
+  }
+ }finally{
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
