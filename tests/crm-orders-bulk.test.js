@@ -27,3 +27,22 @@ test("bulk export URL must use Shopify storage HTTPS endpoint",()=>{
  for(const url of ["http://storage.googleapis.com/test","https://evil.example/test","https://user:pass@storage.googleapis.com/test","https://storage.googleapis.com:444/test"])
   assert.throws(()=>downloadUrl(url));
 });
+
+
+test("full-history Shopify export requires an exact explicit server-side opt-in",()=>{
+ const {isExplicitBulkExportEnabled}=require("../lib/crm-orders-bulk");
+ for(const value of [undefined,null,"","0","1","yes","TRUE","false",true])
+  assert.equal(isExplicitBulkExportEnabled({CRM_FINANCE_BULK_ENABLED:value}),false,String(value));
+ assert.equal(isExplicitBulkExportEnabled({CRM_FINANCE_BULK_ENABLED:"true"}),true);
+});
+
+test("full-history PR cannot resurrect completed historical import crons",()=>{
+ const {crons}=require("../vercel.json");
+ const obsolete=["/api/crm-backfill","/api/crm-gmail-stage","/api/crm-gmail-filtered",
+  "/api/crm-orders-stage","/api/crm-orders-reconcile","/api/crm-milestones"];
+ for(const entry of crons)assert.equal(obsolete.includes(entry.path),false,entry.path);
+ for(const path of ["/api/crm-daily-customers","/api/crm-daily-orders","/api/crm-daily-gmail"])
+  assert.equal(crons.filter(x=>x.path===path).length,3,path);
+ assert.deepEqual(crons.filter(x=>x.path==="/api/crm-orders-bulk"),
+  [{path:"/api/crm-orders-bulk",schedule:"*/20 * * * *"}]);
+});
