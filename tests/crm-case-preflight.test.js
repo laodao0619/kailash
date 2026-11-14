@@ -45,7 +45,7 @@ test("preflight checks every Case, including create-only task status, without Fe
     /Duplicate Case ID in batch/,
   );
   assert.throws(
-    () => writeback.preflightCaseBatch([example, {...example, crmVerified: true, crmGrade: "legacy"}], schema),
+    () => writeback.preflightCaseBatch([example, {...differentCase, crmVerified: true, crmGrade: "legacy"}], schema),
     /option not configured/,
   );
   assert.throws(
