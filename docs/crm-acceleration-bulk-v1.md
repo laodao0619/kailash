@@ -8,7 +8,8 @@
 - The Bulk operation is designed to export every available historical order (no 180-day date filter), line-item sale-time prices and current product metadata. Deleted products may have null metadata; this must not remove the historical order line.
 - The raw archive is **not yet a validated financial ledger**. `totalRefundedSet` is only one raw aggregate; do not infer item-level net revenue by subtracting it from a merchandise subtotal. The next phase must reconcile refunds/transactions, currencies, cancellation, test orders and customer IDs before updating final M/F/R or LTV.
 - `api/crm-orders-bulk-audit.js` separately scans the private JSONL export, deduplicates order IDs, checks child-parent linkage, excludes invalid orders, and flags discrepancies between successful refund transactions and Shopify's refunded total. This report is intentionally audit-only and may be incomplete for multi-currency/custom refunds; it never changes Feishu CRM customer fields.
-- The Vercel cron is every 20 minutes; completed jobs are idempotently reported and not relaunched. Failed/cancelled jobs require investigation and do not silently restart.
+- The Vercel cron is every 20 minutes, but **will not launch or poll an export** until the server-only `CRM_FINANCE_BULK_ENABLED` is exactly `true`. With the variable absent (the expected Draft/UAT state), its CRON_SECRET-protected endpoint returns `paused: bulk_requires_explicit_approval` without requesting Shopify scopes or touching any Blob. Enabling requires explicit merchant approval and separate pre-release QA; `READY` alone is not approval. Completed jobs are idempotently reported and not relaunched. Failed/cancelled jobs require investigation and do not silently restart.
+- The draft now carries the **current main** Vercel cron set rather than its obsolete October baseline; it retains daily Shopify/customer/Gmail jobs, Case follow-up, BI index/QA and operational jobs. It excludes old backfill, 180d orders staging/reconciliation, Gmail staging, and the completed every-10-minute historical Gmail import. A regression test prevents their re-introduction. **Do not merge while PR has conflicts or without checking the current production cron and finished historical Gmail checkpoint.**
 
 ## Gmail efficiency
 
@@ -16,7 +17,7 @@ The Gmail import now caches the customer email-to-record-count index for 30 minu
 
 ## Verification after deployment
 
-1. Check `/api/crm-shopify-health` and ensure all required scopes, including `read_products`, are reported; the exporter returns `paused` when absent.
+1. Before enabling `CRM_FINANCE_BULK_ENABLED`, confirm the existing completed Gmail historical import checkpoint is `finished=true`, recheck Vercel production cron, verify the authorized API returns `bulk_requires_explicit_approval` while the gate is absent, then obtain merchant approval. Check `/api/crm-shopify-health` and ensure all required scopes, including `read_products`, are reported; the exporter remains paused when absent.
 2. Inspect the Vercel cron response: `started` → `running` → `archived` with a nonzero root order count. Do not expose signed export URLs.
 3. Verify the versioned private archive includes order rows plus JSONL child rows linked using `__parentId`, and compare order counts to Shopify analytics. Check whether the export is large enough to require a separate durable downloader; 85-second download timeout is fail-and-retry, not data loss.
 4. Test the seven customer IDs in the merchant's Shopify 180-day >$3,000 segment against the raw order ledger before trusting any CRM grades.
