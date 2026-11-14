@@ -19,13 +19,24 @@ module.exports = async (req, res) => {
     const start = Number(state.offset) >= grouped.length ? 0 : Number(state.offset) || 0;
     const batch = grouped.slice(start, start + BATCH_LIMIT);
     const result = { created: 0, updated: 0, failed: 0 };
-    // A failed record must be retried; no checkpoint advance on partial failure.
+    let attempted = 0;
+    let blockedReason = null;
+    // Keep the entire batch checkpoint on any failure. Do not fan out a
+    // deterministic Feishu schema error to all 40 Cases in the same run.
     for (const item of batch) {
+      attempted++;
       try {
         result[await writeback.upsertCase(token, tableId, item, schema)]++;
       } catch (err) {
         result.failed++;
-        console.error("[crm-cases-feishu] upsert failed", item.caseId, String(err.message || err).slice(0, 110));
+        const message = String(err.message || err);
+        const schemaFailure = /MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message);
+        console.error("[crm-cases-feishu] upsert failed", item.caseId,
+          schemaFailure ? "schema_conversion_blocked" : message.slice(0, 110));
+        if (schemaFailure) {
+          blockedReason = "case_schema_conversion";
+          break;
+        }
       }
     }
     if (!result.failed) await cases.save(STATE, {
@@ -39,7 +50,8 @@ module.exports = async (req, res) => {
     });
     return res.status(result.failed ? 502 : 200).json({
       ok: !result.failed, tableId, tableUrl: `https://ycnic6l8vkfx.feishu.cn/base/Y7VvbgreAasoLtsYdhrcmmDUn5d?table=${tableId}`,
-      totalCases: grouped.length, processed: batch.length, ...result,
+      totalCases: grouped.length, processed: attempted, batchSize: batch.length,
+      blockedReason, ...result,
     });
   } catch (err) {
     console.error("[crm-cases-feishu] failed", String(err.message || err).slice(0, 140));
