@@ -13,7 +13,8 @@ test("partial batch failure retains checkpoint; replay is idempotent and then ad
     authorized:cases.authorized, allEvents:cases.allEvents,
     groupCases:cases.groupCases, read:cases.read, save:cases.save,
     tenantToken:feishu.tenantToken,
-    ensureTable:writeback.ensureTable, upsertCase:writeback.upsertCase
+    ensureTable:writeback.ensureTable, upsertCase:writeback.upsertCase,
+    preflightCaseBatch:writeback.preflightCaseBatch
   };
   const ids = ["CASE-123456789ABC","CASE-ABCDEF123456"];
   const rows = ids.map(caseId=>({caseId}));
@@ -40,6 +41,8 @@ test("partial batch failure retains checkpoint; replay is idempotent and then ad
     cases.save = async (_path, next) => {saveCount++;checkpoint=next;};
     feishu.tenantToken = async () => "fake-token";
     writeback.ensureTable = async () => ({tableId:writeback.TABLE,schema:[]});
+    // Isolate checkpoint/idempotency failure tests from separately tested schema preflight.
+    writeback.preflightCaseBatch = batch => batch.length;
     writeback.upsertCase = async (_token,tableId,row) => {
       assert.equal(tableId,writeback.TABLE);
       attempts++;
@@ -72,7 +75,7 @@ test("partial batch failure retains checkpoint; replay is idempotent and then ad
   } finally {
     for (const [key,value] of Object.entries(originals)) {
       if (key==="tenantToken") feishu.tenantToken=value;
-      else if (key==="ensureTable" || key==="upsertCase") writeback[key]=value;
+      else if (key==="ensureTable" || key==="upsertCase" || key==="preflightCaseBatch") writeback[key]=value;
       else cases[key]=value;
     }
   }
@@ -83,6 +86,7 @@ test("Feishu select conversion failure halts batch, preserves cursor, and replay
     authorized: cases.authorized, allEvents: cases.allEvents, groupCases: cases.groupCases,
     read: cases.read, save: cases.save, tenantToken: feishu.tenantToken,
     ensureTable: writeback.ensureTable, upsertCase: writeback.upsertCase,
+    preflightCaseBatch: writeback.preflightCaseBatch,
   };
   const rows = ["CASE-111111111111","CASE-222222222222","CASE-333333333333"]
     .map(caseId => ({ caseId }));
@@ -106,6 +110,7 @@ test("Feishu select conversion failure halts batch, preserves cursor, and replay
     cases.save = async (_path, data) => { saved++; checkpoint = data; };
     feishu.tenantToken = async () => "fake-token";
     writeback.ensureTable = async () => ({ tableId: writeback.TABLE, schema: [] });
+    writeback.preflightCaseBatch = batch => batch.length;
     writeback.upsertCase = async (_token, tableId, item) => {
       assert.equal(tableId, writeback.TABLE);
       attempted.push(item.caseId);
@@ -143,7 +148,7 @@ test("Feishu select conversion failure halts batch, preserves cursor, and replay
     console.error = oldError;
     for (const [key, value] of Object.entries(originals)) {
       if (key === "tenantToken") feishu.tenantToken = value;
-      else if (key === "ensureTable" || key === "upsertCase") writeback[key] = value;
+      else if (key === "ensureTable" || key === "upsertCase" || key === "preflightCaseBatch") writeback[key] = value;
       else cases[key] = value;
     }
   }
