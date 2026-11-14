@@ -335,3 +335,28 @@ test("line item financial evidence blocks count-consistent archives without veri
  assert.equal(zero.out.totals.unverifiedLineFinancials,0);
  assert.equal(zero.status,"PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+test("duplicate Shopify transaction IDs cannot inflate captured funds or pass archive finance checks",async()=>{
+ const duplicate=order({
+  id:"gid://shopify/Order/901",
+  displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(150),
+  transactions:[
+   {id:"gid://shopify/OrderTransaction/1",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/1",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/2",kind:"REFUND",status:"SUCCESS",amountSet:usd(150)}
+  ]
+ });
+ assert.deepEqual(classifyOrder(duplicate),{eligible:false,reason:"duplicate_transaction_ids"});
+ const line={__parentId:duplicate.id,id:"gid://shopify/LineItem/901",title:"Pendant",
+  quantity:0,originalUnitPriceSet:usd(100),discountedTotalSet:usd(0)};
+ const result=await auditJsonl(Readable.from([
+  JSON.stringify(duplicate)+"\n"+JSON.stringify(line)+"\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(result.totals.eligible,0);
+ assert.equal(result.totals.excluded.duplicate_transaction_ids,1);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(result,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"1",objectCount:"2"}).status,
+  "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+});
