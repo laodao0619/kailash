@@ -229,3 +229,15 @@ test("malformed line-item GID or blank title cannot count as verified Shopify ev
  assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_LINE_ITEM_IDENTITIES_INVALID");
  assert.equal(result.sampleAudit.verified,false);
 });
+
+test("seven-customer sample blocks repeated Shopify payment transaction identities",async()=>{
+ const rows=[order(1,{transactions:[
+  {id:"gid://shopify/OrderTransaction/11",kind:"SALE",status:"SUCCESS",amountSet:usd(120)},
+  {id:"gid://shopify/OrderTransaction/11",kind:"SALE",status:"SUCCESS",amountSet:usd(120)}
+ ]}),...Array.from({length:6},(_,i)=>order(i+2))];
+ const result=await run(rows);
+ assert.equal(result.sampleAudit.matched,7);
+ assert.equal(result.sampleAudit.customers[0].excluded.duplicate_transaction_ids,1);
+ assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(result.sampleAudit.verified,false);
+});
