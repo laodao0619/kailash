@@ -1,5 +1,6 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {snapshot}=require("./bi-customers-v2");
 const audiences=require("./bi-audiences");
@@ -8,7 +9,7 @@ const {queryShopify}=require("../lib/crm-shopify");
 const ROOT="kbi-operations/v1/audience-sync/";
 function auth(req){
  const s=String(process.env.KBI_ACCESS_TOKEN||""),g=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return s.length>=24&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(s).digest(),crypto.createHash("sha256").update(g).digest());
+ return isKbiTokenConfigured(s)&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(s).digest(),crypto.createHash("sha256").update(g).digest());
 }
 async function read(id){
  const r=await get(ROOT+id+".json",{access:"private"});

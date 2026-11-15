@@ -1,10 +1,11 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const PATH="kbi-operations/v1/email-calendar.json";
 function auth(req){
  const x=String(process.env.KBI_ACCESS_TOKEN||""),y=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return x.length>=24&&!!y&&crypto.timingSafeEqual(crypto.createHash("sha256").update(x).digest(),crypto.createHash("sha256").update(y).digest());
+ return isKbiTokenConfigured(x)&&!!y&&crypto.timingSafeEqual(crypto.createHash("sha256").update(x).digest(),crypto.createHash("sha256").update(y).digest());
 }
 async function getData(){
  const r=await get(PATH,{access:"private"});

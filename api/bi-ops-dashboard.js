@@ -1,5 +1,6 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {queryShopify}=require("../lib/crm-shopify");
 const {build,queryBatch,dateRange}=require("../lib/kbi-ops-analytics");
@@ -37,7 +38,7 @@ async function refresh(range,path=PATH,{forceAds=false}={}){
  await persist(path,result);return result;
 }
 function secretMatch(given,expected){
- if(String(expected||"").length<24||!given)return false;
+ if(!expected||!given)return false;
  return crypto.timingSafeEqual(crypto.createHash("sha256").update(expected).digest(),
  crypto.createHash("sha256").update(given).digest());
 }
@@ -46,7 +47,7 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  const access=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  const isCron=secretMatch(access,process.env.CRON_SECRET);
- const isUser=secretMatch(access,process.env.KBI_ACCESS_TOKEN);
+ const isUser=isKbiTokenConfigured()&&secretMatch(access,process.env.KBI_ACCESS_TOKEN);
  if(!isCron&&!isUser)return res.status(401).json({ok:false,error:"unauthorized"});
  let range,path=PATH;
  try{

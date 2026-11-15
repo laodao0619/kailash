@@ -1,11 +1,12 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {snapshot}=require("./bi-customers-v2");
 const {group}=require("../lib/kbi-rfm-cube");
 function auth(req){
  const k=String(process.env.KBI_ACCESS_TOKEN||"");
  const g=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return k.length>=24&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(k).digest(),crypto.createHash("sha256").update(g).digest());
+ return isKbiTokenConfigured(k)&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(k).digest(),crypto.createHash("sha256").update(g).digest());
 }
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");

@@ -1,11 +1,12 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {snapshot}=require("./bi-customers-v2");
 const {summarize}=require("../lib/kbi-workbench-summary");
 function auth(req){
  const secret=String(process.env.KBI_ACCESS_TOKEN||"");
  const got=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return secret.length>=24&&!!got&&crypto.timingSafeEqual(
+ return isKbiTokenConfigured(secret)&&!!got&&crypto.timingSafeEqual(
   crypto.createHash("sha256").update(secret).digest(),
   crypto.createHash("sha256").update(got).digest());
 }
