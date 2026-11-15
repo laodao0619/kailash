@@ -445,3 +445,32 @@ test("incomplete or malformed Feishu batch acknowledgements preserve customer cu
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+test("Feishu search rejects missing, malformed or truncated identity responses",async()=>{
+ const cases=[
+  {data:{},pattern:/missing items array/},
+  {data:{items:null},pattern:/missing items array/},
+  {data:{items:{}},pattern:/missing items array/},
+  {data:{items:[],has_more:true},pattern:/unexamined matches/}
+ ];
+ for(const c of cases){
+  const stub=mock.method(globalThis,"fetch",async()=>({
+   ok:true,status:200,json:async()=>({code:0,data:c.data})
+  }));
+  try{
+   await assert.rejects(
+    feishu.findBy("synthetic-tenant-token",bulk.CUSTOMERS,"Shopify客户ID","gid://shopify/Customer/123"),
+    c.pattern
+   );
+  }finally{stub.mock.restore();}
+ }
+});
+test("Feishu search still accepts a verified empty matches array",async()=>{
+ const stub=mock.method(globalThis,"fetch",async()=>({
+  ok:true,status:200,json:async()=>({code:0,data:{items:[],has_more:false}})
+ }));
+ try{
+  const records=await feishu.findBy("synthetic-tenant-token",bulk.CUSTOMERS,"Shopify客户ID","gid://shopify/Customer/123");
+  assert.deepEqual(records,[]);
+ }finally{stub.mock.restore();}
+});
