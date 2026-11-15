@@ -25,6 +25,21 @@ function safePreflightDiagnostic(error) {
   const candidate = match ? match[1].trim() : null;
   return { code, field: SAFE_PREFLIGHT_FIELDS.has(candidate) ? candidate : null };
 }
+// Only fixed diagnostic codes are logged. Upstream Feishu errors can contain
+// private Case text, customer identifiers, and credential fragments.
+function classifyCaseWriteFailure(error) {
+  const message = String(error?.message || error || "");
+  if (/MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message)) {
+    return { code: "schema_conversion_blocked", blockedReason: "case_schema_conversion" };
+  }
+  if (/(?:\\b429\\b|rate.?limit|TooManyRequests)/i.test(message)) {
+    return { code: "rate_limited", blockedReason: "case_rate_limited" };
+  }
+  if (/(?:\\b401\\b|\\b403\\b|Unauthorized|Forbidden|InvalidAccessToken)/i.test(message)) {
+    return { code: "upstream_auth_blocked", blockedReason: "case_upstream_auth" };
+  }
+  return { code: "case_upsert_failed", blockedReason: null };
+}
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ ok: false });
@@ -73,12 +88,10 @@ module.exports = async (req, res) => {
         result[await writeback.upsertCase(token, tableId, item, schema)]++;
       } catch (err) {
         result.failed++;
-        const message = String(err.message || err);
-        const schemaFailure = /MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message);
-        console.error("[crm-cases-feishu] upsert failed", item.caseId,
-          schemaFailure ? "schema_conversion_blocked" : message.slice(0, 110));
-        if (schemaFailure) {
-          blockedReason = "case_schema_conversion";
+        const failure = classifyCaseWriteFailure(err);
+        console.error("[crm-cases-feishu] upsert failed", item.caseId, failure.code);
+        if (failure.blockedReason) {
+          blockedReason = failure.blockedReason;
           break;
         }
       }
