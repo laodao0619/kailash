@@ -29,6 +29,9 @@ function safePreflightDiagnostic(error) {
 // private Case text, customer identifiers, and credential fragments.
 function classifyCaseWriteFailure(error) {
   const message = String(error?.message || error || "");
+  if (/Feishu Case identity lookup incomplete|Feishu Case identity record invalid|Duplicate Case ID in Feishu/.test(message)) {
+    return { code: "case_identity_blocked", blockedReason: "case_identity_lookup" };
+  }
   if (/MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message)) {
     return { code: "schema_conversion_blocked", blockedReason: "case_schema_conversion" };
   }
