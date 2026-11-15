@@ -111,7 +111,8 @@ module.exports = async (req, res) => {
       blockedReason, ...result,
     });
   } catch (err) {
-    // Upstream error strings can contain customer text, search filters or credentials.\n    console.error("[crm-cases-feishu] failed", classifyCaseWriteFailure(err).code);
+    // Upstream error strings can contain customer text, search filters or credentials.
+    console.error("[crm-cases-feishu] failed", classifyCaseWriteFailure(err).code);
     return res.status(502).json({ok:false,error:"feishu_writeback_unavailable",retryable:true});
   }
 };
