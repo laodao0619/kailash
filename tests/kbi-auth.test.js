@@ -3,20 +3,23 @@ const test=require("node:test");
 const assert=require("node:assert/strict");
 const {DEFAULT_KBI_ACCESS_TOKEN_MIN_LENGTH,minimumKbiTokenLength,isKbiTokenConfigured}=require("../lib/kbi-auth");
 
-test("KBI token minimum defaults to 8 characters",()=>{
- assert.equal(DEFAULT_KBI_ACCESS_TOKEN_MIN_LENGTH,8);
- assert.equal(minimumKbiTokenLength({}),8);
- assert.equal(isKbiTokenConfigured("12345678",{}),true);
- assert.equal(isKbiTokenConfigured("1234567",{}),false);
+test("KBI token minimum matches the established 24-character authorization floor",()=>{
+ assert.equal(DEFAULT_KBI_ACCESS_TOKEN_MIN_LENGTH,24);
+ assert.equal(minimumKbiTokenLength({}),24);
+ assert.equal(isKbiTokenConfigured("x".repeat(23),{}),false);
+ assert.equal(isKbiTokenConfigured("x".repeat(24),{}),true);
+ assert.equal(isKbiTokenConfigured(undefined,{}),false);
 });
-test("KBI token minimum can be configured through the environment",()=>{
- const env={KBI_ACCESS_TOKEN_MIN_LENGTH:"10"};
- assert.equal(minimumKbiTokenLength(env),10);
- assert.equal(isKbiTokenConfigured("1234567890",env),true);
- assert.equal(isKbiTokenConfigured("123456789",env),false);
+test("KBI minimum can only be raised by environment configuration",()=>{
+ const env={KBI_ACCESS_TOKEN_MIN_LENGTH:"32"};
+ assert.equal(minimumKbiTokenLength(env),32);
+ assert.equal(isKbiTokenConfigured("x".repeat(31),env),false);
+ assert.equal(isKbiTokenConfigured("x".repeat(32),env),true);
 });
-test("invalid KBI minimum length configuration falls back to 8",()=>{
- for(const value of ["","0","-1","2.5","abc"]){
-  assert.equal(minimumKbiTokenLength({KBI_ACCESS_TOKEN_MIN_LENGTH:value}),8);
+test("a missing, invalid or weakening override preserves the 24-character floor",()=>{
+ for(const value of ["","0","-1","1","8","23","2.5","abc"]){
+  const env={KBI_ACCESS_TOKEN_MIN_LENGTH:value};
+  assert.equal(minimumKbiTokenLength(env),24);
+  assert.equal(isKbiTokenConfigured("x".repeat(23),env),false);
  }
 });
