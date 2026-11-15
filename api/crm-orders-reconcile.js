@@ -6,8 +6,11 @@ const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {summarize,customerValues}=require("../lib/crm-order-aggregate");
+const {checkFinanceWriteback,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
 const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
 const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
+const FINANCE_AUDIT="crm-execution/orders-bulk-v1-audit.json";
+const FINANCE_APPROVAL="crm-execution/finance-writeback-approval-v1.json";
 function authorized(req){
  const a=Buffer.from((req.headers.authorization||"").replace(/^Bearer\s+/i,""));
  const b=Buffer.from(process.env.CRON_SECRET||"");
@@ -54,9 +57,19 @@ module.exports=async(req,res)=>{
   const [orders,customers]=await Promise.all([read("crm-execution/orders-stage-state.json"),read("crm-execution/import-cursor.json")]);
   if(!orders?.completed||!customers?.shopifyCycleComplete)return res.status(200).json({ok:true,waiting:true,orders_complete:!!orders?.completed,customers_complete:!!customers?.shopifyCycleComplete});
   if(orders.totals?.unknown_currency)return res.status(200).json({ok:true,waiting:true,reason:"unverified_non_usd_order_values",count:orders.totals.unknown_currency});
+  // Hard block before reading write manifests, Feishu rows, or touching any CRM field.
+  // A completed rolling-180d stage is not an audited full-history USD ledger.
+  const [audit,approval]=await Promise.all([read(FINANCE_AUDIT),read(FINANCE_APPROVAL)]);
+  const gate=checkFinanceWriteback({orders,customers,audit,approval,manualFlag:process.env.CRM_FINANCE_WRITEBACK_APPROVED});
+  if(!gate.allowed)return res.status(200).json({ok:true,waiting:true,blocked:true,reason:gate.reason});
   const state=await read(STATE)||{offset:0,done:false};
+  if(state.offset>0&&(state.source_ledger_digest!==gate.sourceDigest||state.finance_approval_id!==gate.approvalId))
+   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_checkpoint"});
   if(state.done)return res.status(200).json({ok:true,completed:true,totals:state.totals});
   let manifest=await read(MANIFEST);
+  if(manifest&&(manifest.source_ledger_digest!==gate.sourceDigest||
+      manifest.finance_approval_id!==gate.approvalId||manifest.policy_version!==POLICY_VERSION))
+   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
   if(!manifest){
    const all=[];
    for(let i=0;i<orders.page;i++){
@@ -76,7 +89,7 @@ module.exports=async(req,res)=>{
     if(values.rfm)fields["RFM价值分群"]=values.rfm;
     updates.push({record_id:c.record_id,fields});
    }
-   manifest={updates,source_since:orders.since,source_pages:orders.page,created_at:new Date().toISOString()};
+   manifest={updates,source_since:orders.since,source_pages:orders.page,source_ledger_digest:gate.sourceDigest,finance_approval_id:gate.approvalId,policy_version:POLICY_VERSION,created_at:new Date().toISOString()};
    await save(MANIFEST,manifest);
   }
   const token=await feishu.tenantToken();
@@ -87,6 +100,8 @@ module.exports=async(req,res)=>{
    state.offset+=batch.length;
   }
   state.done=state.offset>=manifest.updates.length;
+  state.source_ledger_digest=gate.sourceDigest;
+  state.finance_approval_id=gate.approvalId;
   state.updatedAt=new Date().toISOString();
   state.totals={updated:state.offset,expected:manifest.updates.length,orders:orders.totals?.eligible||0};
   await save(STATE,state);
