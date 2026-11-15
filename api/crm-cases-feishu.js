@@ -32,10 +32,10 @@ function classifyCaseWriteFailure(error) {
   if (/MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message)) {
     return { code: "schema_conversion_blocked", blockedReason: "case_schema_conversion" };
   }
-  if (/(?:\\b429\\b|rate.?limit|TooManyRequests)/i.test(message)) {
+  if (/(?:\b429\b|rate.?limit|TooManyRequests)/i.test(message)) {
     return { code: "rate_limited", blockedReason: "case_rate_limited" };
   }
-  if (/(?:\\b401\\b|\\b403\\b|Unauthorized|Forbidden|InvalidAccessToken)/i.test(message)) {
+  if (/(?:\b401\b|\b403\b|Unauthorized|Forbidden|InvalidAccessToken)/i.test(message)) {
     return { code: "upstream_auth_blocked", blockedReason: "case_upstream_auth" };
   }
   return { code: "case_upsert_failed", blockedReason: null };
