@@ -21,14 +21,14 @@ test("Case identity search rejects missing, truncated, duplicated, and malformed
   ];
   for (const data of invalid) {
     let reads = 0;
-    let writes = 0;
-    const stub = mock.method(feishu, "request", async (_token, path, method, payload) => {
-      assert.match(path, /\/records\/search\?page_size=5$/);
-      assert.equal(method, "POST");
+    const stub = mock.method(globalThis, "fetch", async (url, opts) => {
+      assert.match(url, /\/records\/search\?page_size=5$/);
+      assert.equal(opts.method, "POST");
+      const payload = JSON.parse(opts.body);
       assert.equal(payload.filter.conditions[0].field_name, "数据来源ID");
       assert.deepEqual(payload.filter.conditions[0].value, ["case:" + CASE_ID]);
       reads++;
-      return data;
+      return { ok: true, status: 200, json: async () => ({ code: 0, data }) };
     });
     try {
       await assert.rejects(
@@ -36,7 +36,6 @@ test("Case identity search rejects missing, truncated, duplicated, and malformed
         /Feishu Case identity|Duplicate Case ID/
       );
       assert.equal(reads, 1);
-      assert.equal(writes, 0, "must not create/overwrite an unverified Case");
     } finally {
       stub.mock.restore();
     }
@@ -44,8 +43,9 @@ test("Case identity search rejects missing, truncated, duplicated, and malformed
 });
 
 test("Case identity search permits an explicitly complete empty result", async () => {
-  const stub = mock.method(feishu, "request", async () => ({
-    has_more: false, items: [],
+  const stub = mock.method(globalThis, "fetch", async () => ({
+    ok: true, status: 200,
+    json: async () => ({ code: 0, data: { has_more: false, items: [] } }),
   }));
   try {
     const rows = await writeback.findCaseRecords("synthetic-tenant", CASE_ID);
