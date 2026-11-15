@@ -82,3 +82,47 @@ test("outer Case handler redacts any secret or customer information in upstream 
     for (const x of [authorized, token, logger]) x.mock.restore();
   }
 });
+
+
+test("incomplete Case identity halts the cron batch without advancing a checkpoint", async () => {
+  const rows = [
+    { caseId: "CASE-111111111111" },
+    { caseId: "CASE-222222222222" },
+  ];
+  let attempted = 0, saved = 0;
+  const stubs = [
+    mock.method(cases, "authorized", () => true),
+    mock.method(feishu, "tenantToken", async () => "synthetic-tenant"),
+    mock.method(cases, "allEvents", async () => rows),
+    mock.method(cases, "groupCases", () => rows),
+    mock.method(cases, "read", async () => ({ offset: 0 })),
+    mock.method(cases, "save", async () => { saved++; }),
+    mock.method(writeback, "ensureTable", async () => ({ tableId: writeback.TABLE, schema: [] })),
+    mock.method(writeback, "preflightCaseBatch", batch => batch.length),
+    mock.method(writeback, "upsertCase", async () => {
+      attempted++;
+      throw Error("Feishu Case identity lookup incomplete");
+    }),
+  ];
+  const res = {
+    statusCode: 200, body: null, setHeader() {},
+    status(n) { this.statusCode = n; return this; },
+    json(body) { this.body = body; return this; },
+  };
+  const logged = [];
+  const logger = mock.method(console, "error", (...args) => logged.push(args.join(" ")));
+  try {
+    await handler({ method: "GET" }, res);
+    assert.equal(res.statusCode, 502);
+    assert.equal(res.body.blockedReason, "case_identity_lookup");
+    assert.equal(res.body.processed, 1);
+    assert.equal(res.body.failed, 1);
+    assert.equal(attempted, 1, "never fan out an incomplete lookup across the batch");
+    assert.equal(saved, 0, "checkpoint must not move on identity ambiguity");
+    assert.ok(logged.some(line => line.includes("case_identity_blocked")));
+    assert.equal(JSON.stringify(res.body).includes("CASE-"), false);
+  } finally {
+    logger.mock.restore();
+    for (const stub of stubs) stub.mock.restore();
+  }
+});
