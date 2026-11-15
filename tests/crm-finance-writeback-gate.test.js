@@ -129,3 +129,11 @@ test("completed finance checkpoint is revalidated and malformed offsets fail clo
  assert.equal(checkReconcileCheckpoint({offset:1,done:false},manifest,expected).reason,"invalid_reconciliation_checkpoint");
  assert.equal(checkReconcileCheckpoint(done,{updates:[]},expected).reason,"invalid_financial_write_manifest");
 });
+
+// A failing private downstream request must never echo arbitrary upstream text.
+test("finance reconciliation error responses redact private upstream exception details",()=>{
+ const src=readFileSync(path.join(__dirname,"../api/crm-orders-reconcile.js"),"utf8");
+ assert.match(src,/error:"finance_reconciliation_failed"/);
+ assert.doesNotMatch(src,/error:String\(e\.message\|\|e\)/);
+ assert.doesNotMatch(src,/error:e\.message/);
+});
