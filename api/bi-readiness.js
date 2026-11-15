@@ -5,14 +5,18 @@ module.exports=(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false});
- const auth=isKbiTokenConfigured();
+ const token=process.env.KBI_ACCESS_TOKEN;
+ const auth=isKbiTokenConfigured(token);
+ // This endpoint is public: expose only a fixed category, never token values or lengths.
+ const accessBlockReason=auth?null:
+  (typeof token==="string"&&token.length>0?"token_below_security_policy":"token_missing");
  const shopify=!!(process.env.SHOPIFY_SHOP_DOMAIN&&
   (process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||
    (process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));
  const gmail=!!(process.env.GMAIL_CLIENT_ID&&process.env.GMAIL_CLIENT_SECRET&&process.env.GMAIL_REFRESH_TOKEN);
  const feishu=!!(process.env.FEISHU_APP_ID&&process.env.FEISHU_APP_SECRET);
  return res.status(200).json({
-  ok:true,accessReady:auth,customerSourceReady:shopify||feishu,
+  ok:true,accessReady:auth,accessBlockReason,customerSourceReady:shopify||feishu,
   journeySourceReady:shopify,
   emailSourceReady:gmail,readiness:!auth?"access_not_configured":
    !shopify&&!feishu?"data_source_not_configured":
