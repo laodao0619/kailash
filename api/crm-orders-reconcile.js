@@ -6,7 +6,7 @@ const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {customerValues}=require("../lib/crm-order-aggregate");
-const {checkFinanceWriteback,projectAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
+const {checkFinanceWriteback,projectAuditedLedger,digestAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
 const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
 const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
 const FINANCE_AUDIT="crm-execution/orders-bulk-v1-audit.json";
@@ -78,7 +78,12 @@ module.exports=async(req,res)=>{
     all.push(...page.orders);
    }
    // Financially audited all-history and rolling-180d projections MUST be distinct.
-   const {lifetime,recent,asOf}=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
+   const projection=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
+   // Financial signoff metadata alone cannot authorize writing from changed pages.
+   const computedDigest=digestAuditedLedger(all,{asOf:orders.ledgerAsOf});
+   if(!crypto.timingSafeEqual(Buffer.from(computedDigest,"hex"),Buffer.from(gate.sourceDigest,"hex")))
+    return res.status(409).json({ok:false,blocked:true,reason:"audited_ledger_digest_mismatch"});
+   const {lifetime,recent,asOf}=projection;
    const token=await feishu.tenantToken();
    const rows=await feishuRows(token),updates=[];
    for(const c of rows){
