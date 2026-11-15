@@ -66,23 +66,26 @@ module.exports=async(req,res)=>{
   if(state.offset>0&&(state.source_ledger_digest!==gate.sourceDigest||state.finance_approval_id!==gate.approvalId))
    return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_checkpoint"});
   if(state.done)return res.status(200).json({ok:true,completed:true,totals:state.totals});
+  // Revalidate the full immutable financial projection before EVERY batch,
+  // including retries using an existing private manifest. A changed page
+  // must never resume a partially complete Feishu writeback.
+  const all=[];
+  for(let i=0;i<orders.page;i++){
+   const page=await read("crm-execution/orders-stage/page-"+i+".json");
+   if(!page||!Array.isArray(page.orders))throw Error("Missing committed order snapshot page "+i);
+   all.push(...page.orders);
+  }
+  // Financially audited all-history and rolling-180d projections MUST be distinct.
+  const projection=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
+  // Financial signoff metadata alone cannot authorize writing from changed pages.
+  const computedDigest=digestAuditedLedger(all,{asOf:orders.ledgerAsOf});
+  if(!crypto.timingSafeEqual(Buffer.from(computedDigest,"hex"),Buffer.from(gate.sourceDigest,"hex")))
+   return res.status(409).json({ok:false,blocked:true,reason:"audited_ledger_digest_mismatch"});
   let manifest=await read(MANIFEST);
   if(manifest&&(manifest.source_ledger_digest!==gate.sourceDigest||
       manifest.finance_approval_id!==gate.approvalId||manifest.policy_version!==POLICY_VERSION))
    return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
   if(!manifest){
-   const all=[];
-   for(let i=0;i<orders.page;i++){
-    const page=await read("crm-execution/orders-stage/page-"+i+".json");
-    if(!page||!Array.isArray(page.orders))throw Error("Missing committed order snapshot page "+i);
-    all.push(...page.orders);
-   }
-   // Financially audited all-history and rolling-180d projections MUST be distinct.
-   const projection=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
-   // Financial signoff metadata alone cannot authorize writing from changed pages.
-   const computedDigest=digestAuditedLedger(all,{asOf:orders.ledgerAsOf});
-   if(!crypto.timingSafeEqual(Buffer.from(computedDigest,"hex"),Buffer.from(gate.sourceDigest,"hex")))
-    return res.status(409).json({ok:false,blocked:true,reason:"audited_ledger_digest_mismatch"});
    const {lifetime,recent,asOf}=projection;
    const token=await feishu.tenantToken();
    const rows=await feishuRows(token),updates=[];
