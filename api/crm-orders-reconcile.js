@@ -83,6 +83,8 @@ module.exports=async(req,res)=>{
   if(manifest&&(manifest.source_ledger_digest!==gate.sourceDigest||
       manifest.finance_approval_id!==gate.approvalId||manifest.policy_version!==POLICY_VERSION))
    return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
+  if(!manifest&&(state.offset!==0||state.done||state.source_ledger_digest||state.finance_approval_id))
+   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
   if(!manifest){
    const {lifetime,recent,asOf}=projection;
    const token=await feishu.tenantToken();
