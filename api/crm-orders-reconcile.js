@@ -5,8 +5,8 @@ const crypto=require("crypto");
 const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
-const {summarize,customerValues}=require("../lib/crm-order-aggregate");
-const {checkFinanceWriteback,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
+const {customerValues}=require("../lib/crm-order-aggregate");
+const {checkFinanceWriteback,projectAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
 const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
 const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
 const FINANCE_AUDIT="crm-execution/orders-bulk-v1-audit.json";
@@ -77,11 +77,18 @@ module.exports=async(req,res)=>{
     if(!page||!Array.isArray(page.orders))throw Error("Missing committed order snapshot page "+i);
     all.push(...page.orders);
    }
-   const summaries=summarize(all),token=await feishu.tenantToken();
+   // Financially audited all-history and rolling-180d projections MUST be distinct.
+   const {lifetime,recent,asOf}=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
+   const token=await feishu.tenantToken();
    const rows=await feishuRows(token),updates=[];
-   const asOf=new Date(orders.startedAt);
    for(const c of rows){
-    const values=customerValues(c,summaries.get(c.id),{now:asOf});
+    const history=lifetime.get(c.id);
+    const lifetimeOrders=history?.f??c.lifetimeOrders;
+    // No audited order match with nonzero Shopify order count is UNKNOWN, not $0.
+    const lifetimeSpendUSD=history?.m??(lifetimeOrders===0?0:NaN);
+    const lastOrderAt=history?.last??c.lastOrderAt;
+    const values=customerValues({...c,lifetimeOrders,lifetimeSpendUSD,lastOrderAt},
+     recent.get(c.id),{now:asOf});
     const fields={"CRM等级":values.grade};
     if(Number.isFinite(values.m))fields["近180天净消费"]=values.m;
     if(Number.isFinite(values.f))fields["近180天有效订单数"]=values.f;
