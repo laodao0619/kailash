@@ -124,5 +124,9 @@ module.exports=async(req,res)=>{
   state.totals={updated:state.offset,expected:manifest.updates.length,orders:orders.totals?.eligible||0};
   await save(STATE,state);
   return res.status(200).json({ok:true,completed:state.done,totals:state.totals,source_since:manifest.source_since});
- }catch(e){return res.status(502).json({ok:false,retryable:true,error:String(e.message||e).slice(0,180)});}
+ }catch(_error){
+  // Never reflect private Feishu/Shopify/blob exception text into HTTP responses.
+  // Original messages may contain upstream URLs, tokens, or customer details.
+  return res.status(502).json({ok:false,retryable:true,error:"finance_reconciliation_failed"});
+ }
 };
