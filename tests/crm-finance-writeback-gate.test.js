@@ -48,6 +48,8 @@ test("reconcile route enforces finance gate before reading checkpoint, manifest 
  assert.ok(check>0&&state>check&&manifest>state&&feishu>manifest);
  assert.match(src,/if\(!gate\.allowed\)return res\.status\(200\)\.json\(\{ok:true,waiting:true,blocked:true/);
  assert.match(src,/reason:"stale_reconciliation_manifest"/);
+ assert.match(src,/if\(!manifest&&\(state\.offset!==0\|\|state\.done/);
+ assert.ok(src.indexOf("if(!manifest&&(state.offset!==0")<src.indexOf("await feishu.tenantToken()"));
  assert.match(src,/checkReconcileCheckpoint\(state,manifest/);
  assert.match(src,/reason:"audited_ledger_digest_mismatch"/);
  assert.ok(src.indexOf("const computedDigest=")<src.indexOf("if(checkpoint.complete)"));
