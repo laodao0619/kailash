@@ -529,7 +529,9 @@ async function request(path,params={},authenticated=true){
 async function readiness(){
  try{const r=await request("/api/bi-readiness",{},false);
   if(!r.accessReady){$("login-title").textContent="后台访问认证尚未配置";$("login-control").hidden=true;$("login-msg").textContent="请联系系统管理员在Vercel完成安全凭证配置。";}
-  else if(!r.customerSourceReady){$("login-title").textContent="后台客户数据源未配置";$("login-control").hidden=true;}
+  else { $("login-control").hidden=false;
+   if(!r.customerSourceReady){$("login-title").textContent="内部身份验证";$("login-msg").textContent="请输入专用KBI访问凭证。部分数据源尚未配置，相关数据可能暂时不可用。";}
+  }
   $("top-status").textContent=r.accessReady?"等待登录":"后台待配置";
  }catch(_){$("top-status").textContent="连接状态未知";}
 }
