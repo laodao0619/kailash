@@ -49,6 +49,10 @@ test("reconcile route enforces finance gate before reading checkpoint, manifest 
  assert.match(src,/if\(!gate\.allowed\)return res\.status\(200\)\.json\(\{ok:true,waiting:true,blocked:true/);
  assert.match(src,/reason:"stale_reconciliation_manifest"/);
  assert.match(src,/reason:"stale_reconciliation_checkpoint"/);
+ assert.match(src,/reason:"audited_ledger_digest_mismatch"/);
+ assert.ok(src.indexOf("const computedDigest=")>src.indexOf("if(state.done)"));
+ assert.ok(src.indexOf("const computedDigest=")<src.indexOf("let manifest=await read(MANIFEST)"));
+ assert.ok(src.indexOf("const computedDigest=")<src.indexOf("await feishu.tenantToken()"));
 });
 
 test("missing audited page count or changed ledger cutoff always fails closed",()=>{
