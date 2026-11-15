@@ -78,6 +78,7 @@ test("unverifiable ledger rows reject projection rather than silently dropping o
  assert.throws(()=>runProjection([valid,{...valid}]),/Invalid or duplicated audited order identity/);
  assert.throws(()=>runProjection([{...valid,processedAt:"2026-12-01T00:00:00Z"}]),/Invalid audited order value or timestamp/);
  assert.throws(()=>runProjection([{...valid,usdNetAmount:-1}]),/Invalid audited order value or timestamp/);
+ assert.throws(()=>runProjection([{...valid,usdNetAmount:0}]),/Invalid audited order value or timestamp/);
  assert.throws(()=>runProjection([{...valid,customerId:""}]),/Invalid or duplicated audited order identity/);
 });
 test("reconcile never uses full-history summaries as rolling-180d values",()=>{
