@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const {readFileSync}=require("node:fs"),path=require("node:path");
-const {checkFinanceWriteback,projectAuditedLedger,digestAuditedLedger,DIGEST_SCHEME}=require("../lib/crm-finance-writeback-gate");
+const {checkFinanceWriteback,checkReconcileCheckpoint,projectAuditedLedger,digestAuditedLedger,DIGEST_SCHEME}=require("../lib/crm-finance-writeback-gate");
 const {customerValues}=require("../lib/crm-order-aggregate");
 const digest="a".repeat(64);
 const orders={completed:true,sourceType:"full_history_shopify_net_usd",fullHistoryNetUSD:true,
@@ -48,10 +48,11 @@ test("reconcile route enforces finance gate before reading checkpoint, manifest 
  assert.ok(check>0&&state>check&&manifest>state&&feishu>manifest);
  assert.match(src,/if\(!gate\.allowed\)return res\.status\(200\)\.json\(\{ok:true,waiting:true,blocked:true/);
  assert.match(src,/reason:"stale_reconciliation_manifest"/);
- assert.match(src,/reason:"stale_reconciliation_checkpoint"/);
+ assert.match(src,/checkReconcileCheckpoint\(state,manifest/);
  assert.match(src,/reason:"audited_ledger_digest_mismatch"/);
- assert.ok(src.indexOf("const computedDigest=")>src.indexOf("if(state.done)"));
+ assert.ok(src.indexOf("const computedDigest=")<src.indexOf("if(checkpoint.complete)"));
  assert.ok(src.indexOf("const computedDigest=")<src.indexOf("let manifest=await read(MANIFEST)"));
+ assert.ok(src.indexOf("let manifest=await read(MANIFEST)")<src.indexOf("const checkpoint=checkReconcileCheckpoint("));
  assert.ok(src.indexOf("const computedDigest=")<src.indexOf("await feishu.tenantToken()"));
 });
 
@@ -109,4 +110,20 @@ test("audited ledger digest is order-independent and binds identities, dates, US
  assert.throws(()=>digestAuditedLedger([a,{...a}],{asOf}),/Duplicated audited ledger/);
  assert.throws(()=>digestAuditedLedger([{...a,usdNetAmount:0.005}],{asOf}),/cents/);
  assert.throws(()=>digestAuditedLedger([{...a,usdNetAmount:0}],{asOf}),/cents/);
+});
+
+test("completed finance checkpoint is revalidated and malformed offsets fail closed",()=>{
+ const expected={sourceDigest:digest,approvalId:approval.approvalId};
+ const manifest={updates:[{record_id:"synthetic",fields:{"CRM等级":"S+"}}]};
+ const done={offset:1,done:true,source_ledger_digest:digest,finance_approval_id:approval.approvalId};
+ assert.deepEqual(checkReconcileCheckpoint(done,manifest,expected),{allowed:true,complete:true});
+ assert.equal(checkReconcileCheckpoint({...done,source_ledger_digest:"b".repeat(64)},manifest,expected).reason,"stale_reconciliation_checkpoint");
+ assert.equal(checkReconcileCheckpoint({...done,finance_approval_id:"different"},manifest,expected).reason,"stale_reconciliation_checkpoint");
+ for(const offset of [-1,0,2,0.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){
+  assert.equal(checkReconcileCheckpoint({...done,offset},manifest,expected).reason,"invalid_reconciliation_checkpoint");
+ }
+ assert.equal(checkReconcileCheckpoint({offset:0,done:false},manifest,expected).allowed,true);
+ assert.equal(checkReconcileCheckpoint({offset:0,done:false,source_ledger_digest:"old"},manifest,expected).reason,"stale_reconciliation_checkpoint");
+ assert.equal(checkReconcileCheckpoint({offset:1,done:false},manifest,expected).reason,"invalid_reconciliation_checkpoint");
+ assert.equal(checkReconcileCheckpoint(done,{updates:[]},expected).reason,"invalid_financial_write_manifest");
 });
