@@ -1,16 +1,16 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const {readFileSync}=require("node:fs"),path=require("node:path");
-const {checkFinanceWriteback,projectAuditedLedger}=require("../lib/crm-finance-writeback-gate");
+const {checkFinanceWriteback,projectAuditedLedger,digestAuditedLedger,DIGEST_SCHEME}=require("../lib/crm-finance-writeback-gate");
 const {customerValues}=require("../lib/crm-order-aggregate");
 const digest="a".repeat(64);
 const orders={completed:true,sourceType:"full_history_shopify_net_usd",fullHistoryNetUSD:true,
- rolling180dFromSameLedger:true,since:null,financialLedgerDigest:digest,page:2,ledgerAsOf:"2026-11-16T00:00:00Z"};
+ rolling180dFromSameLedger:true,since:null,financialLedgerDigest:digest,financialLedgerDigestScheme:DIGEST_SCHEME,page:2,ledgerAsOf:"2026-11-16T00:00:00Z"};
 const customers={shopifyCycleComplete:true};
-const audit={status:"FINANCE_APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,sourceAsOf:orders.ledgerAsOf,
+const audit={status:"FINANCE_APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,digestScheme:DIGEST_SCHEME,sourceAsOf:orders.ledgerAsOf,
  orderCoverage:{fullHistory:true},currencyAudit:{allConvertedToUSD:true},refundAudit:{reconciled:true},
  sampleAudit:{verifiedCustomers:7}};
-const approval={status:"APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,
+const approval={status:"APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,digestScheme:DIGEST_SCHEME,
  approvalId:"approved-20261116",approvedBy:"finance-owner",approvedAt:"2026-11-16T00:00:00Z"};
 const run=(overrides={})=>checkFinanceWriteback({orders,customers,audit,approval,manualFlag:"true",...overrides});
 test("completed rolling-180d source and current PR4 AUDIT_ONLY never authorize Feishu writeback",()=>{
@@ -28,6 +28,9 @@ test("missing explicit owner switch and missing evidence block even if snapshots
 });
 test("mismatched ledger, incomplete refunds/currency or fewer than seven verified customers block",()=>{
  assert.equal(run({audit:{...audit,sourceDigest:"b".repeat(64)}}).allowed,false);
+ assert.equal(run({orders:{...orders,financialLedgerDigestScheme:undefined}}).allowed,false);
+ assert.equal(run({audit:{...audit,digestScheme:"legacy"}}).allowed,false);
+ assert.equal(run({approval:{...approval,digestScheme:"legacy"}}).allowed,false);
  assert.equal(run({approval:{...approval,sourceDigest:"b".repeat(64)}}).allowed,false);
  assert.equal(run({audit:{...audit,refundAudit:{reconciled:false}}}).allowed,false);
  assert.equal(run({audit:{...audit,currencyAudit:{allConvertedToUSD:false}}}).allowed,false);
@@ -87,4 +90,19 @@ test("reconcile never uses full-history summaries as rolling-180d values",()=>{
  assert.match(src,/const lifetimeSpendUSD=history\?\.m/);
  assert.match(src,/recent\.get\(c\.id\)/);
  assert.doesNotMatch(src,/const summaries=summarize\(all\)/);
+});
+
+test("audited ledger digest is order-independent and binds identities, dates, USD cents and cutoff",()=>{
+ const asOf="2026-11-16T00:00:00.000Z";
+ const a={id:"gid://shopify/Order/1",customerId:"gid://shopify/Customer/1",processedAt:"2026-11-01T00:00:00Z",usdNetAmount:40.23};
+ const b={id:"gid://shopify/Order/2",customerId:"gid://shopify/Customer/2",processedAt:"2025-01-01T00:00:00Z",usdNetAmount:19.01};
+ const h=digestAuditedLedger([a,b],{asOf});
+ assert.match(h,/^[a-f0-9]{64}$/);
+ assert.equal(digestAuditedLedger([b,a],{asOf}),h);
+ for(const changed of [{...a,usdNetAmount:40.24},{...a,customerId:b.customerId},{...a,processedAt:"2026-11-02T00:00:00Z"}])
+  assert.notEqual(digestAuditedLedger([changed,b],{asOf}),h);
+ assert.notEqual(digestAuditedLedger([a,b],{asOf:"2026-11-17T00:00:00Z"}),h);
+ assert.throws(()=>digestAuditedLedger([a,{...a}],{asOf}),/Duplicated audited ledger/);
+ assert.throws(()=>digestAuditedLedger([{...a,usdNetAmount:0.005}],{asOf}),/cents/);
+ assert.throws(()=>digestAuditedLedger([{...a,usdNetAmount:0}],{asOf}),/cents/);
 });
