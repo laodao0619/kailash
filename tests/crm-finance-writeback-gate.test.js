@@ -1,12 +1,13 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const {readFileSync}=require("node:fs"),path=require("node:path");
-const {checkFinanceWriteback}=require("../lib/crm-finance-writeback-gate");
+const {checkFinanceWriteback,projectAuditedLedger}=require("../lib/crm-finance-writeback-gate");
+const {customerValues}=require("../lib/crm-order-aggregate");
 const digest="a".repeat(64);
 const orders={completed:true,sourceType:"full_history_shopify_net_usd",fullHistoryNetUSD:true,
- rolling180dFromSameLedger:true,since:null,financialLedgerDigest:digest};
+ rolling180dFromSameLedger:true,since:null,financialLedgerDigest:digest,page:2,ledgerAsOf:"2026-11-16T00:00:00Z"};
 const customers={shopifyCycleComplete:true};
-const audit={status:"FINANCE_APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,
+const audit={status:"FINANCE_APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,sourceAsOf:orders.ledgerAsOf,
  orderCoverage:{fullHistory:true},currencyAudit:{allConvertedToUSD:true},refundAudit:{reconciled:true},
  sampleAudit:{verifiedCustomers:7}};
 const approval={status:"APPROVED_FOR_CRM_WRITEBACK",policyVersion:"2026-11-12",sourceDigest:digest,
@@ -45,4 +46,44 @@ test("reconcile route enforces finance gate before reading checkpoint, manifest 
  assert.match(src,/if\(!gate\.allowed\)return res\.status\(200\)\.json\(\{ok:true,waiting:true,blocked:true/);
  assert.match(src,/reason:"stale_reconciliation_manifest"/);
  assert.match(src,/reason:"stale_reconciliation_checkpoint"/);
+});
+
+test("missing audited page count or changed ledger cutoff always fails closed",()=>{
+ assert.equal(run({orders:{...orders,page:0}}).reason,"audited_ledger_projection_missing_or_stale");
+ assert.equal(run({orders:{...orders,ledgerAsOf:null}}).allowed,false);
+ assert.equal(run({audit:{...audit,sourceAsOf:"2026-11-15T00:00:00Z"}}).allowed,false);
+});
+test("all-history customer lifetime USD cannot be mistaken for rolling 180d M or F",()=>{
+ const cid="gid://shopify/Customer/123",asOf="2026-11-16T00:00:00Z";
+ const rows=[
+  {id:"gid://shopify/Order/old",customerId:cid,processedAt:"2025-01-05T00:00:00Z",usdNetAmount:3000},
+  {id:"gid://shopify/Order/new",customerId:cid,processedAt:"2026-11-01T00:00:00Z",usdNetAmount:20}
+ ];
+ const projection=projectAuditedLedger(rows,{asOf});
+ assert.deepEqual({lifetime:projection.lifetime.get(cid).m,lifetimeF:projection.lifetime.get(cid).f,
+  recentM:projection.recent.get(cid).m,recentF:projection.recent.get(cid).f},
+  {lifetime:3020,lifetimeF:2,recentM:20,recentF:1});
+ const value=customerValues({lifetimeSpendUSD:projection.lifetime.get(cid).m,
+  lifetimeOrders:projection.lifetime.get(cid).f,lastOrderAt:projection.lifetime.get(cid).last},
+  projection.recent.get(cid),{now:projection.asOf});
+ assert.equal(value.grade,"S+");
+ assert.equal(value.m,20);
+ assert.equal(value.f,1);
+});
+test("unverifiable ledger rows reject projection rather than silently dropping orders",()=>{
+ const valid={id:"gid://shopify/Order/1",customerId:"gid://shopify/Customer/1",
+  processedAt:"2026-11-01T00:00:00Z",usdNetAmount:20};
+ const runProjection=rows=>projectAuditedLedger(rows,{asOf:orders.ledgerAsOf});
+ assert.throws(()=>runProjection([]),/Invalid audited ledger projection inputs/);
+ assert.throws(()=>runProjection([valid,{...valid}]),/Invalid or duplicated audited order identity/);
+ assert.throws(()=>runProjection([{...valid,processedAt:"2026-12-01T00:00:00Z"}]),/Invalid audited order value or timestamp/);
+ assert.throws(()=>runProjection([{...valid,usdNetAmount:-1}]),/Invalid audited order value or timestamp/);
+ assert.throws(()=>runProjection([{...valid,customerId:""}]),/Invalid or duplicated audited order identity/);
+});
+test("reconcile never uses full-history summaries as rolling-180d values",()=>{
+ const src=readFileSync(path.join(__dirname,"../api/crm-orders-reconcile.js"),"utf8");
+ assert.match(src,/projectAuditedLedger\(all,\{asOf:orders\.ledgerAsOf\}\)/);
+ assert.match(src,/const lifetimeSpendUSD=history\?\.m/);
+ assert.match(src,/recent\.get\(c\.id\)/);
+ assert.doesNotMatch(src,/const summaries=summarize\(all\)/);
 });
