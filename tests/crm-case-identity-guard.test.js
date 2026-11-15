@@ -1,0 +1,84 @@
+"use strict";
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const { mock } = require("node:test");
+const feishu = require("../lib/crm-feishu");
+const cases = require("../lib/crm-cases");
+const writeback = require("../lib/crm-case-feishu-writeback");
+const handler = require("../api/crm-cases-feishu");
+
+const CASE_ID = "CASE-ABCD12345678";
+
+// Mock-only safety regressions; no real Feishu customer data or credentials.
+test("Case identity search rejects missing, truncated, duplicated, and malformed results before any write", async () => {
+  const invalid = [
+    {},
+    { items: [] },
+    { has_more: true, items: [] },
+    { has_more: false, items: null },
+    { has_more: false, items: [{ record_id: "" }] },
+    { has_more: false, items: [{ record_id: "one" }, { record_id: "two" }] },
+  ];
+  for (const data of invalid) {
+    let reads = 0;
+    let writes = 0;
+    const stub = mock.method(feishu, "request", async (_token, path, method, payload) => {
+      assert.match(path, /\/records\/search\?page_size=5$/);
+      assert.equal(method, "POST");
+      assert.equal(payload.filter.conditions[0].field_name, "数据来源ID");
+      assert.deepEqual(payload.filter.conditions[0].value, ["case:" + CASE_ID]);
+      reads++;
+      return data;
+    });
+    try {
+      await assert.rejects(
+        writeback.upsertCase("synthetic-tenant", writeback.TABLE, { caseId: CASE_ID }, []),
+        /Feishu Case identity|Duplicate Case ID/
+      );
+      assert.equal(reads, 1);
+      assert.equal(writes, 0, "must not create/overwrite an unverified Case");
+    } finally {
+      stub.mock.restore();
+    }
+  }
+});
+
+test("Case identity search permits an explicitly complete empty result", async () => {
+  const stub = mock.method(feishu, "request", async () => ({
+    has_more: false, items: [],
+  }));
+  try {
+    const rows = await writeback.findCaseRecords("synthetic-tenant", CASE_ID);
+    assert.deepEqual(rows, []);
+    assert.equal(stub.mock.callCount(), 1);
+  } finally {
+    stub.mock.restore();
+  }
+});
+
+test("outer Case handler redacts any secret or customer information in upstream errors", async () => {
+  const authorized = mock.method(cases, "authorized", () => true);
+  const token = mock.method(feishu, "tenantToken", async () => {
+    throw Error("upstream private-person@example.invalid bearer-leak-example");
+  });
+  const errors = [];
+  const logger = mock.method(console, "error", (...args) => errors.push(args.join(" ")));
+  const res = {
+    statusCode: 200, body: null,
+    setHeader() {},
+    status(n) { this.statusCode = n; return this; },
+    json(body) { this.body = body; return this; },
+  };
+  try {
+    await handler({ method: "GET" }, res);
+    assert.equal(res.statusCode, 502);
+    assert.equal(res.body.error, "feishu_writeback_unavailable");
+    assert.equal(res.body.retryable, true);
+    const visible = JSON.stringify(res.body) + errors.join("\n");
+    assert.equal(visible.includes("private-person@"), false);
+    assert.equal(visible.includes("bearer-leak-example"), false);
+    assert.ok(errors.some(line => line.includes("case_upsert_failed")));
+  } finally {
+    for (const x of [authorized, token, logger]) x.mock.restore();
+  }
+});
