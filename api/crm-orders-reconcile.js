@@ -6,7 +6,7 @@ const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {customerValues}=require("../lib/crm-order-aggregate");
-const {checkFinanceWriteback,projectAuditedLedger,digestAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
+const {checkFinanceWriteback,checkReconcileCheckpoint,projectAuditedLedger,digestAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
 const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
 const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
 const FINANCE_AUDIT="crm-execution/orders-bulk-v1-audit.json";
@@ -63,9 +63,7 @@ module.exports=async(req,res)=>{
   const gate=checkFinanceWriteback({orders,customers,audit,approval,manualFlag:process.env.CRM_FINANCE_WRITEBACK_APPROVED});
   if(!gate.allowed)return res.status(200).json({ok:true,waiting:true,blocked:true,reason:gate.reason});
   const state=await read(STATE)||{offset:0,done:false};
-  if(state.offset>0&&(state.source_ledger_digest!==gate.sourceDigest||state.finance_approval_id!==gate.approvalId))
-   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_checkpoint"});
-  if(state.done)return res.status(200).json({ok:true,completed:true,totals:state.totals});
+  // Even a completed checkpoint must revalidate the approved source pages.
   // Revalidate the full immutable financial projection before EVERY batch,
   // including retries using an existing private manifest. A changed page
   // must never resume a partially complete Feishu writeback.
@@ -107,6 +105,9 @@ module.exports=async(req,res)=>{
    manifest={updates,source_since:orders.since,source_pages:orders.page,source_ledger_digest:gate.sourceDigest,finance_approval_id:gate.approvalId,policy_version:POLICY_VERSION,created_at:new Date().toISOString()};
    await save(MANIFEST,manifest);
   }
+  const checkpoint=checkReconcileCheckpoint(state,manifest,{sourceDigest:gate.sourceDigest,approvalId:gate.approvalId});
+  if(!checkpoint.allowed)return res.status(409).json({ok:false,blocked:true,reason:checkpoint.reason});
+  if(checkpoint.complete)return res.status(200).json({ok:true,completed:true,totals:state.totals});
   const token=await feishu.tenantToken();
   const batch=manifest.updates.slice(state.offset,state.offset+500);
   if(batch.length){
