@@ -153,3 +153,67 @@ test("Feishu select conversion failure halts batch, preserves cursor, and replay
     }
   }
 });
+
+test("Case write failures redact upstream PII and halt deterministic auth/rate failures without moving the cursor", async () => {
+  const originals = {
+    authorized: cases.authorized, allEvents: cases.allEvents, groupCases: cases.groupCases,
+    read: cases.read, save: cases.save, tenantToken: feishu.tenantToken,
+    ensureTable: writeback.ensureTable, upsertCase: writeback.upsertCase,
+    preflightCaseBatch: writeback.preflightCaseBatch,
+  };
+  const originalError = console.error;
+  const privateFragment = "fake@example.invalid AUTH_SECRET_DO_NOT_LOG";
+  const items = [{caseId:"CASE-111111111111"},{caseId:"CASE-222222222222"}];
+  const calls = [];
+  let saved = 0;
+  const logged = [];
+  try {
+    cases.authorized = () => true;
+    cases.allEvents = async () => items;
+    cases.groupCases = () => items;
+    cases.read = async () => ({offset: 0});
+    cases.save = async () => {saved++;};
+    feishu.tenantToken = async () => "test-token";
+    writeback.ensureTable = async () => ({tableId:writeback.TABLE,schema:[]});
+    writeback.preflightCaseBatch = batch => batch.length;
+    console.error = (...args) => logged.push(args.map(String).join(" "));
+    const scenarios = [
+      {message:"Feishu 429 rate limit " + privateFragment, code:"case_rate_limited", attempted:1},
+      {message:"Feishu 403 Forbidden " + privateFragment, code:"case_upstream_auth", attempted:1},
+      {message:"Feishu unexpected " + privateFragment, code:null, attempted:2},
+    ];
+    for (const item of scenarios) {
+      calls.length = 0;
+      writeback.upsertCase = async (_token, _table, row) => {
+        calls.push(row.caseId);
+        if (row.caseId === items[0].caseId) throw Error(item.message);
+        return "created";
+      };
+      const res = {
+        code:200, body:null, setHeader(){},
+        status(code){this.code=code;return this;},
+        json(body){this.body=body;return this;},
+      };
+      await handler({method:"GET"},res);
+      assert.equal(res.code,502);
+      assert.equal(res.body.blockedReason,item.code);
+      assert.equal(res.body.failed,1);
+      assert.equal(res.body.processed,item.attempted);
+      assert.equal(calls.length,item.attempted);
+      assert.equal(saved,0);
+      assert.equal(JSON.stringify(res.body).includes(privateFragment),false);
+    }
+    const output = logged.join("\n");
+    assert.equal(output.includes(privateFragment),false);
+    assert.ok(output.includes("rate_limited"));
+    assert.ok(output.includes("upstream_auth_blocked"));
+    assert.ok(output.includes("case_upsert_failed"));
+  } finally {
+    console.error = originalError;
+    for (const [key,value] of Object.entries(originals)) {
+      if (key==="tenantToken") feishu.tenantToken=value;
+      else if (["ensureTable","upsertCase","preflightCaseBatch"].includes(key)) writeback[key]=value;
+      else cases[key]=value;
+    }
+  }
+});
