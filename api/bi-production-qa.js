@@ -1,5 +1,6 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
@@ -45,7 +46,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
+ if(!isKbiTokenConfigured())return res.status(503).json({ok:false,error:"login_not_configured"});
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});

@@ -1,5 +1,6 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
 const QUERY=`query KbiCatalog($filter:String!){
  products(first:36,query:$filter,sortKey:UPDATED_AT,reverse:true){
@@ -13,7 +14,7 @@ const QUERY=`query KbiCatalog($filter:String!){
 }`;
 function auth(req){
  const a=String(process.env.KBI_ACCESS_TOKEN||""),b=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return a.length>=24&&!!b&&crypto.timingSafeEqual(crypto.createHash("sha256").update(a).digest(),crypto.createHash("sha256").update(b).digest());
+ return isKbiTokenConfigured(a)&&!!b&&crypto.timingSafeEqual(crypto.createHash("sha256").update(a).digest(),crypto.createHash("sha256").update(b).digest());
 }
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
