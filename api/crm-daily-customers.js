@@ -8,6 +8,7 @@ const shopify=require("../lib/crm-shopify");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
 const {classify}=require("../lib/crm-customer-quality");
+const {classifyDeltaFailure}=require("../lib/crm-daily-customer-diagnostics");
 const SOURCE=state.ROOT+"/shopify-state.json";
 const BASELINE="crm-execution/import-cursor.json";
 const QUERY=`query CrmCustomerDelta($filter:String!,$cursor:String){
@@ -27,18 +28,22 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!state.authorized(req))return res.status(401).json({ok:false});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:"private_state_not_configured"});
+ let phase="baseline_read";
  try{
   const initial=await state.read(BASELINE);
   if(initial?.shopifyCycleComplete!==true)
    return res.status(200).json({ok:true,paused:true,reason:"initial_customer_baseline_not_verified"});
+  phase="checkpoint_read";
   const checkpoint=state.cycle(await state.read(SOURCE));
   if(checkpoint.completed)return res.status(200).json({ok:true,completed:true,day:checkpoint.day,counters:checkpoint.counters});
+  phase="feishu_auth";
   const token=await feishu.tenantToken();
   let pages=0;
   const began=Date.now();
   // Advance the cursor only after the corresponding Feishu writes succeed.
   while(pages<6&&Date.now()-began<90000){
    const filter="updated_at:>="+checkpoint.windowStart;
+   phase="shopify_page";
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
    if(!response?.customers?.nodes||!response.customers.pageInfo)throw Error("Malformed customer delta response");
    const pageCounters={excluded:0,created:0,updated:0,accepted:0};
@@ -51,6 +56,7 @@ module.exports=async(req,res)=>{
      continue;
     }
     valid.push(c);
+    phase="feishu_identity_lookup";
     const existing=await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id);
     if(existing.length>1)throw Error("Ambiguous Shopify identity in CRM mirror");
     if(existing.length===1)index.set(c.id,existing[0].record_id);
@@ -58,6 +64,7 @@ module.exports=async(req,res)=>{
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
     // consent rules, and doesn't modify manually entered CRM grades or notes.
+    phase="feishu_batch_write";
     const result=await bulk.batchCustomers(token,valid,index);
     pageCounters.created=result.created;
     pageCounters.updated=result.updated;
@@ -70,6 +77,7 @@ module.exports=async(req,res)=>{
    checkpoint.cursor=response.customers.pageInfo.hasNextPage?response.customers.pageInfo.endCursor:null;
    if(!response.customers.pageInfo.hasNextPage)state.done(checkpoint);
    checkpoint.updatedAt=new Date().toISOString();
+   phase="checkpoint_save";
    await state.save(SOURCE,checkpoint);
    pages++;
    if(checkpoint.completed)break;
@@ -78,5 +86,11 @@ module.exports=async(req,res)=>{
    completed:checkpoint.completed,continuedFrom:checkpoint.windowStart,
    pagesThisRun:pages,counters:checkpoint.counters,
    note:"Historical import checkpoint preserved. CRM levels untouched."});
- }catch(_){return res.status(502).json({ok:false,retryable:true,error:"daily_customer_delta_failed"});}
+ }catch(error){
+  const diagnostic=classifyDeltaFailure(error,phase);
+  // Never log raw upstream failures: Feishu/Shopify payloads can contain PII.
+  console.warn("[crm-daily-customers] failed",diagnostic.code,diagnostic.phase);
+  return res.status(502).json({ok:false,retryable:diagnostic.retryable,blocked:diagnostic.blocked,
+   error:"daily_customer_delta_failed",failure_code:diagnostic.code,failure_stage:diagnostic.phase});
+ }
 };
