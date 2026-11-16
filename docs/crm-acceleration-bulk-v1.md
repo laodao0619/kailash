@@ -35,3 +35,7 @@ See Shopify docs: https://shopify.dev/docs/api/usage/bulk-operations/queries
 - Refund transactions exceeding the order's verified successful SALE/CAPTURE amounts are quarantined as `refund_exceeds_captured`, causing `BLOCKED_REFUND_RECONCILIATION` even for fully refunded orders. This requires original Shopify/gateway evidence; it is not a fraud determination.
 - If the sample is blocked, leave production RFM and customer grade unchanged. This PR has no deployment approval.
 - A count-complete JSONL archive is **blocked** when any settled positive-merchandise order has zero associated child line items, even when root/total Shopify object counts match. This prevents accepting a partial product graph as complete evidence. The seven-account sample separately reports `BLOCKED_SAMPLE_MISSING_LINE_ITEMS`; no grade or RFM write is authorized.
+
+## Financial order date contract (2026-11-16 draft)
+
+The historical ledger and rolling 180-day M/F use Shopify **processedAt** for the effective purchase timestamp, matching the later audited-ledger digest projection. **createdAt** remains separately recorded as source evidence; an earlier/later creation timestamp must not silently change R/F. Missing, malformed or future processedAt blocks audit readiness rather than falling back to createdAt. The seven-customer private evidence now shows both dates. All outputs remain audit-only; no change to existing CRM/Feishu records or historical import checkpoints.
