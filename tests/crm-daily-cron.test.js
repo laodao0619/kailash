@@ -17,6 +17,7 @@ test("original full customer and order imports never get scheduled again",()=>{
  const denied=["/api/crm-backfill","/api/crm-orders-stage","/api/crm-orders-reconcile","/api/crm-gmail-stage"];
  for(const entry of crons)assert.equal(denied.includes(entry.path),false,entry.path);
 });
-test("temporary historical Gmail completion job remains independently resumable",()=>{
- assert(crons.some(x=>x.path==="/api/crm-gmail-filtered"));
+test("completed historical Gmail importer is not rescheduled",()=>{
+ assert.equal(crons.some(x=>x.path==="/api/crm-gmail-filtered"),false);
+ assert.equal(require("node:fs").existsSync(require("node:path").join(__dirname,"../api/crm-gmail-filtered.js")),true);
 });
