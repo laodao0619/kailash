@@ -11,8 +11,15 @@ test("never invents recency for customer with missing last order",()=>{
  assert.equal(x.grade,"待核验");assert.equal(x.verified,false);
 });
 test("classifies known older customer as dormant and no-order customer separately",()=>{
- const dormant=customerValues({lifetimeOrders:2,lastOrderAt:"2025-12-01T00:00:00Z"},null,{now:NOW});
+ const dormant=customerValues({lifetimeOrders:2,lifetimeSpend:500,lastOrderAt:"2025-12-01T00:00:00Z"},null,{now:NOW});
  assert.equal(dormant.grade,"沉睡");
- const never=customerValues({lifetimeOrders:0},null,{now:NOW});
+ const never=customerValues({lifetimeOrders:0,lifetimeSpend:0},null,{now:NOW});
  assert.equal(never.grade,"从未购买");
+});
+
+test("high lifetime customer retains S+ after one small recent purchase",()=>{
+ const x=customerValues({lifetimeOrders:10,lifetimeSpend:5000},
+  {m:100,f:1,last:Date.parse("2026-11-01")},{now:NOW});
+ assert.equal(x.grade,"S+");assert.equal(x.m,100);assert.equal(x.f,1);
+ assert.equal(x.rfm,"一般发展用户");
 });

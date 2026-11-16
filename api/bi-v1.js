@@ -31,7 +31,9 @@ function customer(x){
    name:scalar(f["客户姓名"])||"",
    email:scalar(f["邮箱"])||"",
    country:scalar(f["国家地区"])||"",
-   tier:scalar(f["CRM等级"])||null,
+   tier:require("../lib/crm-lifetime-tier").classify({
+    lifetimeSpend:number(f["历史累计消费"]),lifetimeOrders:number(f["历史订单数"]),
+    f:number(f["近180天有效订单数"]),r:number(f["最近购买距今天数R"])}).grade,
    subscribed:scalar(f["邮件订阅状态"])||null,
    lifetimeSpend:number(f["历史累计消费"]),
    lifetimeOrders:number(f["历史订单数"]),

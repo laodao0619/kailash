@@ -20,7 +20,7 @@ test("export preserves whole matched set, not one 40-row page",()=>{
  const csv=toCSV(matched);
  assert(csv.startsWith("\ufeff"));
  assert.equal(csv.split("\r\n").length,57);
- assert(csv.includes("客户等级(历史快照)"));
+ assert(csv.includes("客户等级(历史消费及180天购买)"));
  assert(csv.includes("Client 111"));
  assert(!csv.includes("Client 110"));
 });

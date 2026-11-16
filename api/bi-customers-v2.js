@@ -2,6 +2,7 @@
 const crypto=require("node:crypto");
 const {CURRENT,read,normalize}=require("./bi-index-build");
 const {tenantToken}=require("../lib/crm-feishu");
+const {applyRow,POLICY_VERSION,BASIS}=require("../lib/crm-lifetime-tier");
 const SORT_KEYS=new Set(["name","country","tier","spendLifetime","ordersLifetime","m180","f180","rDays","lastOrderAt","aov","syncedAt","firstOrderAt"]);
 let cache=null,inflight=null;
 function auth(req){
@@ -47,6 +48,7 @@ async function snapshot(){
   try{data=await read(CURRENT);}catch(_){data=null;}
   if(!data||data.version!==2||!Array.isArray(data.customers)||data.customers.length<1000)
    data=await liveCRMScan();
+  data={...data,customers:data.customers.map(applyRow),tierPolicyVersion:POLICY_VERSION,tierBasis:BASIS};
   cache={at:Date.now(),data};return data;
  })().finally(()=>{inflight=null;});
  return inflight;
@@ -123,7 +125,9 @@ module.exports=async(req,res)=>{
    customers:view,facets:facets(data.customers),
    coverage:{
     snapshot:"existing_feishu_customer_master",
-    tier:"existing_historical_writeback_not_final_financial_audit",
+    tier:BASIS,
+    tierPolicyVersion:POLICY_VERSION,
+    financialAudit:"source_snapshot_not_final_financial_audit",
     m180:"existing_180d_snapshot_not_full_history",
     lastUpdated:data.generatedAt
    }
