@@ -25,7 +25,7 @@ function liveShapeFixture(c) {
   }));
 }
 
-test("existing Case uses documented PUT, writes CRM grade array, preserves human-owned fields", async () => {
+test("existing Case uses documented PUT and preserves human-reviewed CRM grade and Case fields", async () => {
   const originalRequest = feishu.request, originalFind = feishu.findBy;
   const calls = [];
   const c = {
@@ -33,7 +33,7 @@ test("existing Case uses documented PUT, writes CRM grade array, preserves human
     customerEmail: "case@example.invalid", crmVerified: true, crmGrade: "S+"
   };
   const schema = liveShapeFixture(c);
-  const record = { "负责人":"人工负责人", "任务状态":"处理中", "处理结果":"保留人工结果" };
+  const record = { "负责人":"人工负责人", "任务状态":"处理中", "处理结果":"保留人工结果", "CRM等级（Case核验）":["A"] };
   feishu.findBy = async () => [{record_id:"rec_existing",fields:{...record}}];
   feishu.request = async (_token, path, method = "GET", body) => {
     calls.push({path,method,body});
@@ -51,16 +51,40 @@ test("existing Case uses documented PUT, writes CRM grade array, preserves human
     assert.equal(writes[0].body.fields["任务优先级"],"高");
     assert.equal(writes[0].body.fields["沟通渠道"],"Gmail");
     assert.equal(writes[0].body.fields["沟通方向"],"客户发起");
-    assert.deepEqual(writes[0].body.fields["CRM等级（Case核验）"],["S+"]);
+    assert.equal(Object.hasOwn(writes[0].body.fields,"CRM等级（Case核验）"),false);
     for (const name of HUMAN) {
       assert.equal(Object.hasOwn(writes[0].body.fields,name),false);
     }
     assert.equal(record["负责人"],"人工负责人");
     assert.equal(record["任务状态"],"处理中");
     assert.equal(record["处理结果"],"保留人工结果");
+    assert.deepEqual(record["CRM等级（Case核验）"],["A"]);
   } finally {
     feishu.request=originalRequest;feishu.findBy=originalFind;
   }
+});
+
+test("new Case ignores unreviewed legacy verified flag and starts pending", async () => {
+  const originalRequest = feishu.request, originalFind = feishu.findBy;
+  const c = {
+    caseId: "CASE-ABCDEF123456", category: "物流", priority: "P1",
+    crmVerified: true, crmGrade: "S+"
+  };
+  const schema = liveShapeFixture(c);
+  const writes = [];
+  feishu.findBy = async () => [];
+  feishu.request = async (_token, path, method = "GET", body) => {
+    if (path.endsWith("/fields?page_size=100")) return {items:schema,has_more:false};
+    if (method !== "GET") writes.push({method,body});
+    return {};
+  };
+  try {
+    assert.equal(await upsertCase("fake-token", TABLE, c), "created");
+    assert.equal(writes.length,1);
+    assert.equal(writes[0].method,"POST");
+    assert.deepEqual(writes[0].body.fields["CRM等级（Case核验）"],["待核验"]);
+    assert.equal(writes[0].body.fields["任务状态"],"待处理");
+  } finally {feishu.request=originalRequest;feishu.findBy=originalFind;}
 });
 
 test("duplicate Case source IDs reject without any Feishu write", async () => {
