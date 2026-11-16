@@ -437,13 +437,18 @@ test("different settled transaction IDs across orders do not trigger false assoc
 test("invalid Shopify calendar dates are blocked before financial or 180-day aggregation",async()=>{
  const {createAudit,verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
  const invalidDates=["2026-02-30T00:00:00Z","2026-04-31T10:20:00+08:00"];
- const rows=invalidDates.map((createdAt,i)=>order({
-  id:"gid://shopify/Order/"+(9901+i),createdAt,
-  customer:{id:"gid://shopify/Customer/"+(9901+i)},
-  transactions:[{id:"gid://shopify/OrderTransaction/"+(9901+i),
-   kind:"SALE",status:"SUCCESS",amountSet:usd(100)}],
-  displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(100),totalRefundedSet:usd(0)
- }));
+ const rows=invalidDates.flatMap((createdAt,i)=>{
+  const purchase=order({
+   id:"gid://shopify/Order/"+(9901+i),createdAt,
+   customer:{id:"gid://shopify/Customer/"+(9901+i)},
+   transactions:[{id:"gid://shopify/OrderTransaction/"+(9901+i),
+    kind:"SALE",status:"SUCCESS",amountSet:usd(100)}],
+   displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(100),totalRefundedSet:usd(0)
+  });
+  return [purchase,{__parentId:purchase.id,id:"gid://shopify/LineItem/"+(9901+i),
+   title:"Synthetic item",quantity:1,
+   originalUnitPriceSet:usd(100),discountedTotalSet:usd(100)}];
+ });
  const output=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
   asOf:"2026-11-16T00:00:00Z"
  });
@@ -453,7 +458,7 @@ test("invalid Shopify calendar dates are blocked before financial or 180-day agg
  assert.equal(output.totals.excluded.missing_order_date,2);
  assert.equal(output.uniqueCustomers,0);
  assert.equal(verifyArchiveIntegrity(output,{status:"COMPLETED",downloaded:true,
-  archivedAt:"2026-11-16T00:00:00Z",rootObjectCount:"2",objectCount:"2"}).status,
+  archivedAt:"2026-11-16T00:00:00Z",rootObjectCount:"2",objectCount:"4"}).status,
   "BLOCKED_ORDER_DATE_EVIDENCE");
  for(const invalid of invalidDates){
   assert.throws(()=>createAudit({asOf:invalid}),/Invalid audit window/);
