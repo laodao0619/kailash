@@ -98,10 +98,31 @@ test("duplicate Case source IDs reject without any Feishu write", async () => {
   } finally {feishu.findBy=originalFind;feishu.request=originalRequest;}
 });
 
-test("unknown CRM grade option fails closed before POST or PUT", async () => {
+test("stale event grade cannot block Case creates or alter pending grade", async () => {
   const originalRequest=feishu.request, originalFind=feishu.findBy;
   const c={caseId:"CASE-ABCDEF123456",category:"物流",priority:"P1",crmVerified:true,crmGrade:"旧等级"};
   const schema=liveShapeFixture(c);
+  const writes=[];
+  feishu.findBy=async()=>[];
+  feishu.request=async (_token,path,method="GET",body)=>{
+    if (method!=="GET") writes.push({method,body});
+    if (path.endsWith("/fields?page_size=100")) return {items:schema,has_more:false};
+    return {};
+  };
+  try {
+    assert.equal(recordFields(c)["CRM等级（Case核验）"],"待核验");
+    assert.equal(await upsertCase("fake-token",TABLE,c),"created");
+    assert.equal(writes.length,1);
+    assert.equal(writes[0].method,"POST");
+    assert.deepEqual(writes[0].body.fields["CRM等级（Case核验）"],["待核验"]);
+  } finally {feishu.request=originalRequest;feishu.findBy=originalFind;}
+});
+
+test("missing pending option still rejects new Case without writing", async () => {
+  const originalRequest=feishu.request, originalFind=feishu.findBy;
+  const c={caseId:"CASE-ABCDEF123456",crmVerified:true,crmGrade:"S+"};
+  const schema=liveShapeFixture(c).map(field => field.field_name==="CRM等级（Case核验）"
+    ? {...field,property:{options:[{name:"S+"}]}} : field);
   let writes=0;
   feishu.findBy=async()=>[];
   feishu.request=async (_token,path,method="GET")=>{
