@@ -91,3 +91,32 @@ test("missing or repeated Shopify next cursor preserves checkpoint and avoids al
   else process.env.BLOB_READ_WRITE_TOKEN=old;
  }
 });
+
+test("Shopify failure reports only a fixed stage without leaking upstream customer PII",async()=>{
+ const prior=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ const recorded=[];
+ const reader=mock.method(state,"read",async path=>
+  path.includes("import-cursor")?{shopifyCycleComplete:true}:{completed:false,
+   windowStart:"2026-11-12T00:00:00.000Z",cursor:"confidential-cursor",
+   counters:{scanned:1080,pages:36}});
+ const token=mock.method(feishu,"tenantToken",async()=> "test-feishu-token");
+ const query=mock.method(shopify,"queryShopify",async()=>{
+  throw Error("UNTRUSTED CUSTOMER CONTENT customer@example.test access-token=secret-value");
+ });
+ const writer=mock.method(state,"save",async()=>{throw Error("must not write checkpoint")});
+ const logs=mock.method(console,"error",(...args)=>recorded.push(args.join(" ")));
+ try{
+  const result=res();await handler(req,result);
+  assert.equal(result.code,502);
+  assert.deepEqual(result.value,{ok:false,retryable:true,error:"daily_customer_delta_failed"});
+  assert.equal(query.mock.callCount(),1);
+  assert.equal(writer.mock.callCount(),0);
+  assert.deepEqual(recorded,["[crm-daily-customers] daily_customer_delta_failed stage=shopify_query"]);
+  assert.doesNotMatch(recorded.join(" " ),/customer@example\.test|secret-value|confidential-cursor|test-feishu-token/);
+ }finally{
+  for(const m of [reader,token,query,writer,logs])m.mock.restore();
+  if(prior===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=prior;
+ }
+});
