@@ -120,3 +120,70 @@ test("Shopify failure reports only a fixed stage without leaking upstream custom
   else process.env.BLOB_READ_WRITE_TOKEN=prior;
  }
 });
+
+test("customer delta resolves Feishu identities with at most three reads in flight before writes",async()=>{
+ const prev=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ const rows=Array.from({length:9},(_,n)=>({
+  id:"gid://shopify/Customer/"+(n+1),numberOfOrders:1,
+  defaultEmailAddress:{emailAddress:"synthetic"+(n+1)+"@example.test",marketingState:"SUBSCRIBED"}
+ }));
+ const read=mock.method(state,"read",async p=>p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const save=mock.method(state,"save",async()=>{});
+ const query=mock.method(shopify,"queryShopify",async()=>({
+  customers:{nodes:rows,pageInfo:{hasNextPage:false,endCursor:null}}
+ }));
+ const tenant=mock.method(feishu,"tenantToken",async()=>"feishu-test");
+ let active=0,maxActive=0,lookedUp=0;
+ const lookup=mock.method(feishu,"findBy",async(_t,_table,_field,id)=>{
+  active++;lookedUp++;maxActive=Math.max(maxActive,active);
+  await new Promise(resolve=>setImmediate(resolve));
+  active--;
+  return [{record_id:"rec-"+id.split("/").pop()}];
+ });
+ const write=mock.method(bulk,"batchCustomers",async(_t,customers,index)=>{
+  assert.equal(lookedUp,9,"all Feishu lookups must finish before any write");
+  assert.equal(active,0);
+  assert.equal(customers.length,9);
+  assert.equal(index.size,9);
+  assert.equal(index.get("gid://shopify/Customer/1"),"rec-1");
+  return {created:0,updated:9};
+ });
+ try{
+  const result=res();await handler(req,result);
+  assert.equal(result.code,200);assert.equal(result.value.completed,true);
+  assert.equal(result.value.counters.updated,9);
+  assert.equal(lookedUp,9);assert.equal(maxActive,3);
+  assert.equal(write.mock.callCount(),1);assert.equal(save.mock.callCount(),1);
+ }finally{
+  for(const m of [read,save,query,tenant,lookup,write])m.mock.restore();
+  if(prev===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=prev;
+ }
+});
+
+test("repeated Shopify customer IDs fail before Feishu lookup and checkpoint mutation",async()=>{
+ const prev=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ const customer={id:"gid://shopify/Customer/1",numberOfOrders:1,
+  defaultEmailAddress:{emailAddress:"synthetic@example.test",marketingState:"SUBSCRIBED"}};
+ const read=mock.method(state,"read",async p=>p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const save=mock.method(state,"save",async()=>{throw Error("checkpoint must not advance")});
+ const query=mock.method(shopify,"queryShopify",async()=>({
+  customers:{nodes:[customer,customer],pageInfo:{hasNextPage:false,endCursor:null}}
+ }));
+ const tenant=mock.method(feishu,"tenantToken",async()=>"feishu-test");
+ const lookup=mock.method(feishu,"findBy",async()=>{throw Error("Feishu must not be read")});
+ const write=mock.method(bulk,"batchCustomers",async()=>{throw Error("Feishu must not be written")});
+ const errors=mock.method(console,"error",()=>{});
+ try{
+  const result=res();await handler(req,result);
+  assert.equal(result.code,502);assert.equal(result.value.error,"daily_customer_delta_failed");
+  assert.equal(lookup.mock.callCount(),0);assert.equal(write.mock.callCount(),0);
+  assert.equal(save.mock.callCount(),0);
+ }finally{
+  for(const m of [read,save,query,tenant,lookup,write,errors])m.mock.restore();
+  if(prev===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=prev;
+ }
+});
