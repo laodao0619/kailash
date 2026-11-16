@@ -12,7 +12,7 @@ test("CRM tier uses lifetime spend and a single recent order, independent of RFM
  assert.equal(g({M:0,F:1}).tier,"S+");
 });
 test("lifetime spending boundaries",()=>{
- for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"],[0,"基础客户"]])
+ for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"]])
   assert.equal(g({M:0,F:1,lifetimeSpendUSD:spend}).tier,tier);
 });
 test("at exactly 180 days a customer can still be active; after 180 dormant",()=>{
@@ -43,4 +43,11 @@ test("AOV cohort separate from CRM tier, no inferred value",()=>{
  assert.equal(aovGroup(400,{verified:true}),"高客单价");
  assert.equal(aovGroup(399.99,{verified:true}),"低客单价");
  assert.equal(aovGroup(400),null);
+});
+
+test("zero historical net USD with actual orders must be pending financial review",()=>{
+ const x=g({M:0,F:1,lifetimeSpendUSD:0});
+ assert.equal(x.status,"unverified");
+ assert.equal(x.tier,null);
+ assert.equal(x.reason,"zero_net_spend_with_orders");
 });
