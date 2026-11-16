@@ -46,7 +46,7 @@ test("Case updates an existing communication table record without touching task 
     const result=await upsertCase("test",TABLE,{caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"});
     assert.equal(result,"updated");
     assert.match(calls[0][1],/tblNi7C5q5FYlG06\/records\/rec-existing$/);
-    assert.equal(calls[0][2],"PATCH");
+    assert.equal(calls[0][2],"PUT");
     for (const key of HUMAN) assert.equal(Object.hasOwn(calls[0][3].fields,key),false);
   } finally { feishu.findBy=originalFind;feishu.request=originalRequest; }
 });
