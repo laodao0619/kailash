@@ -10,6 +10,8 @@ const productsHandler=require("./bi-workbench-products");
 const rfmCubeHandler=require("./bi-rfm-cube");
 const INDEX="kbi-index/v2/current.json";
 const RESULT="kbi-index/v2/production-qa.json";
+const BUILD_STATE="kbi-index/v2/build-state.json";
+const {canReuseQa}=require("../lib/bi-production-qa-cache");
 function authorized(req){
  const expected=String(process.env.CRON_SECRET||"");
  const actual=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
@@ -27,6 +29,14 @@ async function call(handler,query){
 async function indexed(){
  const r=await get(INDEX,{access:"private"});
  return !!(r&&r.statusCode===200);
+}
+// Read only the small build-state checkpoint. Do not load the full private
+// customer index merely to determine whether a cached QA is still current.
+async function readBuildState(){
+ const r=await get(BUILD_STATE,{access:"private"});
+ if(!r||r.statusCode!==200)return null;
+ const chunks=[];for await(const c of r.stream)chunks.push(c);
+ return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 async function save(report){
  await put(RESULT,JSON.stringify(report),{access:"private",allowOverwrite:true,addRandomSuffix:false,contentType:"application/json"});
@@ -49,11 +59,15 @@ module.exports=async(req,res)=>{
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  // Missing or unreadable build metadata cannot authorize reuse of an old QA.
+  // We may still run fresh read-only QA against the existing customer index.
+  let buildState=null;
+  try{buildState=await readBuildState()}catch(_){}
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(canReuseQa(previous,buildState))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
