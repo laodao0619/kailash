@@ -26,7 +26,8 @@ test("missing baseline does not replay the entire customer import",async()=>{
 });
 test("completed baseline: upsert only changed Shopify customers and save new delta cursor",async()=>{
  const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="test-token";
- const paths=[],writes=[],queries=[];
+ const paths=[],writes=[],queries=[],progress=[];
+ const progressLog=mock.method(console,"info",message=>progress.push(String(message)));
  const read=mock.method(state,"read",async p=>{
   paths.push(p);
   return p.includes("import-cursor")?{shopifyCycleComplete:true}:null;
@@ -52,7 +53,10 @@ test("completed baseline: upsert only changed Shopify customers and save new del
   assert.equal(query.mock.callCount(),1);assert.match(queries[0].filter,/updated_at:>=/);
   assert.equal(writes.length,1);assert.equal(writes[0].completed,true);
   assert.equal(paths.some(p=>p.includes("import-cursor")),true);
- }finally{for(const x of [read,save,query,token,lookup,upsert])x.mock.restore();
+  assert.equal(progress.length,1,"emit progress only after successful checkpoint save");
+  assert.match(progress[0],/^\[crm-daily-customers\] page_committed shopify_ms=\d+ identity_ms=\d+ write_ms=\d+ checkpoint_ms=\d+ page_ms=\d+ scanned=1 eligible=1 completed=true$/);
+  assert.doesNotMatch(progress[0],/customer@example\.test|gid:\/\/shopify|feishu-test/);
+ }finally{for(const x of [read,save,query,token,lookup,upsert,progressLog])x.mock.restore();
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
 
