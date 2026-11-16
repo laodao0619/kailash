@@ -433,3 +433,36 @@ test("different settled transaction IDs across orders do not trigger false assoc
   archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"2",objectCount:"4"}).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+test("invalid Shopify calendar dates are blocked before financial or 180-day aggregation",async()=>{
+ const {createAudit,verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const invalidDates=["2026-02-30T00:00:00Z","2026-04-31T10:20:00+08:00"];
+ const rows=invalidDates.map((createdAt,i)=>order({
+  id:"gid://shopify/Order/"+(9901+i),createdAt,
+  customer:{id:"gid://shopify/Customer/"+(9901+i)},
+  transactions:[{id:"gid://shopify/OrderTransaction/"+(9901+i),
+   kind:"SALE",status:"SUCCESS",amountSet:usd(100)}],
+  displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(100),totalRefundedSet:usd(0)
+ }));
+ const output=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-16T00:00:00Z"
+ });
+ assert.equal(output.totals.orders,2);
+ assert.equal(output.totals.eligible,0);
+ assert.equal(output.totals.missingOrderDate,2);
+ assert.equal(output.totals.excluded.missing_order_date,2);
+ assert.equal(output.uniqueCustomers,0);
+ assert.equal(verifyArchiveIntegrity(output,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-16T00:00:00Z",rootObjectCount:"2",objectCount:"2"}).status,
+  "BLOCKED_ORDER_DATE_EVIDENCE");
+ for(const invalid of invalidDates){
+  assert.throws(()=>createAudit({asOf:invalid}),/Invalid audit window/);
+ }
+ // Validate the calendar in the timestamp's original offset, not UTC date.
+ const valid=order({createdAt:"2024-02-29T23:30:00-05:00"});
+ const leap=await auditJsonl(Readable.from([JSON.stringify(valid)+"\n"]),{
+  asOf:"2024-03-01T05:00:00Z"
+ });
+ assert.equal(leap.totals.eligible,1);
+ assert.equal(leap.totals.withinWindow,1);
+});
