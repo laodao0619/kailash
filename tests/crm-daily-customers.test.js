@@ -53,9 +53,15 @@ test("completed baseline: upsert only changed Shopify customers and save new del
   assert.equal(query.mock.callCount(),1);assert.match(queries[0].filter,/updated_at:>=/);
   assert.equal(writes.length,1);assert.equal(writes[0].completed,true);
   assert.equal(paths.some(p=>p.includes("import-cursor")),true);
-  assert.equal(progress.length,1,"emit progress only after successful checkpoint save");
-  assert.match(progress[0],/^\[crm-daily-customers\] page_committed shopify_ms=\d+ identity_ms=\d+ write_ms=\d+ checkpoint_ms=\d+ page_ms=\d+ scanned=1 eligible=1 completed=true$/);
-  assert.doesNotMatch(progress[0],/customer@example\.test|gid:\/\/shopify|feishu-test/);
+  assert.equal(progress.length,5,"log only safe stage entries and a committed page");
+  assert.deepEqual(progress.slice(0,4),[
+   "[crm-daily-customers] stage_start stage=shopify_query page_in_run=1",
+   "[crm-daily-customers] stage_start stage=feishu_customer_lookup page_in_run=1",
+   "[crm-daily-customers] stage_start stage=feishu_batch_write page_in_run=1",
+   "[crm-daily-customers] stage_start stage=checkpoint_save page_in_run=1"
+  ]);
+  assert.match(progress[4],/^\[crm-daily-customers\] page_committed shopify_ms=\d+ identity_ms=\d+ write_ms=\d+ checkpoint_ms=\d+ page_ms=\d+ scanned=1 eligible=1 completed=true$/);
+  assert.doesNotMatch(progress.join(" "),/customer@example\.test|gid:\/\/shopify|feishu-test/);
  }finally{for(const x of [read,save,query,token,lookup,upsert,progressLog])x.mock.restore();
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
@@ -189,5 +195,40 @@ test("repeated Shopify customer IDs fail before Feishu lookup and checkpoint mut
   for(const m of [read,save,query,tenant,lookup,write,errors])m.mock.restore();
   if(prev===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
   else process.env.BLOB_READ_WRITE_TOKEN=prev;
+ }
+});
+
+test("completed page is checkpointed and no second page starts after safe runtime budget",async()=>{
+ const prior=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ let clock=1700000000000;
+ const now=mock.method(Date,"now",()=>clock);
+ const read=mock.method(state,"read",async p=>p.includes("import-cursor")?{shopifyCycleComplete:true}:null);
+ const saves=[];
+ const save=mock.method(state,"save",async(_path,data)=>{
+  saves.push({cursor:data.cursor,completed:data.completed,pages:data.counters.pages});
+  clock+=70000; // Simulate one slow, successfully committed page.
+ });
+ const query=mock.method(shopify,"queryShopify",async()=>({
+  customers:{nodes:[{id:"gid://shopify/Customer/123",numberOfOrders:1,
+   defaultEmailAddress:{emailAddress:"synthetic@example.test",marketingState:"SUBSCRIBED"}}],
+   pageInfo:{hasNextPage:true,endCursor:"cursor-next"}}
+ }));
+ const tenant=mock.method(feishu,"tenantToken",async()=> "feishu-test");
+ const lookup=mock.method(feishu,"findBy",async()=>[{record_id:"rec-123"}]);
+ const write=mock.method(bulk,"batchCustomers",async()=>({created:0,updated:1}));
+ const logs=mock.method(console,"info",()=>{});
+ try{
+  const response=res();await handler(req,response);
+  assert.equal(response.code,200);
+  assert.equal(response.value.completed,false);
+  assert.equal(response.value.pagesThisRun,1);
+  assert.equal(query.mock.callCount(),1,"must not start new Shopify page near runtime limit");
+  assert.deepEqual(saves,[{cursor:"cursor-next",completed:false,pages:1}]);
+  assert.equal(response.value.counters.updated,1);
+ }finally{
+  for(const m of [now,read,save,query,tenant,lookup,write,logs])m.mock.restore();
+  if(prior===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=prior;
  }
 });
