@@ -39,11 +39,15 @@ module.exports=async(req,res)=>{
   const token=await feishu.tenantToken();
   let pages=0;
   const began=Date.now();
+  // Leave headroom below the 120s function cap before starting another page.
+  // An individual upstream operation can still time out; the next cron resumes.
+  const safeStartBudgetMs=65000;
   // Advance the cursor only after the corresponding Feishu writes succeed.
-  while(pages<6&&Date.now()-began<90000){
+  while(pages<6&&Date.now()-began<safeStartBudgetMs){
    const pageStarted=Date.now();
    const filter="updated_at:>="+checkpoint.windowStart;
    stage="shopify_query";
+   console.info("[crm-daily-customers] stage_start stage="+stage+" page_in_run="+(pages+1));
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
    const queriedAt=Date.now();
    stage="shopify_page_validation";
@@ -77,6 +81,7 @@ module.exports=async(req,res)=>{
    // Bound concurrency to three and validate the entire page before ANY
    // mutation. A failed/ambiguous lookup leaves its prior cursor untouched.
    stage="feishu_customer_lookup";
+   console.info("[crm-daily-customers] stage_start stage="+stage+" page_in_run="+(pages+1));
    for(let offset=0;offset<valid.length;offset+=3){
     const matches=await Promise.all(valid.slice(offset,offset+3).map(async c=>({
      id:c.id,records:await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id)
@@ -92,6 +97,7 @@ module.exports=async(req,res)=>{
     // Shared historical field mapper preserves original numeric customer keys,
     // consent rules, and doesn't modify manually entered CRM grades or notes.
     stage="feishu_batch_write";
+    console.info("[crm-daily-customers] stage_start stage="+stage+" page_in_run="+(pages+1));
     const result=await bulk.batchCustomers(token,valid,index);
     pageCounters.created=result.created;
     pageCounters.updated=result.updated;
@@ -106,6 +112,7 @@ module.exports=async(req,res)=>{
    if(!response.customers.pageInfo.hasNextPage)state.done(checkpoint);
    checkpoint.updatedAt=new Date().toISOString();
    stage="checkpoint_save";
+   console.info("[crm-daily-customers] stage_start stage="+stage+" page_in_run="+(pages+1));
    await state.save(SOURCE,checkpoint);
    // One PII-free log for each *committed* page. Timings identify the slow
    // upstream stage without revealing raw customer records, IDs or cursors.
