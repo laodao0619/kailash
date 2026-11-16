@@ -44,10 +44,11 @@ test("preflight checks every Case, including create-only task status, without Fe
     () => writeback.preflightCaseBatch([example, example], schema),
     /Duplicate Case ID in batch/,
   );
-  assert.throws(
-    () => writeback.preflightCaseBatch([example, {...differentCase, crmVerified: true, crmGrade: "legacy"}], schema),
-    /option not configured/,
-  );
+  // A historical event's obsolete grade is not used in Case writes.
+  // Only the pending option must be supported for new Case records.
+  assert.equal(writeback.preflightCaseBatch(
+    [example, {...differentCase, crmVerified: true, crmGrade: "legacy"}], schema
+  ), 2);
   assert.throws(
     () => writeback.preflightCaseBatch([example], schema.filter(f => f.field_name !== "任务状态")),
     /schema missing: 任务状态/,
