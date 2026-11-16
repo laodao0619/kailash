@@ -40,7 +40,17 @@ module.exports=async(req,res)=>{
   while(pages<6&&Date.now()-began<90000){
    const filter="updated_at:>="+checkpoint.windowStart;
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
-   if(!response?.customers?.nodes||!response.customers.pageInfo)throw Error("Malformed customer delta response");
+   const nodes=response?.customers?.nodes;
+   const pageInfo=response?.customers?.pageInfo;
+   if(!Array.isArray(nodes)||!pageInfo||typeof pageInfo.hasNextPage!=="boolean")
+    throw Error("Malformed customer delta response");
+   // A malformed or non-advancing cursor can silently replay the same page,
+   // duplicate Feishu updates and keep this old checkpoint open indefinitely.
+   // Fail before any Feishu lookup/write; preserve the last committed cursor.
+   if(pageInfo.hasNextPage&&
+      (!nodes.length||typeof pageInfo.endCursor!=="string"||
+       !pageInfo.endCursor.trim()||pageInfo.endCursor===checkpoint.cursor))
+    throw Error("Customer delta cursor not advancing");
    const pageCounters={excluded:0,created:0,updated:0,accepted:0};
    const valid=[],index=new Map();
    for(const c of response.customers.nodes){
