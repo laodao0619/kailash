@@ -45,9 +45,16 @@ test("AOV cohort separate from CRM tier, no inferred value",()=>{
  assert.equal(aovGroup(400),null);
 });
 
-test("zero historical net USD with actual orders must be pending financial review",()=>{
- const x=g({M:0,F:1,lifetimeSpendUSD:0});
- assert.equal(x.status,"unverified");
- assert.equal(x.tier,null);
- assert.equal(x.reason,"zero_net_spend_with_orders");
+test("zero historical net USD with any prior orders must be pending, including dormant",()=>{ 
+ for(const patch of [
+  {M:0,F:1,latestValidOrderDate:"2026-11-01"},
+  {M:0,F:0,latestValidOrderDate:"2026-04-01"},
+  {M:0,F:0,latestValidOrderDate:"2026-05-11"},
+ ]){
+  const x=g({...patch,lifetimeSpendUSD:0});
+  assert.equal(x.status,"unverified");
+  assert.equal(x.tier,null);
+  assert.equal(x.reason,"zero_net_spend_with_orders");
+ }
+ assert.equal(g({M:0,F:0,latestValidOrderDate:"2026-04-01",lifetimeSpendUSD:0.01}).tier,"沉睡");
 });
