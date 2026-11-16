@@ -462,7 +462,7 @@ test("missing or future processing time blocks audit even if createdAt is valid"
    ["2027-01-01T00:00:00Z","futureOrders"]]){
   const row=order({id:"gid://shopify/Order/8811",createdAt:"2026-10-01T00:00:00Z",
    processedAt,currentSubtotalPriceSet:usd(100)});
-  const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{
+  const line={__parentId:row.id,id:"gid://shopify/LineItem/8811",\n   title:"Synthetic test item",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(100)};\n  const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"+JSON.stringify(line)+"\n"]),{
    asOf:"2026-11-16T00:00:00Z"
   });
   assert.equal(audit.totals.eligible,0);
@@ -470,7 +470,7 @@ test("missing or future processing time blocks audit even if createdAt is valid"
   assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
   assert.equal(audit.aggregates.windowMerchandiseCents,0);
   const state={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-16T00:00:00Z",
-   rootObjectCount:"1",objectCount:"1"};
+   rootObjectCount:"1",objectCount:"2"};
   assert.equal(require("../lib/crm-orders-ledger").verifyArchiveIntegrity(audit,state).status,
    "BLOCKED_ORDER_DATE_EVIDENCE");
  }
