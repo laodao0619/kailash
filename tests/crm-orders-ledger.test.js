@@ -10,6 +10,10 @@ function order(overrides={}){
   currentSubtotalPriceSet:usd(80),totalRefundedSet:usd(20),transactions:[
    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
    {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}],...overrides};
+ // Legacy synthetic overrides that change order dates also change the processing date.
+ // Tests that intentionally compare both dates set processedAt explicitly.
+ if(Object.prototype.hasOwnProperty.call(overrides,"createdAt")&&
+    !Object.prototype.hasOwnProperty.call(overrides,"processedAt"))result.processedAt=overrides.createdAt;
  if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
   ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(i+1):tx.id
  }));
@@ -432,4 +436,42 @@ test("different settled transaction IDs across orders do not trigger false assoc
  assert.equal(verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
   archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"2",objectCount:"4"}).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
+
+test("rolling 180d uses processedAt and never createdAt for historical Shopify orders",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const recentProcessing=order({id:"gid://shopify/Order/8801",
+  createdAt:"2025-01-01T00:00:00Z",processedAt:"2026-11-01T00:00:00Z",
+  currentSubtotalPriceSet:usd(75)});
+ const oldProcessing=order({id:"gid://shopify/Order/8802",
+  createdAt:"2026-11-01T00:00:00Z",processedAt:"2025-01-01T00:00:00Z",
+  currentSubtotalPriceSet:usd(200)});
+ const asOf="2026-11-16T00:00:00Z";
+ const a=await auditJsonl(Readable.from([JSON.stringify(recentProcessing)+"\n"]),{asOf});
+ const b=await auditJsonl(Readable.from([JSON.stringify(oldProcessing)+"\n"]),{asOf});
+ assert.equal(a.totals.eligible,1);
+ assert.equal(a.totals.withinWindow,1);
+ assert.equal(a.aggregates.windowMerchandiseCents,7500);
+ assert.equal(b.totals.eligible,1);
+ assert.equal(b.totals.withinWindow,0);
+ assert.equal(b.aggregates.windowMerchandiseCents,0);
+ assert.equal(b.aggregates.lifetimeMerchandiseCents,20000);
+});
+test("missing or future processing time blocks audit even if createdAt is valid",async()=>{
+ for(const [processedAt,reason] of [[null,"missingOrderDate"],
+   ["2027-01-01T00:00:00Z","futureOrders"]]){
+  const row=order({id:"gid://shopify/Order/8811",createdAt:"2026-10-01T00:00:00Z",
+   processedAt,currentSubtotalPriceSet:usd(100)});
+  const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{
+   asOf:"2026-11-16T00:00:00Z"
+  });
+  assert.equal(audit.totals.eligible,0);
+  assert.equal(audit.totals[reason],1);
+  assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+  assert.equal(audit.aggregates.windowMerchandiseCents,0);
+  const state={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-16T00:00:00Z",
+   rootObjectCount:"1",objectCount:"1"};
+  assert.equal(require("../lib/crm-orders-ledger").verifyArchiveIntegrity(audit,state).status,
+   "BLOCKED_ORDER_DATE_EVIDENCE");
+ }
 });
