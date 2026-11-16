@@ -61,7 +61,10 @@ module.exports=async(req,res)=>{
  // Return the same fixed code for absent and malformed configuration.
  if(typeof process.env.KBI_ACCESS_TOKEN!=="string"||process.env.KBI_ACCESS_TOKEN.length<24)
   return res.status(503).json({ok:false,error:"login_not_configured"});
- const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
+ // VERCEL_URL is unique to a deployment and is not a secret or customer field.
+ // An absent ID disables QA cache reuse (never identity fallback to main alias).
+ const deploymentId=String(process.env.VERCEL_URL||"");
+ const report={version:5,deploymentId,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
   // Missing or unreadable build metadata cannot authorize reuse of an old QA.
@@ -72,7 +75,7 @@ module.exports=async(req,res)=>{
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(canReuseQa(previous,buildState))
+   if(canReuseQa(previous,buildState,Date.now(),deploymentId))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
