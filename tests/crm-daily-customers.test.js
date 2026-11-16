@@ -55,3 +55,39 @@ test("completed baseline: upsert only changed Shopify customers and save new del
  }finally{for(const x of [read,save,query,token,lookup,upsert])x.mock.restore();
   if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
+
+test("missing or repeated Shopify next cursor preserves checkpoint and avoids all Feishu writes",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="test-token";
+ const snapshot={completed:false,day:"2026-11-12",slotKey:"2026-11-12/after_store_midnight",
+  windowStart:"2026-11-10T00:00:00.000Z",cursor:"cursor-original",
+  counters:{scanned:1080,accepted:1080,excluded:0,created:0,updated:1080,duplicates:0,pages:36}};
+ let nextCursor=null;
+ const reader=mock.method(state,"read",async p=>
+  p.includes("import-cursor")?{shopifyCycleComplete:true}:{...snapshot,counters:{...snapshot.counters}});
+ const writer=mock.method(state,"save",async()=>{throw Error("must not change checkpoint")});
+ const query=mock.method(shopify,"queryShopify",async()=>({
+  customers:{nodes:[{id:"gid://shopify/Customer/123"}],
+   pageInfo:{hasNextPage:true,endCursor:nextCursor}}
+ }));
+ const token=mock.method(feishu,"tenantToken",async()=>"feishu-test");
+ const lookup=mock.method(feishu,"findBy",async()=>{throw Error("must not look up Feishu records")});
+ const batch=mock.method(bulk,"batchCustomers",async()=>{throw Error("must not write Feishu records")});
+ try{
+  for(const value of [null,"","cursor-original"]){
+   nextCursor=value;
+   const response=res();
+   await handler(req,response);
+   assert.equal(response.code,502);
+   assert.equal(response.value.error,"daily_customer_delta_failed");
+  }
+  assert.equal(query.mock.callCount(),3);
+  assert.equal(writer.mock.callCount(),0);
+  assert.equal(lookup.mock.callCount(),0);
+  assert.equal(batch.mock.callCount(),0);
+ }finally{
+  for(const m of [reader,writer,query,token,lookup,batch])m.mock.restore();
+  if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=old;
+ }
+});
