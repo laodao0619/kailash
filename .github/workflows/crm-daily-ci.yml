@@ -5,7 +5,9 @@ on:
       - 'api/crm-daily-*.js'
       - 'api/crm-status.js'
       - 'lib/crm-daily-state.js'
+      - 'lib/crm-bounded-map.js'
       - 'tests/crm-daily-*.test.js'
+      - 'tests/crm-bounded-map.test.js'
       - 'vercel.json'
       - '.github/workflows/crm-daily-ci.yml'
   push:
@@ -26,11 +28,13 @@ jobs:
       - name: Check JS syntax
         run: |
           node --check lib/crm-daily-state.js
+          node --check lib/crm-bounded-map.js
           node --check api/crm-daily-customers.js
           node --check api/crm-daily-orders.js
           node --check api/crm-daily-gmail.js
           node --check api/crm-status.js
           node --check tests/crm-daily-state.test.js
+          node --check tests/crm-bounded-map.test.js
           node --check tests/crm-daily-customers.test.js
           node --check tests/crm-daily-orders.test.js
           node --check tests/crm-daily-gmail.test.js
@@ -39,4 +43,4 @@ jobs:
         run: |
           node -e 'const c=require("./vercel.json").crons;const names=c.map(x=>x.path);if(names.some(x=>["/api/crm-backfill","/api/crm-gmail-stage","/api/crm-orders-stage","/api/crm-orders-reconcile"].includes(x)))process.exit(1);for(const name of ["/api/crm-daily-customers","/api/crm-daily-orders","/api/crm-daily-gmail","/api/crm-gmail-filtered"])if(!names.includes(name))process.exit(1)'
       - name: Run pure and mock connector tests
-        run: node --test tests/crm-daily-state.test.js tests/crm-daily-customers.test.js tests/crm-daily-orders.test.js tests/crm-daily-gmail.test.js tests/crm-daily-cron.test.js
+        run: node --test tests/crm-bounded-map.test.js tests/crm-daily-state.test.js tests/crm-daily-customers.test.js tests/crm-daily-orders.test.js tests/crm-daily-gmail.test.js tests/crm-daily-cron.test.js
