@@ -41,9 +41,11 @@ module.exports=async(req,res)=>{
   const began=Date.now();
   // Advance the cursor only after the corresponding Feishu writes succeed.
   while(pages<6&&Date.now()-began<90000){
+   const pageStarted=Date.now();
    const filter="updated_at:>="+checkpoint.windowStart;
    stage="shopify_query";
    const response=await shopify.queryShopify(QUERY,{filter,cursor:checkpoint.cursor||null});
+   const queriedAt=Date.now();
    stage="shopify_page_validation";
    const nodes=response?.customers?.nodes;
    const pageInfo=response?.customers?.pageInfo;
@@ -85,6 +87,7 @@ module.exports=async(req,res)=>{
      if(match.records.length===1)index.set(match.id,match.records[0].record_id);
     }
    }
+   const lookedUpAt=Date.now();
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
     // consent rules, and doesn't modify manually entered CRM grades or notes.
@@ -94,6 +97,7 @@ module.exports=async(req,res)=>{
     pageCounters.updated=result.updated;
     pageCounters.accepted=result.created+result.updated;
    }
+   const wroteAt=Date.now();
    for(const [key,value] of Object.entries(pageCounters))
     checkpoint.counters[key]=(checkpoint.counters[key]||0)+value;
    checkpoint.counters.scanned+=response.customers.nodes.length;
@@ -103,6 +107,17 @@ module.exports=async(req,res)=>{
    checkpoint.updatedAt=new Date().toISOString();
    stage="checkpoint_save";
    await state.save(SOURCE,checkpoint);
+   // One PII-free log for each *committed* page. Timings identify the slow
+   // upstream stage without revealing raw customer records, IDs or cursors.
+   const savedAt=Date.now();
+   console.info("[crm-daily-customers] page_committed "+
+    "shopify_ms="+(queriedAt-pageStarted)+" "+
+    "identity_ms="+(lookedUpAt-queriedAt)+" "+
+    "write_ms="+(wroteAt-lookedUpAt)+" "+
+    "checkpoint_ms="+(savedAt-wroteAt)+" "+
+    "page_ms="+(savedAt-pageStarted)+" "+
+    "scanned="+nodes.length+" eligible="+valid.length+" "+
+    "completed="+checkpoint.completed);
    pages++;
    if(checkpoint.completed)break;
   }
