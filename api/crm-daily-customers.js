@@ -57,8 +57,8 @@ module.exports=async(req,res)=>{
        !pageInfo.endCursor.trim()||pageInfo.endCursor===checkpoint.cursor))
     throw Error("Customer delta cursor not advancing");
    const pageCounters={excluded:0,created:0,updated:0,accepted:0};
-   const valid=[],index=new Map();
-   for(const c of response.customers.nodes){
+   const valid=[],index=new Map(),seen=new Set();
+   for(const c of nodes){
     stage="customer_quality";
     const quality=classify(c);
     if(!quality.eligible){
@@ -66,11 +66,24 @@ module.exports=async(req,res)=>{
      // A paid suspicious account requires manual review, not deletion.
      continue;
     }
+    if(!c.id||seen.has(c.id))throw Error("Invalid or repeated customer ID in Shopify page");
+    seen.add(c.id);
     valid.push(c);
-    stage="feishu_customer_lookup";
-    const existing=await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id);
-    if(existing.length>1)throw Error("Ambiguous Shopify identity in CRM mirror");
-    if(existing.length===1)index.set(c.id,existing[0].record_id);
+   }
+   // Feishu lookups were previously serial (up to 30 per page), increasing
+   // the risk of hitting Vercel's 120s runtime cap before checkpoint save.
+   // Bound concurrency to three and validate the entire page before ANY
+   // mutation. A failed/ambiguous lookup leaves its prior cursor untouched.
+   stage="feishu_customer_lookup";
+   for(let offset=0;offset<valid.length;offset+=3){
+    const matches=await Promise.all(valid.slice(offset,offset+3).map(async c=>({
+     id:c.id,records:await feishu.findBy(token,bulk.CUSTOMERS,"Shopify客户ID",c.id)
+    })));
+    for(const match of matches){
+     if(!Array.isArray(match.records)||match.records.length>1)
+      throw Error("Invalid or ambiguous Shopify identity in CRM mirror");
+     if(match.records.length===1)index.set(match.id,match.records[0].record_id);
+    }
    }
    if(valid.length){
     // Shared historical field mapper preserves original numeric customer keys,
