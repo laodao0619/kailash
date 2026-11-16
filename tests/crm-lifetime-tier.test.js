@@ -24,6 +24,11 @@ test("incomplete lifetime or activity metrics stay pending and contradictory sna
   assert.equal(classify({lifetimeSpend:5000,lifetimeOrders:10,f:1,r:100,...patch}).grade,"待核验");
  assert.equal(classify({lifetimeSpend:5000,lifetimeOrders:10,f:0,r:181}).grade,"沉睡");
  assert.equal(classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null}).grade,"从未购买");
+ for(const r of [0,1,181,-1,"30"]){
+  const inconsistent=classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r});
+  assert.equal(inconsistent.grade,"待核验");
+  assert.equal(inconsistent.reason,"inconsistent_never_purchased");
+ }
 });
 
 test("November 12 is the unique CRM policy date; zero-net historical orders are pending",()=>{
