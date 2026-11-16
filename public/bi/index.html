@@ -430,11 +430,11 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <section id="reports-center" class="panel work-module">
 <div class="head"><div><div class="eyebrow">06 / REPORTS</div><h2>数据报表</h2><p class="muted">CRM客户池增长与EDM成交表现；邮件点击7天归因，全店数据仅作参考。</p></div><button id="report-refresh">刷新报表</button></div>
 <div class="body">
-<h3>CRM / EDM 日报周报 · 9项核心指标</h3>
+<h3>CRM / EDM 日报周报 · 12项核心指标</h3>
 <div class="toolbar"><select id="crm-report-kind" aria-label="报表周期"><option value="daily">日报 · 最近30天</option><option value="weekly">周报 · 最近8周</option></select><button id="crm-report-refresh">更新数据</button><button id="crm-report-download" class="primary">下载报表 CSV</button></div>
 <p id="crm-report-status" class="muted" role="status">登录后加载日报周报。</p>
 <div style="overflow-x:auto"><table id="crm-report-table" style="min-width:1500px"></table></div>
-<p class="muted">邮件点击后7天内成交，按最后一次非直接访问归因；同订单只计一次。“≥”表示仅已核验部分，“—”表示缺少来源或分母为0。</p>
+<p class="muted">客户订阅率＝当前总订阅邮箱人数÷本周期全站去重UV×100%；邮箱总量为当前快照，非历史期末值。邮件点击后7天内成交，按最后一次非直接访问归因；同订单只计一次。“≥”表示仅已核验部分，“—”表示缺少来源或分母为0。</p>
 <div id="crm-population-current" class="status"></div>
 <details><summary>归因规则、指标口径与数据覆盖</summary><p id="crm-report-notes" class="muted"></p></details>
 <h3>邮件平台 / 活动 / 新老客成交明细</h3><label>查看周期<select id="crm-breakdown-period" aria-label="邮件明细周期"></select></label>

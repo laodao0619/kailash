@@ -17,7 +17,7 @@ module.exports=async(req,res)=>{
  if(req.method!=='GET')return res.status(405).json({ok:false,error:'method'});
  try{
   let data=await read(PATH);
-  if(data?.version!==2)data=null;
+  if(data?.version!==2||data?.metricPolicyVersion!=='crm-edm-totals-uv-v1')data=null;
   let stale=!!data&&Date.now()-Date.parse(data.generatedAt)>26*3600000;
   if(cron||!data||req.query?.refresh==='1'){data=await update();stale=false;}
   if(req.query?.format==='csv'){

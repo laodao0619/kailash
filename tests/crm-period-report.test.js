@@ -1,10 +1,12 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict');
 const {calculate,periods,buildRows,queryBatch,tableRows,csv,METRICS}=require('../lib/crm-period-report');
-test('nine CRM/EDM metrics remove LTV and CAC and use email traffic, not all-store visitors',()=>{
- assert.equal(METRICS.length,9);assert(!METRICS.some(([k])=>/ltv|cac/i.test(k)));
- const r=calculate({subscribedPopulation:20,validEmailPopulation:100,newBuyers:1,returningBuyers:3,emailVisitors:10,storeVisitors:1000,emailSales:50,storeSales:500});
- assert.equal(r.subscriptionRate,20);assert.equal(r.newConversion,10);assert.equal(r.retention,300);assert.equal(r.emailSalesShare,10);
+test('twelve metrics include ordered current totals and sales share with distinct UV denominators',()=>{
+ assert.equal(METRICS.length,12);assert(!METRICS.some(([k])=>/ltv|cac/i.test(k)));
+ assert.deepEqual(METRICS.slice(0,4).map(([k])=>k),['emailTotal','emailAdded','totalSubscribers','newSubscribers']);
+ assert.equal(METRICS.at(-1)[0],'emailSalesShare');
+ const r=calculate({totalSubscribers:20,emailTotal:100,newBuyers:1,returningBuyers:3,emailVisitors:10,storeVisitors:1000,emailSales:50,storeSales:500});
+ assert.equal(r.subscriptionRate,2);assert.equal(r.newConversion,10);assert.equal(r.retention,300);assert.equal(r.emailSalesShare,10);
 });
 test('zero denominators and partial attribution never become fake zero rates',()=>{
  const r=calculate({newBuyers:0,returningBuyers:3,emailVisitors:0,subscribedPopulation:0,validEmailPopulation:0});
@@ -29,4 +31,15 @@ test('missing source fields stay null and CSV separates whole-store references f
  assert.equal(r.buyers,null);assert.equal(r.emailSales,null);assert.equal(r.newSubscribers,null);
  const content=csv({daily:[r]},'daily');assert(!content.includes('CAC'));assert(!content.includes('LTV'));assert(content.includes('参考_全店销售额'));
  assert.deepEqual(tableRows({tableData:{columns:[{name:'customers'}],rows:[['53']]}}),[{customers:'53'}]);
+});
+
+test('current subscriber stock divides by each period UV and is never summed across days',()=>{
+ const rows=buildRows([{kind:'day',start:'2026-11-09',end:'2026-11-09'},{kind:'week',start:'2026-11-09',end:'2026-11-15'}],{
+  sales:[],traffic:[{day:'2026-11-09',online_store_visitors:10},{week:'2026-11-09',online_store_visitors:100}],emailTraffic:[],customers:[],orders:[],
+  currentPopulation:{validEmailPopulation:1000,subscribedPopulation:200,asOf:'2026-11-16T00:00:00Z'},timezone:'America/New_York',currency:'USD'});
+ assert.equal(rows[0].subscriptionRate,2000);assert.equal(rows[1].subscriptionRate,200);
+ assert.equal(rows[0].emailTotal,1000);assert.equal(rows[1].totalSubscribers,200);assert.equal(rows[0].newSubscribers,null);
+ assert.equal(rows[0].populationAsOf,'2026-11-16T00:00:00Z');
+ const header=csv({daily:rows},'daily').split('\r\n')[0];
+ assert.equal((header.match(/邮件销售额占全店比例/g)||[]).length,1);assert(header.includes('周期全站去重UV'));
 });
