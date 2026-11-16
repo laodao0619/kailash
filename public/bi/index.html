@@ -429,6 +429,15 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 </div><div class="status" style="margin-top:15px">在客户360°中查看该客户的实际UTM与邮件历史。未记录的广告曝光和点击不会伪造成已发生。<div class="toolbar" style="margin-top:12px"><input id="marketing-customer" type="search" placeholder="输入客户姓名或邮箱，查看其触达历程"><button id="marketing-find" class="primary" type="button">查找客户</button></div></div></div></section>
 <section id="reports-center" class="panel work-module">
 <div class="head"><div><div class="eyebrow">06 / REPORTS</div><h2>数据报表</h2><p class="muted">基于当前历史索引的已知数字。正式财务净额、利润、ROAS及销售归因等待独立数据源核验。</p></div><button id="report-refresh">刷新报表</button></div>
+<div class="body">
+<h3>CRM 日报 / 周报 · 十项指标</h3>
+<div class="toolbar"><select id="crm-report-kind" aria-label="报表周期"><option value="daily">日报 · 最近30天</option><option value="weekly">周报 · 最近8周</option></select><button id="crm-report-refresh">更新数据</button><button id="crm-report-download" class="primary">下载报表 CSV</button></div>
+<p id="crm-report-status" class="muted" role="status">登录后加载日报周报。</p>
+<div style="overflow-x:auto"><table id="crm-report-table" style="min-width:1500px"></table></div>
+<p class="muted">— 表示来源缺失或分母为0。周报独立去重，不加总日报人数。留存率与LTV为自定义口径。</p>
+<details><summary>指标口径与数据来源</summary><p id="crm-report-notes" class="muted"></p><p class="muted">邮件累计新增＝新建客户档案，不限订阅。订阅率＝新增且当前订阅人数÷去重访客；新客转化率＝首次成交人数÷去重访客；客户留存率＝回头客÷新客户；LTV＝(Total Sales÷订单数)×(订单数÷购买总人数)×0.25；CAC＝已提供Meta及Google获客花费÷新客户；LTV/CAC＝LTV÷CAC。</p></details>
+<div id="crm-spend-editor" hidden class="status"><b id="crm-spend-label"></b><input id="crm-spend-period" type="hidden"><div class="toolbar"><label>Meta获客花费<input id="crm-spend-meta" type="number" min="0" step="0.01" placeholder="空白＝未提供"></label><label>Google获客花费<input id="crm-spend-google" type="number" min="0" step="0.01" placeholder="空白＝未提供"></label><button id="crm-spend-save" class="primary">保存并重算</button><button id="crm-spend-cancel">取消</button></div><p class="muted">填写与店铺相同币种、时区和周期的获客花费；周总额优先于每日合计。0表示已确认没有花费。</p></div>
+</div>
 <div class="body"><div id="report-content" class="status">请登录以读取客户价值和订阅分布。</div>
 <div class="toolbar" style="margin-top:16px"><button id="report-export" class="primary">导出当前筛选客户</button><button id="report-rfm">查看RFM分层</button><button id="report-cases">查看客服Case</button></div></div></section>
 <section id="operations" class="panel work-module">
@@ -507,6 +516,7 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <script src="/bi/rfm-3d.js"></script>
 <script src="/bi/command-board.js"></script>
 <script src="/bi/ops-center.js"></script>
+<script src="/bi/crm-period-report.js"></script>
 <script>
 (()=>{"use strict";
 const $=id=>document.getElementById(id);

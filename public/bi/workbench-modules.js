@@ -5,6 +5,7 @@
   const mod={summary:null,casePage:1,casePageCount:1,caseBusy:false};
   const cube=root.KBIRFM3D?.initialize(ctx)||null;
   const ops=root.KBIOpsCenter?.initialize(ctx)||null;
+  const crmReport=root.KBICRMPeriodReport?.initialize(ctx)||null;
   const go=id=>$(id)?.scrollIntoView({behavior:"smooth",block:"start"});
   function stat(label,value,note){
    return '<div class="module-stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><em>'+esc(note)+'</em></div>';
@@ -142,7 +143,7 @@
   $("report-rfm").onclick=()=>go("rfm");
   $("report-cases").onclick=()=>go("case-center");
   const start=()=>Promise.allSettled([scheduledSummary(),cases(),products(),health(),
-    cube?.refresh?.(),cube?.savedList?.(),ops?.start?.()]);
+    cube?.refresh?.(),cube?.savedList?.(),ops?.start?.(),crmReport?.refresh?.()]);
   setInterval(()=>{if(state.token&&document.visibilityState==="visible")cube?.refresh?.()},5*60*1000);
   return {start,summary:scheduledSummary,cases,products,health,rfm:cube,ops};
  }
