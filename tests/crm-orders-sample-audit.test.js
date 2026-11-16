@@ -18,6 +18,8 @@ function order(n,opts={}){
   transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}],
   ...opts
  };
+ if(Object.prototype.hasOwnProperty.call(opts,"createdAt")&&
+    !Object.prototype.hasOwnProperty.call(opts,"processedAt"))result.processedAt=opts.createdAt;
  if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
   ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(n*1000+i+1):tx.id
  }));
@@ -252,5 +254,21 @@ test("seven-customer sample flags a settled payment without verified Shopify tra
  const out=await run(rows);
  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(out.sampleAudit.customers[0].excluded.unverified_transaction_identity,1);
+ assert.equal(out.sampleAudit.verified,false);
+});
+
+test("seven-customer evidence preserves creation and processing dates separately",async()=>{
+ const rows=[order(1,{createdAt:"2026-11-01T00:00:00Z",
+   processedAt:"2025-01-01T00:00:00Z"}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ const s=out.sampleAudit.customers[0];
+ assert.equal(s.totalOrders,1);
+ assert.equal(s.effectiveOrders,1);
+ assert.equal(s.windowOrders,0);
+ assert.equal(s.lifetimeMerchandiseCents,12000);
+ assert.equal(s.windowMerchandiseCents,0);
+ assert.equal(s.orderEvidence[0].createdAt,"2026-11-01T00:00:00.000Z");
+ assert.equal(s.orderEvidence[0].processedAt,"2025-01-01T00:00:00.000Z");
  assert.equal(out.sampleAudit.verified,false);
 });
