@@ -55,7 +55,12 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
+ // KBI APIs require a token of at least 24 chars. A short but nonempty
+ // token previously made the internal list call fail, then overwrote the
+ // last QA report with list=false. Fail BEFORE any Blob access or QA write.
+ // Return the same fixed code for absent and malformed configuration.
+ if(typeof process.env.KBI_ACCESS_TOKEN!=="string"||process.env.KBI_ACCESS_TOKEN.length<24)
+  return res.status(503).json({ok:false,error:"login_not_configured"});
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
