@@ -58,3 +58,15 @@ test("zero historical net USD with any prior orders must be pending, including d
  }
  assert.equal(g({M:0,F:0,latestValidOrderDate:"2026-04-01",lifetimeSpendUSD:0.01}).tier,"沉睡");
 });
+
+test("recency requires an actual store-local calendar day, never a repaired or timezone-shifted date",()=>{
+ for(const latestValidOrderDate of [
+  "2026-02-30", "2026-04-31", "2026-11-01T23:30:00-05:00",
+  "2026-11-01T00:00:00Z", "2026-11-01Z", "11/01/2026"
+ ]){
+  const result=g({latestValidOrderDate});
+  assert.equal(result.status,"unverified",latestValidOrderDate);
+  assert.equal(result.reason,"invalid_last_purchase",latestValidOrderDate);
+ }
+ assert.equal(g({latestValidOrderDate:"2026-11-01"}).tier,"S+");
+});
