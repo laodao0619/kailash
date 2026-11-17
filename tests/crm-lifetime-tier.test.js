@@ -51,19 +51,19 @@ test("Feishu snapshot tiers stay provisional until full-history finance approval
  assert.equal(row.tier,"B");
 });
 
-test("historical buyers with absent or invalid purchase recency never receive a tier or dormant status",()=>{
- for(const f of [0,1]){
-  for(const r of [null,undefined,NaN,"", "200"]){
-   const result=classify({lifetimeSpend:3200,lifetimeOrders:5,f,r});
-   assert.equal(result.grade,"待核验");
-   assert.equal(result.verified,false);
-   assert.equal(result.reason,"activity_mismatch");
-  }
+test("CRM grade depends only on historical USD and F180; missing R stays separate",()=>{
+ for(const r of [null,undefined]){
+  assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:1,r}).grade,"S+");
+  assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:0,r}).grade,"沉睡");
  }
  const missing=applyRow({spendLifetime:4000,ordersLifetime:7,f180:0});
- assert.equal(missing.tier,"待核验");
+ assert.equal(missing.tier,"沉睡");
  assert.equal(missing.tierVerified,false);
- assert.equal(missing.tierRuleEvaluated,false);
- // Complete recency is still sufficient for genuinely dormant buyers.
+ assert.equal(missing.tierRuleEvaluated,true);
+ for(const r of [NaN,"","200",-1]){
+  assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:1,r}).grade,"待核验");
+ }
+ assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:1,r:190}).grade,"待核验");
+ assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:0,r:30}).grade,"待核验");
  assert.equal(classify({lifetimeSpend:3200,lifetimeOrders:5,f:0,r:181}).grade,"沉睡");
 });
