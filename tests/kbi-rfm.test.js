@@ -12,7 +12,7 @@ test("CRM tier uses lifetime spend and a single recent order, independent of RFM
  assert.equal(g({M:0,F:1}).tier,"S+");
 });
 test("lifetime spending boundaries",()=>{
- for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"],[0,"基础客户"]])
+ for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"]])
   assert.equal(g({M:0,F:1,lifetimeSpendUSD:spend}).tier,tier);
 });
 test("at exactly 180 days a customer can still be active; after 180 dormant",()=>{
@@ -43,4 +43,30 @@ test("AOV cohort separate from CRM tier, no inferred value",()=>{
  assert.equal(aovGroup(400,{verified:true}),"高客单价");
  assert.equal(aovGroup(399.99,{verified:true}),"低客单价");
  assert.equal(aovGroup(400),null);
+});
+
+test("zero historical net USD with any prior orders must be pending, including dormant",()=>{ 
+ for(const patch of [
+  {M:0,F:1,latestValidOrderDate:"2026-11-01"},
+  {M:0,F:0,latestValidOrderDate:"2026-04-01"},
+  {M:0,F:0,latestValidOrderDate:"2026-05-11"},
+ ]){
+  const x=g({...patch,lifetimeSpendUSD:0});
+  assert.equal(x.status,"unverified");
+  assert.equal(x.tier,null);
+  assert.equal(x.reason,"zero_net_spend_with_orders");
+ }
+ assert.equal(g({M:0,F:0,latestValidOrderDate:"2026-04-01",lifetimeSpendUSD:0.01}).tier,"沉睡");
+});
+
+test("recency requires an actual store-local calendar day, never a repaired or timezone-shifted date",()=>{
+ for(const latestValidOrderDate of [
+  "2026-02-30", "2026-04-31", "2026-11-01T23:30:00-05:00",
+  "2026-11-01T00:00:00Z", "2026-11-01Z", "11/01/2026"
+ ]){
+  const result=g({latestValidOrderDate});
+  assert.equal(result.status,"unverified",latestValidOrderDate);
+  assert.equal(result.reason,"invalid_last_purchase",latestValidOrderDate);
+ }
+ assert.equal(g({latestValidOrderDate:"2026-11-01"}).tier,"S+");
 });
