@@ -9,15 +9,15 @@ test("country pies regrade old labels using lifetime spend and one recent order"
   row(800,"UK"),row(799,"GB"),row(20,"FR"),row(6000,"US",0),
   row(null,"US"),{tier:"S+",country:"US",m180:4000}
  ]);
- assert.deepEqual(groups.map(g=>[g.name,g.total]),[["S+",3],["S",1],["A/B",3]]);
+ assert.deepEqual(groups.map(g=>[g.name,g.total]),[["S+",3],["S",1],["A",1],["B",2]]);
  assert.deepEqual(groups[0].countries,[{name:"US",count:2,share:66.67},{name:"未知",count:1,share:33.33}]);
  assert.equal(groups[0].unknown,1);
- assert.equal(groups[2].countries.find(c=>c.name==="GB").count,2);
+ assert.equal(groups[2].countries.find(c=>c.name==="GB").count,1);
  for(const group of groups)assert.equal(group.countries.reduce((s,c)=>s+c.count,0),group.total);
 });
 test("empty groups have no pie slices and unknown countries remain in denominator",()=>{
  const groups=countryDistribution([]);
- assert.equal(groups.length,3);
+ assert.equal(groups.length,4);
  assert(groups.every(g=>g.total===0&&g.unknown===0&&g.countries.length===0));
  const group=countryDistribution([{spendLifetime:3000,f180:1,ordersLifetime:1,country:"未注明"}])[0];
  assert.deepEqual(group.countries,[{name:"未知",count:1,share:100}]);
