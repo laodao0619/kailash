@@ -5,9 +5,12 @@ const crypto=require("crypto");
 const {get,put}=require("@vercel/blob");
 const feishu=require("../lib/crm-feishu");
 const bulk=require("../lib/crm-bulk-feishu");
-const {summarize,customerValues}=require("../lib/crm-order-aggregate");
+const {customerValues}=require("../lib/crm-order-aggregate");
+const {checkFinanceWriteback,checkReconcileCheckpoint,projectAuditedLedger,digestAuditedLedger,POLICY_VERSION}=require("../lib/crm-finance-writeback-gate");
 const STATE="crm-execution/orders-reconcile-2026-11-12-state.json";
 const MANIFEST="crm-execution/orders-reconcile-2026-11-12-manifest.json";
+const FINANCE_AUDIT="crm-execution/orders-bulk-v1-audit.json";
+const FINANCE_APPROVAL="crm-execution/finance-writeback-approval-v1.json";
 function authorized(req){
  const a=Buffer.from((req.headers.authorization||"").replace(/^Bearer\s+/i,""));
  const b=Buffer.from(process.env.CRON_SECRET||"");
@@ -54,21 +57,46 @@ module.exports=async(req,res)=>{
   const [orders,customers]=await Promise.all([read("crm-execution/orders-stage-state.json"),read("crm-execution/import-cursor.json")]);
   if(!orders?.completed||!customers?.shopifyCycleComplete)return res.status(200).json({ok:true,waiting:true,orders_complete:!!orders?.completed,customers_complete:!!customers?.shopifyCycleComplete});
   if(orders.totals?.unknown_currency)return res.status(200).json({ok:true,waiting:true,reason:"unverified_non_usd_order_values",count:orders.totals.unknown_currency});
+  // Hard block before reading write manifests, Feishu rows, or touching any CRM field.
+  // A completed rolling-180d stage is not an audited full-history USD ledger.
+  const [audit,approval]=await Promise.all([read(FINANCE_AUDIT),read(FINANCE_APPROVAL)]);
+  const gate=checkFinanceWriteback({orders,customers,audit,approval,manualFlag:process.env.CRM_FINANCE_WRITEBACK_APPROVED});
+  if(!gate.allowed)return res.status(200).json({ok:true,waiting:true,blocked:true,reason:gate.reason});
   const state=await read(STATE)||{offset:0,done:false};
-  if(state.done)return res.status(200).json({ok:true,completed:true,totals:state.totals});
+  // Even a completed checkpoint must revalidate the approved source pages.
+  // Revalidate the full immutable financial projection before EVERY batch,
+  // including retries using an existing private manifest. A changed page
+  // must never resume a partially complete Feishu writeback.
+  const all=[];
+  for(let i=0;i<orders.page;i++){
+   const page=await read("crm-execution/orders-stage/page-"+i+".json");
+   if(!page||!Array.isArray(page.orders))throw Error("Missing committed order snapshot page "+i);
+   all.push(...page.orders);
+  }
+  // Financially audited all-history and rolling-180d projections MUST be distinct.
+  const projection=projectAuditedLedger(all,{asOf:orders.ledgerAsOf});
+  // Financial signoff metadata alone cannot authorize writing from changed pages.
+  const computedDigest=digestAuditedLedger(all,{asOf:orders.ledgerAsOf});
+  if(!crypto.timingSafeEqual(Buffer.from(computedDigest,"hex"),Buffer.from(gate.sourceDigest,"hex")))
+   return res.status(409).json({ok:false,blocked:true,reason:"audited_ledger_digest_mismatch"});
   let manifest=await read(MANIFEST);
+  if(manifest&&(manifest.source_ledger_digest!==gate.sourceDigest||
+      manifest.finance_approval_id!==gate.approvalId||manifest.policy_version!==POLICY_VERSION))
+   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
+  if(!manifest&&(state.offset!==0||state.done||state.source_ledger_digest||state.finance_approval_id))
+   return res.status(409).json({ok:false,blocked:true,reason:"stale_reconciliation_manifest"});
   if(!manifest){
-   const all=[];
-   for(let i=0;i<orders.page;i++){
-    const page=await read("crm-execution/orders-stage/page-"+i+".json");
-    if(!page||!Array.isArray(page.orders))throw Error("Missing committed order snapshot page "+i);
-    all.push(...page.orders);
-   }
-   const summaries=summarize(all),token=await feishu.tenantToken();
+   const {lifetime,recent,asOf}=projection;
+   const token=await feishu.tenantToken();
    const rows=await feishuRows(token),updates=[];
-   const asOf=new Date(orders.startedAt);
    for(const c of rows){
-    const values=customerValues(c,summaries.get(c.id),{now:asOf});
+    const history=lifetime.get(c.id);
+    const lifetimeOrders=history?.f??c.lifetimeOrders;
+    // No audited order match with nonzero Shopify order count is UNKNOWN, not $0.
+    const lifetimeSpendUSD=history?.m??(lifetimeOrders===0?0:NaN);
+    const lastOrderAt=history?.last??c.lastOrderAt;
+    const values=customerValues({...c,lifetimeOrders,lifetimeSpendUSD,lastOrderAt},
+     recent.get(c.id),{now:asOf});
     const fields={"CRM等级":values.grade};
     if(Number.isFinite(values.m))fields["近180天净消费"]=values.m;
     if(Number.isFinite(values.f))fields["近180天有效订单数"]=values.f;
@@ -76,9 +104,12 @@ module.exports=async(req,res)=>{
     if(values.rfm)fields["RFM价值分群"]=values.rfm;
     updates.push({record_id:c.record_id,fields});
    }
-   manifest={updates,source_since:orders.since,source_pages:orders.page,created_at:new Date().toISOString()};
+   manifest={updates,source_since:orders.since,source_pages:orders.page,source_ledger_digest:gate.sourceDigest,finance_approval_id:gate.approvalId,policy_version:POLICY_VERSION,created_at:new Date().toISOString()};
    await save(MANIFEST,manifest);
   }
+  const checkpoint=checkReconcileCheckpoint(state,manifest,{sourceDigest:gate.sourceDigest,approvalId:gate.approvalId});
+  if(!checkpoint.allowed)return res.status(409).json({ok:false,blocked:true,reason:checkpoint.reason});
+  if(checkpoint.complete)return res.status(200).json({ok:true,completed:true,totals:state.totals});
   const token=await feishu.tenantToken();
   const batch=manifest.updates.slice(state.offset,state.offset+500);
   if(batch.length){
@@ -87,9 +118,15 @@ module.exports=async(req,res)=>{
    state.offset+=batch.length;
   }
   state.done=state.offset>=manifest.updates.length;
+  state.source_ledger_digest=gate.sourceDigest;
+  state.finance_approval_id=gate.approvalId;
   state.updatedAt=new Date().toISOString();
   state.totals={updated:state.offset,expected:manifest.updates.length,orders:orders.totals?.eligible||0};
   await save(STATE,state);
   return res.status(200).json({ok:true,completed:state.done,totals:state.totals,source_since:manifest.source_since});
- }catch(e){return res.status(502).json({ok:false,retryable:true,error:String(e.message||e).slice(0,180)});}
+ }catch(_error){
+  // Never reflect private Feishu/Shopify/blob exception text into HTTP responses.
+  // Original messages may contain upstream URLs, tokens, or customer details.
+  return res.status(502).json({ok:false,retryable:true,error:"finance_reconciliation_failed"});
+ }
 };
