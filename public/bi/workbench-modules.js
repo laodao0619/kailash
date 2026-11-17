@@ -9,12 +9,40 @@
   function stat(label,value,note){
    return '<div class="module-stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><em>'+esc(note)+'</em></div>';
   }
+  function countryCharts(groups){
+   const target=$("tier-country-charts");
+   if(!target)return;
+   if(!Array.isArray(groups)){target.textContent="国家分布暂不可用，请刷新报表。";return;}
+   const names=new Intl.DisplayNames(["zh-CN"],{type:"region"});
+   const label=code=>/^[A-Z]{2}$/.test(code)?names.of(code)+" · "+code:code;
+   // Country colours remain consistent across all three groups.
+   const countries=[...new Set(groups.flatMap(g=>g.countries.map(c=>c.name)))].sort();
+   const color=code=>code==="未知"?"#a4adb2":"hsl("+((countries.indexOf(code)*137.508+145)%360).toFixed(1)+", 46%, 48%)";
+   target.innerHTML=groups.map(g=>{
+    let angle=-Math.PI/2;
+    const slices=g.countries.map(c=>{
+     const start=angle;angle+=c.count/g.total*Math.PI*2;
+     const title=esc(label(c.name)+"："+n(c.count)+"人 · "+c.share+"%");
+     const fill=color(c.name);
+     if(c.count===g.total)return '<circle cx="120" cy="120" r="106" fill="'+fill+'"><title>'+title+'</title></circle>';
+     const x=a=>120+106*Math.cos(a),y=a=>120+106*Math.sin(a);
+     return '<path d="M120 120 L'+x(start)+' '+y(start)+' A106 106 0 '+(angle-start>Math.PI?1:0)+' 1 '+x(angle)+' '+y(angle)+' Z" fill="'+fill+'" stroke="#fff" stroke-width="1"><title>'+title+'</title></path>';
+    }).join("");
+    return '<article class="country-pie-card"><h4>'+esc(g.name)+' 客户</h4><div class="muted">共 '+n(g.total)+' 人 · 未知国家 '+n(g.unknown)+' 人</div>'+
+     (g.total?'<svg viewBox="0 0 240 240" role="img" aria-label="'+esc(g.name)+'客户国家分布饼图">'+slices+'</svg>'+
+      '<div class="country-scroll"><table><thead><tr><th>国家 / 地区</th><th>人数</th><th>占比</th></tr></thead><tbody>'+
+      g.countries.map(c=>'<tr><td><span class="chart-dot" style="background:'+color(c.name)+'"></span>'+esc(label(c.name))+'</td><td>'+n(c.count)+'</td><td>'+c.share.toFixed(2)+'%</td></tr>').join("")+
+      '</tbody></table></div>':'<div class="empty-state">该组暂无客户</div>')+'</article>';
+   }).join("");
+  }
   async function summary(){
    if(!state.token)return;
    $("rfm-summary-cards").textContent="正在计算既有CRM历史汇总…";
+   if($("tier-country-charts"))$("tier-country-charts").textContent="正在加载完整客户索引国家分布…";
    try{
     const d=await request("/api/bi-workbench-summary");
     mod.summary=d;
+    countryCharts(d.countryDistribution);
     $("rfm-summary-cards").innerHTML=[
      stat("当前已索引CRM客户",n(d.masterTotal),"历史客户索引"),
      stat("近30天有购买记录",n(d.customerActivity.recent30),"基于历史R值"),
@@ -49,6 +77,7 @@
      '位 · ＜ $400：'+n(d.aovBands.low)+'位 · 缺少可计算客单价：'+n(d.aovBands.unknown)+
      '位。该分组不影响S+/S/A/B等级。</p><div class="warn">收入、利润与ROAS不使用缺少广告成本及退款审计的数据进行估算。本报表数值来自现有CRM快照。</div>';
    }catch(e){
+    if($("tier-country-charts"))$("tier-country-charts").textContent="国家分布加载失败："+e.message;
     $("rfm-summary-cards").textContent="RFM读取失败："+e.message;
     $("report-content").textContent="报表暂不可用："+e.message;
    }
@@ -148,3 +177,4 @@
  }
  root.KBIWorkbenchModules={initialize};
 })(typeof window!=="undefined"?window:globalThis);
+

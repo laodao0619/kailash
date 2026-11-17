@@ -249,6 +249,13 @@ body{background:#f1f4f8}.sidebar{background:#152b3b;color:#dce8ee}.panel{border-
 .ops-executive-brief{background:#e9eff5;border-color:#d5e0eb;color:#294d66}.command-panel{border-top:3px solid #b68b4f}.command-columns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}.command-columns h3{font-size:14px;margin:0 0 12px}.command-item{padding:14px;border:1px solid #e1e7ed;border-radius:12px;margin-bottom:10px;background:#fff}.command-item.is-priority{border-color:#d7b578;background:#fffaf0}.command-item.completed{background:#f5f7f9}.command-item.completed .command-check b{text-decoration:line-through;color:#75818b}.command-check{display:flex;align-items:flex-start;gap:9px;font-size:13px;line-height:1.6}.command-check input{min-height:0;margin-top:4px;accent-color:#315d72}.command-item .row{align-items:flex-start}.command-item button{padding:5px 8px;font-size:11px;white-space:nowrap}.command-note{font-size:12px;white-space:pre-wrap;color:#6b7783;line-height:1.7}.command-form{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-top:16px}.command-form label{display:grid;gap:7px;font-size:12px}.command-form textarea{width:100%;min-height:72px;padding:10px;border:1px solid #d7dfe7;border-radius:8px}.command-form .wide{grid-column:1/-1}.command-form input{width:100%}.suggestion{display:flex;align-items:center;justify-content:space-between;gap:18px;border-top:1px solid #e6ebf0;padding:14px 0}.suggestion b{font-size:13px;margin-left:9px}.suggestion p{font-size:12px;max-width:800px;line-height:1.7}.ops-range{padding:12px 0 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ops-range label{display:grid;gap:5px;font-size:11px;color:#647587}.source-scroll{max-height:420px;overflow:auto;border:1px solid #e0e6ec;border-radius:10px}.source-scroll table{min-width:900px}.source-scroll td{max-width:320px;min-width:120px;white-space:pre-wrap;overflow-wrap:anywhere}.source-panel{margin-bottom:20px}
 @media(max-width:1050px){.command-columns{grid-template-columns:1fr}}@media(max-width:640px){.command-form{grid-template-columns:1fr}.ops-range input{max-width:145px}.ops-kpi:first-child strong{font-size:24px}.suggestion{align-items:flex-start}}
 aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#fff}.brand small,aside .foot{color:#96b0c2}nav a{color:#c3d3de}nav a:hover,nav a.active{background:#2b4d64;color:#fff}.nav-icon{color:#a7c3d5}.eyebrow{color:#647e92}h1{color:#19374e}.muted{color:#687c8e}.primary{background:#234d69;border-color:#234d69;color:#fff}
+.country-pies{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.country-pie-card{min-width:0;border:1px solid #e6ebe7;border-radius:14px;padding:18px;background:#fcfdfc}
+.country-pie-card h4{margin:0;font-size:15px}.country-pie-card svg{display:block;width:min(100%,230px);margin:12px auto}
+.country-pie-card table{font-variant-numeric:tabular-nums}.country-pie-card th,.country-pie-card td{padding:7px 3px;white-space:normal;font-size:11px}
+.country-pie-card th:nth-child(n+2),.country-pie-card td:nth-child(n+2){text-align:right;white-space:nowrap}
+.country-pie-card .country-scroll{max-height:245px;overflow:auto}
+@media(max-width:1100px){.country-pies{grid-template-columns:1fr}.country-pie-card svg{width:210px}}
 </style></head><body>
 <div class="layout"><aside><div class="brand">KAILASH <small>ENERGY · 经营智能平台</small></div>
 <nav aria-label="工作台模块">
@@ -369,6 +376,11 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <div><b>B｜基础客户</b><span>历史累计 ＞$0–＜$800 · 近180天 ≥ 1单</span></div>
 <div><b>沉睡客户</b><span>历史累计 ＞$0 · 近180天 0单</span></div>
 </div><p class="muted">历史消费不限时间。行为RFM独立使用近180天净消费M、距最近购买天数R及近180天订单数F；可调阈值不改变客户等级。客单价$400高低分组独立。从未购买、数据缺失及有订单但累计净消费为0的客户单独管理或待核验。</p></div></div>
+<section id="tier-country-distribution" aria-labelledby="tier-country-title" style="margin:24px 0">
+<h3 id="tier-country-title">客户国家分布 · S+ / S / A与B合并</h3>
+<p class="muted">按2026-11-12等级规则统计完整客户索引。占比 = 该国家客户人数 ÷ 该组总人数，未知国家计入分母。与上方RFM筛选独立。</p>
+<div id="tier-country-charts" class="country-pies" aria-live="polite"><p class="muted">登录后加载国家分布…</p></div>
+</section>
 <div id="rfm-coverage" class="status">尚未完成覆盖率检查。</div>
 </div></section>
 <section id="case-center" class="panel work-module">

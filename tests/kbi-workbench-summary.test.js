@@ -1,6 +1,27 @@
 "use strict";
 const test=require("node:test"),assert=require("node:assert/strict");
 const {summarize,TIERS}=require("../lib/kbi-workbench-summary");
+const {countryDistribution}=require("../lib/kbi-workbench-summary");
+test("country pies regrade old labels using lifetime spend and one recent order",()=>{
+ const row=(spendLifetime,country,f180=1)=>({tier:"B",spendLifetime,country,f180,ordersLifetime:2});
+ const groups=countryDistribution([
+  row(3200,"US"),row(3500,"USA"),row(4000,null),row(1500,"DE"),
+  row(800,"UK"),row(799,"GB"),row(20,"FR"),row(6000,"US",0),
+  row(null,"US"),{tier:"S+",country:"US",m180:4000}
+ ]);
+ assert.deepEqual(groups.map(g=>[g.name,g.total]),[["S+",3],["S",1],["A/B",3]]);
+ assert.deepEqual(groups[0].countries,[{name:"US",count:2,share:66.67},{name:"未知",count:1,share:33.33}]);
+ assert.equal(groups[0].unknown,1);
+ assert.equal(groups[2].countries.find(c=>c.name==="GB").count,2);
+ for(const group of groups)assert.equal(group.countries.reduce((s,c)=>s+c.count,0),group.total);
+});
+test("empty groups have no pie slices and unknown countries remain in denominator",()=>{
+ const groups=countryDistribution([]);
+ assert.equal(groups.length,3);
+ assert(groups.every(g=>g.total===0&&g.unknown===0&&g.countries.length===0));
+ const group=countryDistribution([{spendLifetime:3000,f180:1,ordersLifetime:1,country:"未注明"}])[0];
+ assert.deepEqual(group.countries,[{name:"未知",count:1,share:100}]);
+});
 const customers=[
  {tier:"S+",country:"US",subscription:"SUBSCRIBED",m180:3010,spendLifetime:9900,f180:5,ordersLifetime:9,rDays:5},
  {tier:"B",country:"DE",subscription:"NOT_SUBSCRIBED",m180:210,spendLifetime:350,f180:1,ordersLifetime:2,rDays:70},
@@ -41,3 +62,4 @@ test("AOV high/low $400 bands are separate from RFM grade",()=>{
  assert.deepEqual(data.aovBands,{thresholdUsd:400,high:1,low:1,unknown:1});
  assert.equal(data.tiers.find(x=>x.name==="B").count,1);
 });
+
