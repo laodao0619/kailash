@@ -106,15 +106,23 @@
   }
   async function health(){
    try{
-    const h=await request("/api/bi-index-health",{},false),q=h.productionQA?.checks||{};
+    const h=await request("/api/bi-index-health",{},false);
+    // Old successful checks cannot validate a newer customer index.
+    // Program QA is distinct from employee business acceptance.
+    const qaCurrent=h.productionQA?.ready===true&&h.productionQA?.currentForSnapshot===true;
+    const q=qaCurrent?(h.productionQA.checks||{}):{};
+    const qaNote=qaCurrent?"当前索引程序QA":"最新索引待重新验证";
     const item=(label,value,status)=>'<div class="health-item"><small>'+esc(label)+
      '</small><strong>'+esc(value)+'</strong><small>'+esc(status)+'</small></div>';
     $("system-health").innerHTML=[
-     item("CRM客户索引",h.ready?n(h.snapshot?.total)+" 条":"构建中",h.ready?"已可查询":"尚未就绪"),
-     item("列表筛选与排序",q.list&&q.sort&&q.tier?"通过":"待核验","真实数据测试"),
-     item("Customer 360°",q.customer360?"通过":"待核验","客户订单及来信"),
-     item("商品与邮件摘要",q.productHistory&&q.mailSummary?"通过":"待核验","服务端读取"),
-     item("客户备注",q.noteRead?"读取通过":"待读取验收","写入仍需用户端核验"),
+     item("CRM客户索引",h.ready?n(h.snapshot?.total)+" 条":"构建中",
+      h.ready?(qaCurrent?"已构建 · 程序QA匹配":"已构建 · QA待复检"):"尚未就绪"),
+     item("索引QA有效性",qaCurrent?"与当前索引一致":"待重新验证",
+      qaCurrent?"仅程序检查，业务验收另行完成":"旧QA不得用于新索引"),
+     item("列表筛选与排序",q.list===true&&q.sort===true&&q.tier===true?"通过":"待核验",qaNote),
+     item("Customer 360°",q.customer360===true?"通过":"待核验",qaNote),
+     item("商品与邮件摘要",q.productHistory===true&&q.mailSummary===true?"通过":"待核验",qaNote),
+     item("客户备注",q.noteRead===true?"读取通过":"待读取验收","写入仍需用户端核验"),
      item("正式全历史净额","待财务核验","RFM当前显示历史快照")
     ].join("");
    }catch(e){$("system-health").textContent="状态暂不可读取："+e.message;}
