@@ -102,3 +102,37 @@ test("unconfigured CRM grade multi-select option blocks all Case writes even wit
     assert.equal(stub.writes.length, 0);
   } finally { stub.restore(); }
 });
+
+test("historical text CRM grade remains writable as pending without migrating the Feishu schema", async () => {
+  const schema = approvedSchema().map(f => f.field_name === "CRM等级（Case核验）"
+    ? {field_name:f.field_name,type:1} : f);
+  const stub = stubFeishu(schema);
+  try {
+    const {tableId,schema:snapshot} = await ensureTable("fake-token", {includeSchema:true});
+    assert.equal(await upsertCase("fake-token",tableId,sample,snapshot),"created");
+    assert.equal(stub.writes.length,1);
+    assert.equal(stub.writes[0].body.fields["CRM等级（Case核验）"],"待核验");
+    assert.equal(stub.writes[0].method,"POST");
+  } finally { stub.restore(); }
+});
+
+test("configured single-select grade serializes pending as a string, not a multi-select array", async () => {
+  const schema = approvedSchema().map(f => f.field_name === "CRM等级（Case核验）"
+    ? {...f,type:3} : f);
+  const stub = stubFeishu(schema);
+  try {
+    const {tableId,schema:snapshot} = await ensureTable("fake-token", {includeSchema:true});
+    assert.equal(await upsertCase("fake-token",tableId,sample,snapshot),"created");
+    assert.equal(stub.writes[0].body.fields["CRM等级（Case核验）"],"待核验");
+  } finally { stub.restore(); }
+});
+
+test("incompatible CRM grade type fails closed before any Case write", async () => {
+  const schema = approvedSchema().map(f => f.field_name === "CRM等级（Case核验）"
+    ? {field_name:f.field_name,type:2} : f);
+  const stub = stubFeishu(schema);
+  try {
+    await assert.rejects(ensureTable("fake-token",{includeSchema:true}), /Case field type mismatch/);
+    assert.equal(stub.writes.length,0);
+  } finally { stub.restore(); }
+});
