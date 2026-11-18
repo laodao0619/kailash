@@ -47,6 +47,15 @@ module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ ok: false });
   if (!cases.authorized(req)) return res.status(401).json({ ok: false });
+  const dryRun = req.query?.dryRun === "1";
+  // Preview deployments may be configured with production-like credentials for
+  // read-only diagnostics. They must never write to the approved live Case table.
+  // Isolated synthetic write UAT requires a separate explicitly approved path.
+  if (process.env.VERCEL_ENV === "preview" && !dryRun) {
+    return res.status(403).json({
+      ok: false, blockedReason: "case_preview_readonly", checkpointAdvanced: false,
+    });
+  }
   try {
     const token = await feishu.tenantToken();
     // One fresh, validated field schema per request, shared across up to 40 Case writes.
@@ -59,7 +68,7 @@ module.exports = async (req, res) => {
     // Authenticated, read-only UAT mode: checks the real approved Feishu
     // field schema/options and the next Case batch; never writes or advances
     // the checkpoint. No source events or customer PII in the response.
-    const dryRun = req.query?.dryRun === "1";
+
     let checked;
     try {
       checked = writeback.preflightCaseBatch(batch, schema);
