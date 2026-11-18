@@ -152,7 +152,8 @@
   $("report-cases").onclick=()=>go("case-center");
   const start=()=>Promise.allSettled([scheduledSummary(),cases(),products(),health(),
     cube?.refresh?.(),cube?.savedList?.(),ops?.start?.(),crmReport?.refresh?.()]);
-  setInterval(()=>{if(state.token&&document.visibilityState==="visible")cube?.refresh?.()},5*60*1000);
+  // Refresh current snapshot QA on visible tabs; old green checks must expire.
+  setInterval(()=>{if(state.token&&document.visibilityState==="visible"){cube?.refresh?.();health()}},5*60*1000);
   return {start,summary:scheduledSummary,cases,products,health,rfm:cube,ops};
  }
  root.KBIWorkbenchModules={initialize};
