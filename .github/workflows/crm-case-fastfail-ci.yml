@@ -1,0 +1,24 @@
+name: CRM Case fail-fast safety tests
+on:
+  pull_request:
+    paths:
+      - 'api/crm-cases-feishu.js'
+      - 'tests/crm-case-api-failfast.test.js'
+      - '.github/workflows/crm-case-fastfail-ci.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax verification
+        run: |
+          node --check api/crm-cases-feishu.js
+          node --check tests/crm-case-api-failfast.test.js
+      - name: Isolated Case batch regression tests
+        run: node --test tests/crm-case-api-failfast.test.js
