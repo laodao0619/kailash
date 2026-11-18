@@ -1,5 +1,15 @@
 name: CRM 2026-11-12 tier policy regression
 on:
+  push:
+    branches: ['fix/crm-lifetime-tiers']
+    paths:
+      - '.github/workflows/crm-tier-policy-ci.yml'
+      - 'lib/crm-tier-policy.js'
+      - 'lib/crm-rfm.js'
+      - 'lib/crm-segmentation.js'
+      - 'lib/kbi-*.js'
+      - 'api/bi-*.js'
+      - 'tests/*.test.js'
   pull_request:
     paths:
       - 'lib/crm-tier-policy.js'
