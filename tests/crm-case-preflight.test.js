@@ -148,3 +148,31 @@ test("authenticated Case dryRun returns only safe counts, no upsert or checkpoin
     }
   }
 });
+
+
+test("preview Case endpoint rejects live writes before Feishu or checkpoint access", async () => {
+  const originalEnv = process.env.VERCEL_ENV;
+  const originalAuth = cases.authorized;
+  const originalToken = feishu.tenantToken;
+  let tokenCalls = 0;
+  process.env.VERCEL_ENV = "preview";
+  cases.authorized = () => true;
+  feishu.tenantToken = async () => {
+    tokenCalls++;
+    throw Error("Unexpected Preview Feishu token fetch");
+  };
+  try {
+    const res = makeRes();
+    await handler({method:"GET", query:{}}, res);
+    assert.equal(res.code, 403);
+    assert.deepEqual(res.body, {
+      ok:false, blockedReason:"case_preview_readonly", checkpointAdvanced:false,
+    });
+    assert.equal(tokenCalls, 0);
+  } finally {
+    if (originalEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = originalEnv;
+    cases.authorized = originalAuth;
+    feishu.tenantToken = originalToken;
+  }
+});
