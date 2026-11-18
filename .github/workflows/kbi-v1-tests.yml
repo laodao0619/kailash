@@ -5,6 +5,9 @@ on:
       - 'api/bi-*.js'
       - 'lib/kbi-*.js'
       - 'tests/kbi-*.test.js'
+      - 'tests/bi-qa-freshness.test.js'
+      - 'tests/bi-workbench-qa-health.test.js'
+      - 'lib/bi-qa-freshness.js'
       - 'public/bi/**'
       - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
@@ -14,6 +17,9 @@ on:
       - 'api/bi-*.js'
       - 'lib/kbi-*.js'
       - 'tests/kbi-*.test.js'
+      - 'tests/bi-qa-freshness.test.js'
+      - 'tests/bi-workbench-qa-health.test.js'
+      - 'lib/bi-qa-freshness.js'
       - 'public/bi/**'
       - 'vercel.json'
       - '.github/workflows/kbi-v1-tests.yml'
@@ -32,7 +38,7 @@ jobs:
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Verify JavaScript syntax
         run: |
-          for file in api/bi-*.js lib/kbi-*.js tests/kbi-*.test.js; do
+          for file in api/bi-*.js lib/kbi-*.js lib/bi-qa-freshness.js tests/kbi-*.test.js tests/bi-qa-freshness.test.js tests/bi-workbench-qa-health.test.js; do
             node --check "$file"
           done
           node -e 'const fs=require("fs");const s=fs.readFileSync("public/bi/index.html","utf8");const a=s.indexOf("<script>");const b=s.indexOf("</script>",a);if(a<0||b<0)process.exit(2);fs.writeFileSync("/tmp/kbi-workbench.js",s.slice(a+8,b));'
@@ -42,4 +48,4 @@ jobs:
           node --check public/bi/rfm-3d.js
           node --check public/bi/ops-center.js
       - name: Execute all synthetic BI tests
-        run: node --test tests/kbi-*.test.js
+        run: node --test tests/kbi-*.test.js tests/bi-qa-freshness.test.js tests/bi-workbench-qa-health.test.js
