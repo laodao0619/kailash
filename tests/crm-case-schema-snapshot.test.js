@@ -64,7 +64,7 @@ test("one verified Case schema snapshot is reused for a 2-record batch and seria
     assert.equal(tableId, TABLE);
     assert.equal(await upsertCase("fake-token", tableId, newCase, schema), "created");
     assert.equal(await upsertCase("fake-token", tableId,
-      { ...sample, caseId: "CASE-ABCDEF123456" }, schema), "created");
+      { ...newCase, caseId: "CASE-ABCDEF123456" }, schema), "created");
     assert.equal(stub.countSchemaReads(), 1);
     assert.equal(stub.writes.length, 2);
     for (const call of stub.writes) {
