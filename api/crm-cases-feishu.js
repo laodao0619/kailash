@@ -63,7 +63,18 @@ module.exports = async (req, res) => {
     const events = await cases.allEvents(500);
     const grouped = cases.groupCases(events);
     const state = await cases.read(STATE) || { offset: 0 };
-    const start = Number(state.offset) >= grouped.length ? 0 : Number(state.offset) || 0;
+    // A malformed or out-of-range persisted offset must not silently rewind
+    // the Case writer. Fail closed without touching the checkpoint or Feishu.
+    // Equality means the preceding batch reached the end and may wrap.
+    const offset = state.offset === undefined ? 0 : state.offset;
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > grouped.length) {
+      console.error("[crm-cases-feishu] invalid Case checkpoint offset");
+      return res.status(409).json({
+        ok: false, blockedReason: "case_checkpoint_invalid",
+        totalCases: grouped.length, processed: 0, checkpointAdvanced: false,
+      });
+    }
+    const start = offset === grouped.length ? 0 : offset;
     const batch = grouped.slice(start, start + BATCH_LIMIT);
     // Authenticated, read-only UAT mode: checks the real approved Feishu
     // field schema/options and the next Case batch; never writes or advances
