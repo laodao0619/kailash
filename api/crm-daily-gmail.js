@@ -16,6 +16,19 @@ function validPage(p){
   Number.isSafeInteger(p.offset)&&p.offset>=0&&p.offset<=p.ids.length&&
   (p.nextCursor===null||(typeof p.nextCursor==="string"&&p.nextCursor.length>0));
 }
+// Log only stable failure classes. Never log Gmail IDs, customer emails, raw API
+// response bodies, checkpoint tokens, or OAuth credentials.
+function failureCategory(error){
+ const m=String(error?.message||"");
+ if(/^Gmail request failed: 403$/.test(m))return "gmail_http_403";
+ if(/^Gmail request failed: 401$/.test(m))return "gmail_http_401";
+ if(/^Gmail request failed: [0-9]{3}$/.test(m))return "gmail_http_other";
+ if(m==="Gmail OAuth token refresh failed")return "gmail_oauth_refresh";
+ if(/^Private Blob (read|write) failed$/.test(m))return "private_checkpoint_io";
+ if(/^Feishu(?:\\b| )/.test(m))return "feishu_api";
+ if(/^(Invalid pending Gmail page checkpoint|Invalid Gmail incremental page cursor|Malformed Gmail incremental page|Gmail (message|compact) identity mismatch|Ambiguous customer email identity|Duplicate Gmail source identity)/.test(m))return "identity_or_page_guard";
+ return "unclassified";
+}
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
@@ -104,5 +117,10 @@ module.exports=async(req,res)=>{
    pagesThisRun:pages,messagesThisRun:messages,counters:checkpoint.counters,
    historicalGmailComplete,
    note:"Private per-message checkpoint; historical Gmail import preserved."});
- }catch(_){return res.status(502).json({ok:false,retryable:true,error:"daily_gmail_delta_failed"});}
+ }catch(error){
+  console.error("[crm-daily-gmail] retryable_failure="+failureCategory(error));
+  return res.status(502).json({ok:false,retryable:true,error:"daily_gmail_delta_failed"});
+ }
 };
+
+module.exports.failureCategory=failureCategory;
