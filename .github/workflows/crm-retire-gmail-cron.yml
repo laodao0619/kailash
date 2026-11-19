@@ -4,6 +4,9 @@ on:
     paths:
       - 'vercel.json'
       - 'tests/crm-retire-gmail-cron.test.js'
+      - 'tests/crm-gmail-historical-retirement.test.js'
+      - 'lib/crm-gmail-historical-retirement.js'
+      - 'api/crm-gmail-filtered.js'
       - '.github/workflows/crm-retire-gmail-cron.yml'
   workflow_dispatch:
 permissions:
@@ -22,4 +25,4 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - name: Run isolated cron regression tests
-        run: node --test tests/crm-retire-gmail-cron.test.js
+        run: node --test tests/crm-retire-gmail-cron.test.js tests/crm-gmail-historical-retirement.test.js
