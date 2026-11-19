@@ -1,5 +1,6 @@
 name: CRM 2026-11-12 tier policy regression
 on:
+  workflow_dispatch:
   push:
     branches: ['fix/crm-lifetime-tiers']
     paths:
@@ -24,12 +25,16 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '26']
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
       - name: Install dependencies
         run: npm install --ignore-scripts --no-audit --no-fund
       - name: Verify tier and RFM JavaScript syntax
