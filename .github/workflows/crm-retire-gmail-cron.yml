@@ -1,0 +1,28 @@
+name: CRM historical Gmail cron retirement
+on:
+  pull_request:
+    paths:
+      - 'vercel.json'
+      - 'tests/crm-retire-gmail-cron.test.js'
+      - 'tests/crm-gmail-historical-retirement.test.js'
+      - 'lib/crm-gmail-historical-retirement.js'
+      - 'api/crm-gmail-filtered.js'
+      - '.github/workflows/crm-retire-gmail-cron.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cron-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22', '26']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Run isolated cron regression tests
+        run: node --test tests/crm-retire-gmail-cron.test.js tests/crm-gmail-historical-retirement.test.js
