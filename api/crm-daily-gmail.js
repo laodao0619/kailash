@@ -25,7 +25,7 @@ function failureCategory(error){
  if(/^Gmail request failed: [0-9]{3}$/.test(m))return "gmail_http_other";
  if(m==="Gmail OAuth token refresh failed")return "gmail_oauth_refresh";
  if(/^Private Blob (read|write) failed$/.test(m))return "private_checkpoint_io";
- if(/^Feishu(?:\\b| )/.test(m))return "feishu_api";
+ if(m.startsWith("Feishu"))return "feishu_api";
  if(/^(Invalid pending Gmail page checkpoint|Invalid Gmail incremental page cursor|Malformed Gmail incremental page|Gmail (message|compact) identity mismatch|Ambiguous customer email identity|Duplicate Gmail source identity)/.test(m))return "identity_or_page_guard";
  return "unclassified";
 }
