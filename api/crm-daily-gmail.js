@@ -26,7 +26,7 @@ function failureCategory(error){
  if(m==="Gmail OAuth token refresh failed")return "gmail_oauth_refresh";
  if(/^Private Blob (read|write) failed$/.test(m))return "private_checkpoint_io";
  if(m.startsWith("Feishu"))return "feishu_api";
- if(/^(Invalid pending Gmail page checkpoint|Invalid Gmail incremental page cursor|Malformed Gmail incremental page|Gmail (message|compact) identity mismatch|Ambiguous customer email identity|Duplicate Gmail source identity)/.test(m))return "identity_or_page_guard";
+ if(/^(Invalid pending Gmail page checkpoint|Invalid Gmail incremental page cursor|Malformed Gmail incremental page|Feishu identity lookup incomplete|Gmail (message|compact) identity mismatch|Ambiguous customer email identity|Duplicate Gmail source identity)/.test(m))return "identity_or_page_guard";
  return "unclassified";
 }
 module.exports=async(req,res)=>{
@@ -80,12 +80,12 @@ module.exports=async(req,res)=>{
      const email=c.from?.trim().toLowerCase();
      if(!email)checkpoint.counters.excluded++;
      else{
-      const owners=await feishu.findBy(feishuToken,TABLE,"邮箱",email);
+      const owners=await feishu.findBy(feishuToken,TABLE,"邮箱",email,{requireComplete:true});
       if(owners.length>1)throw Error("Ambiguous customer email identity in CRM Gmail delta");
       if(owners.length===0||owners[0]?.fields?.["客户数据状态"]==="待人工复核")
        checkpoint.counters.excluded++;
       else{
-       const prior=await feishu.findBy(feishuToken,"tblNi7C5q5FYlG06","数据来源ID","gmail:"+c.id);
+       const prior=await feishu.findBy(feishuToken,"tblNi7C5q5FYlG06","数据来源ID","gmail:"+c.id,{requireComplete:true});
        if(prior.length>1)throw Error("Duplicate Gmail source identity in CRM delta");
        if(prior.length===1)checkpoint.counters.duplicates++;
        else{
