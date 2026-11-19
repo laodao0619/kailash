@@ -50,7 +50,7 @@ test("daily mail sync matches unique identity, deduplicates, saves only incremen
   assert.equal(out.value.counters.created,1);
   assert.equal(out.value.counters.duplicates,1);
   assert.equal(upsert.mock.callCount(),1);
-  assert.equal(writes[0].completed,true);
+  assert.equal(writes.at(-1).completed,true);
   assert.equal(lookups.some(x=>x.field==="数据来源ID"&&x.value==="gmail:msg-new-1"),true);
  }finally{for(const r of restores)r.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
