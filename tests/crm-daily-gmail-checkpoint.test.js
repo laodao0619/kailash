@@ -202,3 +202,23 @@ test("ambiguous customer or duplicate Gmail identity blocks without silently ski
   }finally{f.restore();}
  }
 });
+
+test("Gmail delta failure classes never leak customer or message data into operational logs",()=>{
+ const classify=handler.failureCategory;
+ assert.equal(classify(new Error("Gmail request failed: 403")),"gmail_http_403");
+ assert.equal(classify(new Error("Gmail request failed: 401")),"gmail_http_401");
+ assert.equal(classify(new Error("Gmail request failed: 429")),"gmail_http_other");
+ assert.equal(classify(new Error("Gmail OAuth token refresh failed")),"gmail_oauth_refresh");
+ assert.equal(classify(new Error("Feishu Bitable 200 / MultiSelectFieldConvFail")),"feishu_api");
+ assert.equal(classify(new Error("Gmail message identity mismatch")),"identity_or_page_guard");
+ assert.equal(classify(new Error("token=private@example.invalid; message=abc123")),"unclassified");
+ for(const error of [
+   new Error("Gmail request failed: 403 private@example.invalid"),
+   new Error("Unhandled private@example.invalid and secret-token"),
+ ]){
+  const category=classify(error);
+  assert.equal(category,"unclassified");
+  assert.equal(category.includes("private@example.invalid"),false);
+  assert.equal(category.includes("secret-token"),false);
+ }
+});
