@@ -58,10 +58,11 @@ function stubFeishu(schema, existing = false) {
 
 test("one verified Case schema snapshot is reused for a 2-record batch and serializes actual selects", async () => {
   const stub = stubFeishu(approvedSchema());
+  const newCase = { ...sample, nextAction: "Follow up in writing" };
   try {
     const { tableId, schema } = await ensureTable("fake-token", { includeSchema: true });
     assert.equal(tableId, TABLE);
-    assert.equal(await upsertCase("fake-token", tableId, sample, schema), "created");
+    assert.equal(await upsertCase("fake-token", tableId, newCase, schema), "created");
     assert.equal(await upsertCase("fake-token", tableId,
       { ...sample, caseId: "CASE-ABCDEF123456" }, schema), "created");
     assert.equal(stub.countSchemaReads(), 1);
@@ -74,6 +75,8 @@ test("one verified Case schema snapshot is reused for a 2-record batch and seria
       assert.equal(call.body.fields["沟通方向"], "客户发起");
       assert.deepEqual(call.body.fields["CRM等级（Case核验）"], ["待核验"]);
       assert.equal(call.body.fields["任务状态"], "待处理");
+      assert.equal(call.body.fields["是否需要人工处理"], true);
+      assert.equal(call.body.fields["下一步行动"], "Follow up in writing");
     }
   } finally { stub.restore(); }
 });
@@ -86,9 +89,11 @@ test("request-local schema supports official PUT without mutating human-owned fi
     assert.equal(stub.countSchemaReads(), 1);
     assert.equal(stub.writes.length, 1);
     assert.equal(stub.writes[0].method, "PUT");
-    for (const key of HUMAN) {
-      assert.equal(Object.hasOwn(stub.writes[0].body.fields, key), false);
+    for (const key of [...HUMAN, "是否需要人工处理", "下一步行动", "CRM等级（Case核验）"]) {
+      assert.equal(Object.hasOwn(stub.writes[0].body.fields, key), false,
+        "Existing Case field must remain under human control: " + key);
     }
+    assert.equal(stub.writes[0].body.fields["邮件数量"], 2);
   } finally { stub.restore(); }
 });
 
