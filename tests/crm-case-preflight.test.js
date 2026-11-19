@@ -176,3 +176,55 @@ test("preview Case endpoint rejects live writes before Feishu or checkpoint acce
     feishu.tenantToken = originalToken;
   }
 });
+
+
+test("invalid persisted offsets fail closed before Case writes or checkpoint changes", async () => {
+  const originals = {
+    authorized: cases.authorized, allEvents: cases.allEvents,
+    groupCases: cases.groupCases, read: cases.read, save: cases.save,
+    tenantToken: feishu.tenantToken, ensureTable: writeback.ensureTable,
+    upsertCase: writeback.upsertCase, vercelEnv: process.env.VERCEL_ENV,
+  };
+  let writes = 0, saves = 0;
+  cases.authorized = () => true;
+  cases.allEvents = async () => [{ synthetic: true }];
+  cases.groupCases = () => [example];
+  cases.save = async () => { saves++; };
+  feishu.tenantToken = async () => "test-only";
+  writeback.ensureTable = async () => ({
+    tableId: writeback.TABLE, schema: approvedSchema(),
+  });
+  writeback.upsertCase = async () => { writes++; return "created"; };
+  delete process.env.VERCEL_ENV;
+  try {
+    for (const offset of [-1, 1.5, 2, "1", NaN]) {
+      cases.read = async () => ({ offset });
+      const res = makeRes();
+      await handler({ method: "GET", query: {} }, res);
+      assert.equal(res.code, 409);
+      assert.equal(res.body.blockedReason, "case_checkpoint_invalid");
+      assert.equal(res.body.processed, 0);
+      assert.equal(res.body.checkpointAdvanced, false);
+    }
+    assert.equal(writes, 0);
+    assert.equal(saves, 0);
+    // Equality at a completed batch boundary is a legitimate wrap, not
+    // corrupted state. A dry-run still must never advance the checkpoint.
+    cases.read = async () => ({ offset: 1 });
+    const wrap = makeRes();
+    await handler({ method: "GET", query: { dryRun: "1" } }, wrap);
+    assert.equal(wrap.code, 200);
+    assert.equal(wrap.body.checked, 1);
+    assert.equal(writes, 0);
+    assert.equal(saves, 0);
+  } finally {
+    for (const [key, value] of Object.entries(originals)) {
+      if (key === "tenantToken") feishu.tenantToken = value;
+      else if (key === "ensureTable" || key === "upsertCase") writeback[key] = value;
+      else if (key === "vercelEnv") {
+        if (value === undefined) delete process.env.VERCEL_ENV;
+        else process.env.VERCEL_ENV = value;
+      } else cases[key] = value;
+    }
+  }
+});
