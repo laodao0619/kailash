@@ -688,3 +688,44 @@ test("unterminated oversized JSONL records fail closed, including UTF-8 multibyt
   /Oversized JSONL line/
  );
 });
+
+
+test("paid order merchandise subtotal must match discounted line totals before archive or seven-customer review",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const customerIds=Array.from({length:7},(_,i)=>"gid://shopify/Customer/"+(12001+i));
+ const rows=[];
+ for(let i=0;i<7;i++){
+  const orderId="gid://shopify/Order/"+(12001+i);
+  rows.push(order({
+   id:orderId,customer:{id:customerIds[i]},
+   displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(100),
+   totalRefundedSet:usd(0),
+   transactions:[{id:"gid://shopify/OrderTransaction/"+(13001+i),
+    kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]
+  }),{
+   __parentId:orderId,id:"gid://shopify/LineItem/"+(14001+i),
+   title:"Synthetic purchase",quantity:1,originalUnitPriceSet:usd(100),
+   discountedTotalSet:usd(i===0?90:100)
+  });
+ }
+ const config={
+  asOf:"2026-11-21T00:00:00Z",sampleCustomerIds:customerIds,
+  sampleExpectedOrderCounts:Object.fromEntries(customerIds.map(id=>[id,1]))
+ };
+ const state={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-20T00:00:00Z",
+  rootObjectCount:"7",objectCount:"14"};
+ const wrong=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),config);
+ assert.equal(wrong.totals.eligible,7);
+ assert.equal(wrong.totals.lineSubtotalMismatch,1);
+ assert.equal(wrong.sampleAudit.status,"BLOCKED_SAMPLE_LINE_TOTAL_RECONCILIATION");
+ assert.equal(wrong.sampleAudit.verified,false);
+ assert.equal(verifyArchiveIntegrity(wrong,state).status,"BLOCKED_LINE_TOTAL_RECONCILIATION");
+ // All line amounts reconciled: keep the existing human-review-only status.
+ rows[1].discountedTotalSet=usd(100);
+ const correct=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),config);
+ assert.equal(correct.totals.lineSubtotalMismatch,0);
+ assert.equal(correct.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
+ assert.equal(correct.sampleAudit.verified,false);
+ assert.equal(verifyArchiveIntegrity(correct,state).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
