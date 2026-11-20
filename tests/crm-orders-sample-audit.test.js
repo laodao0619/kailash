@@ -281,3 +281,13 @@ test("seven-customer sample refuses invalid or future dates even on excluded his
   assert.equal(out.sampleAudit.verified,false);
  }
 });
+
+test("sample blocks when paid-status evidence is missing, even for test orders",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ rows[0]=order(1,{test:true,displayFinancialStatus:undefined,transactions:[]});
+ const result=await run(rows);
+ assert.equal(result.sampleAudit.matched,7);
+ assert.equal(result.sampleAudit.customers[0].excluded.unverified_financial_status,1);
+ assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(result.sampleAudit.verified,false);
+});
