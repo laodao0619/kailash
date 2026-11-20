@@ -209,3 +209,24 @@ test("Case schema pagination has a strict finite upper bound", async () => {
     feishu.request=original;
   }
 });
+
+
+test("Case schema pagination rejects missing or nonboolean has_more without writing", async () => {
+  const original = feishu.request;
+  let writes = 0;
+  try {
+    for (const malformed of [undefined, null, "false", 0, 1]) {
+      feishu.request = async (_token, _path, method = "GET") => {
+        if (method !== "GET") writes++;
+        return { items: [{ table_id: TABLE, name: NAME }], has_more: malformed };
+      };
+      await assert.rejects(
+        ensureTable("test-only", { includeSchema: true }),
+        /pagination flag invalid/
+      );
+    }
+    assert.equal(writes, 0);
+  } finally {
+    feishu.request = original;
+  }
+});
