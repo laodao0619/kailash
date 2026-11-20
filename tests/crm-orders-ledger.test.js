@@ -513,3 +513,22 @@ test("mixed SALE and CAPTURE require explicit settlement reconciliation",async()
  });
  assert.equal(classifyOrder(captureOnly).eligible,true);
 });
+
+
+test("completed export requires a real ISO archive timestamp before finance evidence is accepted",()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const sample={parsedLines:2,totals:{orders:1,lines:1,missingLineParent:0,duplicateOrderIds:0,
+  duplicateLineItemIds:0,unverifiedLines:0,invalidOrderIds:0,invalidCustomerIds:0,
+  duplicateTransactionIdsAcrossOrders:0,unverifiedLineFinancials:0,missingLineItems:0,
+  missingOrderDate:0,futureOrders:0,refundMismatch:0,excluded:{}}};
+ const state={status:"COMPLETED",downloaded:true,
+  rootObjectCount:"1",objectCount:"2",archivedAt:"2026-11-20T00:00:00.000Z"};
+ assert.equal(verifyArchiveIntegrity(sample,state).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+ for(const archivedAt of [null,"",false,"not-a-date","2026-02-30T00:00:00Z",
+  "2026-11-20","2026-11-20T24:00:00Z",42]){
+  const result=verifyArchiveIntegrity(sample,{...state,archivedAt});
+  assert.equal(result.status,"BLOCKED_EXPORT_NOT_ARCHIVED",String(archivedAt));
+  assert.equal(result.verified,false);
+ }
+});
