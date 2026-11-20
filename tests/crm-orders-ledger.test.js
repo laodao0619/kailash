@@ -366,6 +366,9 @@ test("line item financial evidence blocks count-consistent archives without veri
   {...line,quantity:undefined},
   {...line,quantity:-1},
   {...line,quantity:1.5},
+  {...line,quantity:0,discountedTotalSet:usd(1)},
+  {...line,originalUnitPriceSet:usd(79),discountedTotalSet:usd(80)},
+  {...line,quantity:2,originalUnitPriceSet:usd(39),discountedTotalSet:usd(80)},
   {...line,originalUnitPriceSet:null},
   {...line,discountedTotalSet:undefined},
   {...line,discountedTotalSet:{shopMoney:{amount:"80",currencyCode:"EUR"}}},
@@ -379,6 +382,30 @@ test("line item financial evidence blocks count-consistent archives without veri
  const zero=await check({...line,quantity:0,discountedTotalSet:usd(0)});
  assert.equal(zero.out.totals.unverifiedLineFinancials,0);
  assert.equal(zero.status,"PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
+
+test("seven-customer finance sample blocks impossible discounted merchandise totals",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const ids=Array.from({length:7},(_,i)=>"gid://shopify/Customer/"+(9901+i));
+ const rows=[];
+ for(let i=0;i<7;i++){
+  const id="gid://shopify/Order/"+(9901+i);
+  rows.push(order({id,customer:{id:ids[i]},transactions:[
+   {id:"gid://shopify/OrderTransaction/"+(19901+i),
+    kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]}));
+  rows.push({__parentId:id,id:"gid://shopify/LineItem/"+(9901+i),title:"Pendant",
+   quantity:1,originalUnitPriceSet:usd(i===0?70:100),discountedTotalSet:usd(80)});
+ }
+ const out=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-20T00:00:00Z",
+  sampleCustomerIds:ids,sampleExpectedOrderCounts:Object.fromEntries(ids.map(id=>[id,1]))
+ });
+ assert.equal(out.totals.unverifiedLineFinancials,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_LINE_ITEM_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.verified,false);
+ assert.equal(verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-20T00:00:00Z",rootObjectCount:"7",objectCount:"14"}).status,
+  "BLOCKED_LINE_ITEM_FINANCIAL_EVIDENCE");
 });
 
 test("duplicate Shopify transaction IDs cannot inflate captured funds or pass archive finance checks",async()=>{
