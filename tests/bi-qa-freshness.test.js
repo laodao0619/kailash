@@ -8,6 +8,7 @@ const snapshot = {
 };
 const qa = {
   ready: true, at: "2026-11-20T05:46:00.000Z",
+  indexGeneratedAt: snapshot.generatedAt, indexTotal: snapshot.total,
   metrics: { total: 10917 },
   checks: Object.fromEntries(REQUIRED_CHECKS.map(key => [key, true]))
 };
@@ -46,4 +47,18 @@ test("timestamps and snapshot versions must be explicit", () => {
   assert.equal(qaCoverage(snapshot, { ...qa, at: "wrong" }).reason, "qa_timestamp_invalid");
   assert.equal(qaCoverage({ ...snapshot, generatedAt: null }, qa).freshForSnapshot, false);
   assert.equal(qaCoverage({ ...snapshot, version: 1 }, qa).reason, "snapshot_unavailable");
+});
+
+test("same-count rebuilt snapshot is never certified by another QA generation", () => {
+  const rebuilt = { ...snapshot, generatedAt: "2026-11-20T05:46:10.000Z" };
+  const result = qaCoverage(rebuilt, { ...qa, at: "2026-11-20T05:47:00.000Z" });
+  assert.equal(result.reason, "qa_snapshot_identity_mismatch");
+});
+
+test("QA without a recorded source identity cannot certify the latest index", () => {
+  const old = { ...qa };
+  delete old.indexGeneratedAt;
+  delete old.indexTotal;
+  assert.equal(qaCoverage(snapshot, old).freshForSnapshot, false);
+  assert.equal(qaCoverage(snapshot, { ...qa, indexTotal: qa.indexTotal + 1 }).freshForSnapshot, false);
 });
