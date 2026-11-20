@@ -29,5 +29,6 @@ jobs:
           node --check tests/crm-orders-bulk.test.js
           node --check tests/crm-orders-ledger.test.js
           node --check tests/crm-orders-sample-audit.test.js
+          node --check tests/crm-orders-bulk-api-errors.test.js
       - name: Run synthetic Shopify orders, refunds and seven-customer sample tests
-        run: node --test tests/crm-orders-bulk.test.js tests/crm-orders-ledger.test.js tests/crm-orders-sample-audit.test.js
+        run: node --test tests/crm-orders-bulk.test.js tests/crm-orders-ledger.test.js tests/crm-orders-sample-audit.test.js tests/crm-orders-bulk-api-errors.test.js
