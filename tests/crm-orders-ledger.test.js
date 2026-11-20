@@ -390,7 +390,8 @@ test("seven-customer finance sample blocks impossible discounted merchandise tot
  const rows=[];
  for(let i=0;i<7;i++){
   const id="gid://shopify/Order/"+(9901+i);
-  rows.push(order({id,customer:{id:ids[i]},transactions:[
+  rows.push(order({id,customer:{id:ids[i]},displayFinancialStatus:"PAID",
+   totalRefundedSet:usd(0),transactions:[
    {id:"gid://shopify/OrderTransaction/"+(19901+i),
     kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]}));
   rows.push({__parentId:id,id:"gid://shopify/LineItem/"+(9901+i),title:"Pendant",
