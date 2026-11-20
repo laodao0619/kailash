@@ -1,0 +1,24 @@
+name: CRM retire completed Gmail historical cron CI
+on:
+  pull_request:
+    paths:
+      - 'vercel.json'
+      - 'tests/crm-gmail-cron-retirement.test.js'
+      - '.github/workflows/crm-gmail-cron-retirement-ci.yml'
+permissions:
+  contents: read
+jobs:
+  verify-cron:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Parse deployment cron config and check test syntax
+        run: |
+          node -e 'JSON.parse(require("fs").readFileSync("vercel.json","utf8"))'
+          node --check tests/crm-gmail-cron-retirement.test.js
+      - name: Verify completed-history retirement leaves daily and Case jobs unchanged
+        run: node --test tests/crm-gmail-cron-retirement.test.js
