@@ -254,3 +254,16 @@ test("seven-customer sample flags a settled payment without verified Shopify tra
  assert.equal(out.sampleAudit.customers[0].excluded.unverified_transaction_identity,1);
  assert.equal(out.sampleAudit.verified,false);
 });
+
+
+test("seven-customer audit blocks mixed SALE and CAPTURE payments pending human reconciliation",async()=>{
+ const rows=[order(1,{transactions:[
+  {kind:"SALE",status:"SUCCESS",amountSet:usd(120)},
+  {kind:"CAPTURE",status:"SUCCESS",amountSet:usd(120)}
+ ]}),...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].excluded.mixed_settlement_kinds_unreconciled,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.verified,false);
+});
