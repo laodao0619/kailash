@@ -291,3 +291,25 @@ test("sample blocks when paid-status evidence is missing, even for test orders",
  assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(result.sampleAudit.verified,false);
 });
+
+test("contradictory PARTIALLY_REFUNDED with zero Shopify refund blocks financial signoff",async()=>{
+ const rows=[order(1,{
+  displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(120),
+  totalRefundedSet:usd(0),
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}]
+ }),...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.totals.eligible,6);
+ assert.equal(out.totals.excluded.partial_refund_without_refund_evidence,1);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].lifetimeMerchandiseCents,0);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
+ assert.equal(out.sampleAudit.verified,false);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(out,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"7",objectCount:"14"
+ }).status,"BLOCKED_REFUND_RECONCILIATION");
+});
