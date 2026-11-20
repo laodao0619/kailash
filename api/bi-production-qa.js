@@ -122,6 +122,9 @@ module.exports=async(req,res)=>{
   const latest=await read(INDEX);
   if(!latest||latest.generatedAt!==current.generatedAt||latest.total!==current.total)
    throw Error("qa_index_changed_during_run");
+  // Completion time must follow the tested generation, even if the index
+  // was published as this QA run started.
+  report.at=new Date().toISOString();
   report.ready=Object.values(report.checks).every(Boolean);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
