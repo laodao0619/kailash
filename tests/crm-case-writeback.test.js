@@ -38,7 +38,7 @@ test("Case updates an existing communication table record without touching task 
   };
   const schema = Object.keys(recordFields({caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"})).map(field_name => ({field_name,type:1}));
   feishu.request = async (...args) => {
-    if (args[1].endsWith("/fields?page_size=100")) return {items:schema};
+    if (args[1].endsWith("/fields?page_size=100")) return {items:schema,has_more:false};
     calls.push(args);
     return {};
   };
