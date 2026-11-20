@@ -36,13 +36,14 @@ test("full-history Shopify export requires an exact explicit server-side opt-in"
  assert.equal(isExplicitBulkExportEnabled({CRM_FINANCE_BULK_ENABLED:"true"}),true);
 });
 
-test("full-history PR cannot resurrect completed historical import crons",()=>{
+test("finance-only extraction preserves active production cron policy without adding a bulk job",()=>{
  const {crons}=require("../vercel.json");
- const obsolete=["/api/crm-backfill","/api/crm-gmail-stage","/api/crm-gmail-filtered",
-  "/api/crm-orders-stage","/api/crm-orders-reconcile","/api/crm-milestones"];
- for(const entry of crons)assert.equal(obsolete.includes(entry.path),false,entry.path);
+ assert.deepEqual(crons.filter(x=>x.path==="/api/crm-orders-bulk"),[],
+  "full-history export must not be scheduled before merchant UAT");
  for(const path of ["/api/crm-daily-customers","/api/crm-daily-orders","/api/crm-daily-gmail"])
   assert.equal(crons.filter(x=>x.path===path).length,3,path);
- assert.deepEqual(crons.filter(x=>x.path==="/api/crm-orders-bulk"),
-  [{path:"/api/crm-orders-bulk",schedule:"*/20 * * * *"}]);
+ // Main still contains this legacy job; retirement is a separate reviewed task
+ // after an authenticated finished=true checkpoint, not part of finance work.
+ assert.deepEqual(crons.filter(x=>x.path==="/api/crm-gmail-filtered"),
+  [{path:"/api/crm-gmail-filtered",schedule:"*/10 * * * *"}]);
 });
