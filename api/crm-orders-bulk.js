@@ -59,5 +59,9 @@ module.exports=async(req,res)=>{
   await put(RAW,response.body,{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/x-ndjson"});
   state.downloaded=true;state.archivedAt=new Date().toISOString();await save(state);
   return res.status(200).json({ok:true,phase:"archived",completed:true,objectCount:state.objectCount,rootObjectCount:state.rootObjectCount});
- }catch(e){return res.status(502).json({ok:false,retryable:true,error:String(e.message||e).slice(0,180)});}
+ }catch{
+  // Upstream exceptions may contain signed Blob URLs, order identifiers or
+  // private runtime configuration. Never include raw messages in HTTP errors.
+  return res.status(502).json({ok:false,retryable:true,error:"bulk_export_failed"});
+ }
 };
