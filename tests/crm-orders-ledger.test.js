@@ -191,6 +191,46 @@ test("fully refunded orders reconcile successful refund evidence even when exclu
  assert.equal(verifyArchiveIntegrity(result,archive).status,"BLOCKED_REFUND_RECONCILIATION");
 });
 
+test("REFUNDED status with positive merchandise balance blocks finance and sample signoff",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const sampleIds=Array.from({length:7},(_,i)=>"gid://shopify/Customer/"+(9600+i));
+ const rows=[];
+ for(let i=0;i<7;i++){
+  const id="gid://shopify/Order/"+(9600+i);
+  const refunded=i===0;
+  const purchase=order({
+   id,customer:{id:sampleIds[i]},
+   displayFinancialStatus:refunded?"REFUNDED":"PAID",
+   currentSubtotalPriceSet:usd(100),
+   totalRefundedSet:usd(refunded?100:0),
+   transactions:refunded?[
+    {id:"gid://shopify/OrderTransaction/19600",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+    {id:"gid://shopify/OrderTransaction/19601",kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}
+   ]:[
+    {id:"gid://shopify/OrderTransaction/"+(19610+i),kind:"SALE",status:"SUCCESS",amountSet:usd(100)}
+   ]
+  });
+  rows.push(purchase,{__parentId:id,id:"gid://shopify/LineItem/"+(9600+i),
+   title:"Sample item",quantity:1,originalUnitPriceSet:usd(100),discountedTotalSet:usd(100)});
+ }
+ assert.deepEqual(classifyOrder(rows[0]),{
+  eligible:false,reason:"refunded_merchandise_balance_unreconciled"
+ });
+ const out=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-20T00:00:00Z",
+  sampleCustomerIds:sampleIds,
+  sampleExpectedOrderCounts:Object.fromEntries(sampleIds.map(id=>[id,1]))
+ });
+ assert.equal(out.totals.excluded.refunded_merchandise_balance_unreconciled,1);
+ assert.equal(out.totals.eligible,6);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,60000);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
+ const archive={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-20T00:00:00Z",
+  rootObjectCount:"7",objectCount:"14"};
+ assert.equal(verifyArchiveIntegrity(out,archive).status,"BLOCKED_REFUND_RECONCILIATION");
+ assert.equal(out.sampleAudit.verified,false);
+});
+
 test("refunds exceeding proven settled captures block both paid and fully refunded orders",async()=>{
  const partial=order({id:"gid://shopify/Order/301",displayFinancialStatus:"PARTIALLY_REFUNDED",
   currentSubtotalPriceSet:usd(40),totalRefundedSet:usd(120),transactions:[
