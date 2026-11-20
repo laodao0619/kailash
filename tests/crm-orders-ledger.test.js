@@ -471,3 +471,45 @@ test("invalid Shopify calendar dates are blocked before financial or 180-day agg
  assert.equal(leap.totals.eligible,1);
  assert.equal(leap.totals.withinWindow,1);
 });
+
+
+test("mixed SALE and CAPTURE require explicit settlement reconciliation",async()=>{
+ const mixed=order({
+  id:"gid://shopify/Order/510",
+  displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(50),
+  totalRefundedSet:usd(150),
+  transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"CAPTURE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(150)}
+  ]
+ });
+ // Adding SALE and CAPTURE could double count one settlement. A refund
+ // greater than the proven individual payment is not automatically trusted.
+ assert.deepEqual(classifyOrder(mixed),{
+  eligible:false,reason:"mixed_settlement_kinds_unreconciled"
+ });
+ const result=await auditJsonl(Readable.from([JSON.stringify(mixed)+"\n"]),{
+  asOf:"2026-11-20T00:00:00Z"
+ });
+ assert.equal(result.totals.eligible,0);
+ assert.equal(result.totals.excluded.mixed_settlement_kinds_unreconciled,1);
+ assert.equal(result.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(result.aggregates.windowMerchandiseCents,0);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const state={status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-20T00:00:00Z",rootObjectCount:"1",objectCount:"1"};
+ assert.equal(verifyArchiveIntegrity(result,state).status,
+  "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+ // A single successful CAPTURE remains auditable. This rule only targets
+ // ambiguous simultaneous settlement kinds.
+ const captureOnly=order({
+  transactions:[
+   {kind:"AUTHORIZATION",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"CAPTURE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}
+  ]
+ });
+ assert.equal(classifyOrder(captureOnly).eligible,true);
+});
