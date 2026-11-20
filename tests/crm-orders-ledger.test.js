@@ -595,3 +595,22 @@ test("missing financial status quarantines historical Shopify rows and blocks ar
   archivedAt:"2026-11-20T00:00:00Z",rootObjectCount:"1",objectCount:"1"}).status,
   "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
 });
+
+
+test("future archive completion timestamps cannot certify an earlier financial snapshot",()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const snapshot={asOf:"2026-11-20T00:00:00Z",parsedLines:2,totals:{
+  orders:1,missingLineParent:0,duplicateOrderIds:0,duplicateLineItemIds:0,
+  unverifiedLines:0,invalidOrderIds:0,invalidCustomerIds:0,
+  duplicateTransactionIdsAcrossOrders:0,unverifiedLineFinancials:0,
+  missingLineItems:0,missingOrderDate:0,futureOrders:0,refundMismatch:0,excluded:{}
+ }};
+ const state={status:"COMPLETED",downloaded:true,rootObjectCount:"1",objectCount:"2",
+  archivedAt:"2026-11-20T00:00:01Z"};
+ assert.equal(verifyArchiveIntegrity(snapshot,state).status,"BLOCKED_EXPORT_NOT_ARCHIVED");
+ assert.equal(verifyArchiveIntegrity(snapshot,state).verified,false);
+ // Boundary equality is valid; audit remains pending human reconciliation.
+ assert.equal(verifyArchiveIntegrity(snapshot,{...state,
+  archivedAt:"2026-11-20T00:00:00Z"}).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
