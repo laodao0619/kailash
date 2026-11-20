@@ -614,3 +614,20 @@ test("future archive completion timestamps cannot certify an earlier financial s
   archivedAt:"2026-11-20T00:00:00Z"}).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+
+test("empty full-history archive must not enter manual reconciliation", () => {
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const zeroAudit={asOf:"2026-11-20T11:00:00Z",parsedLines:0,
+  totals:{orders:0,lines:0,excluded:{}}};
+ const archived={status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-20T10:00:00Z",rootObjectCount:"0",objectCount:"0"};
+ const result=verifyArchiveIntegrity(zeroAudit,archived);
+ assert.equal(result.status,"BLOCKED_EXPORT_EMPTY");
+ assert.equal(result.verified,false);
+ assert.equal(result.expectedOrders,0);
+ // An archive claiming zero orders when one was parsed is a count mismatch.
+ const inconsistent=verifyArchiveIntegrity({...zeroAudit,parsedLines:1,
+  totals:{...zeroAudit.totals,orders:1}},archived);
+ assert.equal(inconsistent.status,"BLOCKED_EXPORT_COUNTS_MISMATCH");
+});
