@@ -671,3 +671,20 @@ test("empty full-history archive must not enter manual reconciliation", () => {
   totals:{...zeroAudit.totals,orders:1}},archived);
  assert.equal(inconsistent.status,"BLOCKED_EXPORT_COUNTS_MISMATCH");
 });
+
+
+test("single-chunk newline-terminated JSONL records exceeding 4 MiB fail closed", async () => {
+ const huge=JSON.stringify({id:"gid://shopify/Order/1",padding:"A".repeat(4*1024*1024)});
+ await assert.rejects(
+  auditJsonl(Readable.from([huge+"\n"]),{asOf:"2026-11-20T00:00:00Z"}),
+  /Oversized JSONL line/
+ );
+});
+
+test("unterminated oversized JSONL records fail closed, including UTF-8 multibyte text", async () => {
+ const huge=JSON.stringify({id:"gid://shopify/Order/1",padding:"藏".repeat(1500000)});
+ await assert.rejects(
+  auditJsonl(Readable.from([huge]),{asOf:"2026-11-20T00:00:00Z"}),
+  /Oversized JSONL line/
+ );
+});
