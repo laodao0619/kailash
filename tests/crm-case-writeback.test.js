@@ -55,8 +55,8 @@ test("Case sync refuses to create another CRM table", async () => {
   const original = feishu.request, calls=[];
   feishu.request=async (_t,path,method="GET",body) => {
     calls.push({path,method,body});
-    if(path.endsWith("/tables?page_size=100"))return {items:[{table_id:TABLE,name:"客户沟通与跟进"}]};
-    return {items:EXTRA.map(f => ({ field_name:f.field_name, type:f.type }))};
+    if(path.endsWith("/tables?page_size=100"))return {items:[{table_id:TABLE,name:"客户沟通与跟进"}],has_more:false};
+    return {items:EXTRA.map(f => ({ field_name:f.field_name, type:f.type })),has_more:false};
   };
   try{
     assert.equal(await ensureTable("test"),TABLE);
