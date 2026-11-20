@@ -7,7 +7,10 @@ function fixture(){
  return {
   asOf:"2026-11-08T00:00:00.000Z",windowDays:180,
   totals:{orders:5,eligible:5,missingLineParent:0,duplicateOrderIds:0,
-   unverifiedLines:0,missingOrderDate:0,futureOrders:0,refundMismatch:0,excluded:{}},
+   duplicateLineItemIds:0,unverifiedLines:0,unverifiedLineFinancials:0,
+   missingLineItems:0,lineSubtotalMismatch:0,duplicateTransactionIdsAcrossOrders:0,
+   invalidOrderIds:0,invalidCustomerIds:0,missingOrderDate:0,futureOrders:0,
+   refundMismatch:0,excluded:{}},
   customers:new Map([["gid://shopify/Customer/101",{
     orders:5,merchandiseCents:320000,windowOrders:5,windowMerchandiseCents:320000,
     firstAt:Date.parse("2026-06-01T00:00:00Z"),lastAt:D
@@ -65,4 +68,48 @@ test("full ledger lifetime spend governs tier even when recent spend and frequen
  c.windowOrders=1;c.windowMerchandiseCents=2000;c.lastAt=Date.parse("2026-06-01T00:00:00Z");
  const result=prepareGrades(f,reviewed).grades.get("gid://shopify/Customer/101");
  assert.equal(result.tier,"S+");assert.equal(result.M,20);assert.equal(result.F,1);
+});
+
+test("consolidated JSONL identity, monetary and association exceptions block every grade",()=>{
+ for(const key of [
+  "duplicateLineItemIds","unverifiedLineFinancials","missingLineItems",
+  "lineSubtotalMismatch","duplicateTransactionIdsAcrossOrders",
+  "invalidOrderIds","invalidCustomerIds"
+ ]){
+  const f=fixture();f.totals[key]=1;
+  const result=prepareGrades(f,reviewed);
+  assert.equal(result.ok,false,key);
+  assert.equal(result.reason,"audit_has_unresolved_exceptions",key);
+  assert.equal(result.grades.size,0,key);
+ }
+});
+
+test("missing consolidated counters fail closed even when manual approval flags are true",()=>{
+ for(const key of ["duplicateLineItemIds","lineSubtotalMismatch","invalidOrderIds"]){
+  const f=fixture();delete f.totals[key];
+  const result=prepareGrades(f,reviewed);
+  assert.equal(result.ok,false,key);
+  assert.equal(result.reason,"audit_counters_missing",key);
+  assert.equal(result.grades.size,0,key);
+ }
+});
+
+test("unreconciled refunds and payments block all historical CRM grades",()=>{
+ for(const reason of [
+  "unverified_transaction_identity","missing_settled_payment_evidence",
+  "duplicate_transaction_ids","partially_paid_unreconciled",
+  "mixed_settlement_kinds_unreconciled","unverified_financial_status",
+  "refunded_order_refund_mismatch","refund_exceeds_captured",
+  "refunded_merchandise_balance_unreconciled","partial_refund_without_refund_evidence"
+ ]){
+  const f=fixture();f.totals.excluded[reason]=1;
+  const result=prepareGrades(f,reviewed);
+  assert.equal(result.ok,false,reason);
+  assert.equal(result.reason,"audit_contains_unverified_payments",reason);
+  assert.equal(result.grades.size,0,reason);
+ }
+ const f=fixture();f.totals.excluded.unverified_transactions="1";
+ assert.equal(prepareGrades(f,reviewed).reason,"audit_exclusions_invalid");
+ const missing=fixture();delete missing.totals.excluded;
+ assert.equal(prepareGrades(missing,reviewed).reason,"audit_exclusions_missing");
 });
