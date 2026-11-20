@@ -532,3 +532,41 @@ test("completed export requires a real ISO archive timestamp before finance evid
   assert.equal(result.verified,false);
  }
 });
+
+test("excluded Shopify orders still require valid historical dates before archive signoff",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const rows=[
+  order({id:"gid://shopify/Order/881",test:true,createdAt:"not-an-instant",transactions:[]}),
+  order({id:"gid://shopify/Order/882",cancelledAt:"2026-10-01T00:00:00Z",
+   createdAt:"2026-12-01T00:00:00Z",transactions:[]}),
+  order({id:"gid://shopify/Order/883",displayFinancialStatus:"REFUNDED",
+   createdAt:"2026-02-30T00:00:00Z",currentSubtotalPriceSet:usd(0),
+   totalRefundedSet:usd(100),transactions:[
+    {id:"gid://shopify/OrderTransaction/8831",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+    {id:"gid://shopify/OrderTransaction/8832",kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}
+   ]})
+ ];
+ const audit=await auditJsonl(Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]),{
+  asOf:"2026-11-20T00:00:00Z"
+ });
+ assert.equal(audit.totals.orders,3);
+ assert.equal(audit.totals.eligible,0);
+ assert.equal(audit.totals.missingOrderDate,2);
+ assert.equal(audit.totals.futureOrders,1);
+ assert.equal(audit.totals.excluded.test,1);
+ assert.equal(audit.totals.excluded.cancelled,1);
+ assert.equal(audit.totals.excluded.fully_refunded_or_zero,1);
+ assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+ const state={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-20T00:00:00Z",
+  rootObjectCount:"3",objectCount:"3"};
+ assert.equal(verifyArchiveIntegrity(audit,state).status,"BLOCKED_ORDER_DATE_EVIDENCE");
+
+ // Valid excluded orders need no merchandise line items and do not themselves
+ // imply a finance-ready grade: even a complete archive remains manual-review only.
+ const normal=await auditJsonl(Readable.from([
+  JSON.stringify(order({id:"gid://shopify/Order/884",test:true,transactions:[]}))+"\n"
+ ]),{asOf:"2026-11-20T00:00:00Z"});
+ assert.equal(normal.totals.missingOrderDate,0);
+ assert.equal(verifyArchiveIntegrity(normal,{...state,rootObjectCount:"1",objectCount:"1"}).status,
+  "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
+});
