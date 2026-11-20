@@ -189,9 +189,12 @@ test("seven-customer samples block missing line-item amount evidence even with c
  assert.equal(out.sampleAudit.verified,false);
 
  const completeLine={...brokenLine,discountedTotalSet:usd(120)};
- const good=await run([...rows,completeLine]);
- assert.equal(good.sampleAudit.customers[0].unverifiedLineFinancials,0);
- assert.equal(good.sampleAudit.status,"PENDING_MANUAL_SHOPIFY_FINANCIAL_RECONCILIATION");
+ // A second line with verified price still cannot silently inflate a paid
+ // order: its two $120 item totals conflict with the order $120 subtotal.
+ const duplicateValue=await run([...rows,completeLine]);
+ assert.equal(duplicateValue.sampleAudit.customers[0].unverifiedLineFinancials,0);
+ assert.equal(duplicateValue.sampleAudit.customers[0].lineSubtotalMismatch,1);
+ assert.equal(duplicateValue.sampleAudit.status,"BLOCKED_SAMPLE_LINE_TOTAL_RECONCILIATION");
 });
 
 
