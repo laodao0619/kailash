@@ -51,5 +51,9 @@ module.exports=async(req,res)=>{
    status:evidenceComplete?"AUDIT_ONLY_NOT_APPROVED_FOR_RFM":"BLOCKED_FINANCIAL_EVIDENCE_INCOMPLETE"};
   await put(REPORT,JSON.stringify(reviewed),{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/json"});
   return res.status(200).json({ok:true,...reviewed});
- }catch(e){return res.status(502).json({ok:false,retryable:true,error:String(e.message||e).slice(0,180)});}
+ }catch{
+  // Upstream exceptions may contain signed Blob URLs, order identifiers or
+  // private runtime configuration. Never include raw messages in HTTP errors.
+  return res.status(502).json({ok:false,retryable:true,error:"financial_audit_failed"});
+ }
 };
