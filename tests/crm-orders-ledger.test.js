@@ -570,3 +570,28 @@ test("excluded Shopify orders still require valid historical dates before archiv
  assert.equal(verifyArchiveIntegrity(normal,{...state,rootObjectCount:"1",objectCount:"1"}).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+test("missing financial status quarantines historical Shopify rows and blocks archive signoff",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ for(const status of [null,undefined,"", "UNKNOWN","paid"]){
+  const row=order({displayFinancialStatus:status});
+  assert.deepEqual(classifyOrder(row),{
+   eligible:false,reason:"unverified_financial_status"
+  });
+ }
+ for(const status of ["PENDING","AUTHORIZED","VOIDED","EXPIRED"]){
+  assert.deepEqual(classifyOrder(order({displayFinancialStatus:status})),{
+   eligible:false,reason:"financial_status"
+  });
+ }
+ const purchase=order({id:"gid://shopify/Order/987",displayFinancialStatus:null,
+  test:true,transactions:[]});
+ const ledger=await auditJsonl(Readable.from([JSON.stringify(purchase)+"\n"]),{
+  asOf:"2026-11-20T00:00:00Z"
+ });
+ assert.equal(ledger.totals.eligible,0);
+ assert.equal(ledger.totals.excluded.unverified_financial_status,1);
+ assert.equal(verifyArchiveIntegrity(ledger,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-20T00:00:00Z",rootObjectCount:"1",objectCount:"1"}).status,
+  "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+});
