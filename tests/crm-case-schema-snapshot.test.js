@@ -141,3 +141,71 @@ test("incompatible CRM grade type fails closed before any Case write", async () 
     assert.equal(stub.writes.length,0);
   } finally { stub.restore(); }
 });
+
+
+test("Case schema pagination reads later field pages before validating the approved table", async () => {
+  const original = feishu.request;
+  const full = approvedSchema();
+  const first = full.slice(0, 8), second = full.slice(8);
+  const calls = [];
+  feishu.request = async (_token, path, method = "GET") => {
+    assert.equal(method, "GET");
+    calls.push(path);
+    if (path === "/bitable/v1/apps/Y7VvbgreAasoLtsYdhrcmmDUn5d/tables?page_size=100") {
+      return { items: [{table_id:"unrelated",name:"Other"}], has_more:true, page_token:"t next" };
+    }
+    if (path.endsWith("/tables?page_size=100&page_token=t%20next")) {
+      return { items: [{table_id:TABLE,name:NAME}], has_more:false };
+    }
+    if (path.endsWith("/fields?page_size=100")) {
+      return { items:first, has_more:true, page_token:"fields:2" };
+    }
+    if (path.endsWith("/fields?page_size=100&page_token=fields%3A2")) {
+      return { items:second, has_more:false };
+    }
+    throw Error("Unexpected schema request " + path);
+  };
+  try {
+    const {tableId,schema} = await ensureTable("test-only", {includeSchema:true});
+    assert.equal(tableId,TABLE);
+    assert.equal(schema.length,full.length);
+    assert.deepEqual(schema,full);
+    assert.equal(calls.length,4);
+  } finally {
+    feishu.request = original;
+  }
+});
+
+test("Case schema pagination refuses absent/repeated tokens without writing anything", async () => {
+  const original = feishu.request;
+  const tablesPath = "/bitable/v1/apps/Y7VvbgreAasoLtsYdhrcmmDUn5d/tables?page_size=100";
+  try {
+    feishu.request = async () => ({items:[],has_more:true});
+    await assert.rejects(ensureTable("test-only",{includeSchema:true}),/pagination invalid/);
+    let n=0;
+    feishu.request = async (_token,path) => {
+      if (path===tablesPath) return {items:[],has_more:true,page_token:"same"};
+      n++;
+      return {items:[],has_more:true,page_token:"same"};
+    };
+    await assert.rejects(ensureTable("test-only",{includeSchema:true}),/pagination invalid/);
+    assert.equal(n,1);
+  } finally {
+    feishu.request = original;
+  }
+});
+
+test("Case schema pagination has a strict finite upper bound", async () => {
+  const original = feishu.request;
+  let calls=0;
+  feishu.request = async () => {
+    calls++;
+    return {items:[],has_more:true,page_token:"next"+calls};
+  };
+  try {
+    await assert.rejects(ensureTable("test-only",{includeSchema:true}),/safety limit/);
+    assert.equal(calls,5);
+  } finally {
+    feishu.request=original;
+  }
+});
