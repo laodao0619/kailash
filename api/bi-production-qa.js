@@ -8,6 +8,8 @@ const summaryHandler=require("./bi-workbench-summary");
 const casesHandler=require("./bi-workbench-cases");
 const productsHandler=require("./bi-workbench-products");
 const rfmCubeHandler=require("./bi-rfm-cube");
+const {read}=require("./bi-index-build");
+const {qaCoverage}=require("../lib/bi-qa-freshness");
 const INDEX="kbi-index/v2/current.json";
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
@@ -23,10 +25,6 @@ async function call(handler,query){
  const out=internalRes();
  await handler({method:"GET",query,headers:{authorization:"Bearer "+process.env.KBI_ACCESS_TOKEN}},out);
  return out;
-}
-async function indexed(){
- const r=await get(INDEX,{access:"private"});
- return !!(r&&r.statusCode===200);
 }
 async function save(report){
  await put(RESULT,JSON.stringify(report),{access:"private",allowOverwrite:true,addRandomSuffix:false,contentType:"application/json"});
@@ -48,18 +46,27 @@ module.exports=async(req,res)=>{
  if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"login_not_configured"});
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
-  if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  const current=await read(INDEX);
+  if(!current||current.version!==2||!Number.isSafeInteger(current.total))
+   return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  // Bind the QA to one private materialized generation.
+  report.indexGeneratedAt=current.generatedAt;
+  report.indexTotal=current.total;
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(previous.version===4&&qaCoverage(current,previous).freshForSnapshot&&
+      Date.now()-Date.parse(previous.at)<4*3600000)
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
   report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000;
   if(!report.checks.list)throw Error("list_not_ready");
   const d=first.data;
+  // One-minute API caching may still serve the preceding generation.
+  if(d.asOf!==current.generatedAt||d.masterTotal!==current.total)
+   throw Error("qa_index_snapshot_mismatch");
   report.metrics.total=d.masterTotal;report.metrics.pageCount=d.pageCount;
   report.metrics.firstPageCount=d.customers.length;
   report.checks.sort=sorted(d.customers,"m180","desc");
@@ -111,6 +118,10 @@ module.exports=async(req,res)=>{
   report.metrics.rfmEightCoverage=rfm.data?.classified||0;
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
+  // An index replacement during this multi-endpoint run invalidates QA.
+  const latest=await read(INDEX);
+  if(!latest||latest.generatedAt!==current.generatedAt||latest.total!==current.total)
+   throw Error("qa_index_changed_during_run");
   report.ready=Object.values(report.checks).every(Boolean);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
