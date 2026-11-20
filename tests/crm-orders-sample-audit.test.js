@@ -267,3 +267,17 @@ test("seven-customer audit blocks mixed SALE and CAPTURE payments pending human 
  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(out.sampleAudit.verified,false);
 });
+
+test("seven-customer sample refuses invalid or future dates even on excluded historical orders",async()=>{
+ for(const row of [
+  order(1,{createdAt:"2026-02-30T00:00:00Z"}),
+  order(1,{createdAt:"2027-01-01T00:00:00Z",test:true})
+ ]){
+  const rows=[row,...Array.from({length:6},(_,i)=>order(i+2))];
+  const out=await run(rows);
+  assert.equal(out.sampleAudit.matched,7);
+  assert.equal(out.sampleAudit.customers[0].invalidOrderDates,1);
+  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_ORDER_DATE_EVIDENCE");
+  assert.equal(out.sampleAudit.verified,false);
+ }
+});
