@@ -40,3 +40,36 @@ test("one cron removal only; no changes to function duration or other schedules"
   assert.equal(cronEntries.length, 17);
   assert.equal(cronEntries.every(c => c.path && c.schedule), true);
 });
+
+test("manual Gmail history recovery rejects unauthenticated invocation", async () => {
+  // Removing the schedule must not weaken the still-addressable recovery URL.
+  // Exercise the real handler without reaching Blob, Gmail or Feishu services.
+  const handler = require("../api/crm-gmail-filtered");
+  const previous = process.env.CRON_SECRET;
+  const fakeSecret = "nonproduction_only_auth_guard_12345";
+  try {
+    const cases = [
+      { configured: false, header: undefined },
+      { configured: true, header: undefined },
+      { configured: true, header: "Bearer invalid" },
+      { configured: true, header: "Bearer " + "x".repeat(fakeSecret.length) }
+    ];
+    for (const item of cases) {
+      if (item.configured) process.env.CRON_SECRET = fakeSecret;
+      else delete process.env.CRON_SECRET;
+      const response = {
+        statusCode: null, body: null,
+        setHeader() {},
+        status(code) { this.statusCode = code; return this; },
+        json(body) { this.body = body; return this; }
+      };
+      const headers = item.header ? { authorization: item.header } : {};
+      await handler({ method: "GET", headers }, response);
+      assert.equal(response.statusCode, 401);
+      assert.deepEqual(response.body, { ok: false });
+    }
+  } finally {
+    if (previous === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previous;
+  }
+});
