@@ -57,3 +57,97 @@ for(const [filename,code] of [
   assert.doesNotMatch(JSON.stringify(res.body),/PRIVATE_CUSTOMER_GID|SIGNED_BLOB_TOKEN/);
  });
 }
+
+
+// No production services are contacted. Validate that a missing checkpoint
+// cannot overwrite a previously archived private Shopify JSONL export.
+function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,failRawPut=false}={}){
+ const {Readable}=require("node:stream");
+ const source=fs.readFileSync(path.join(__dirname,"../api/crm-orders-bulk.js"),"utf8");
+ const requests={starts:0,rawPuts:[],statePuts:[],reads:[]};
+ const requireStub=name=>{
+  if(name==="crypto")return crypto;
+  if(name==="@vercel/blob")return {
+   get:async key=>{
+    requests.reads.push(key);
+    if(key.endsWith("-state.json"))return stateResponse;
+    if(key.endsWith("-export.jsonl"))return archiveResponse;
+    throw Error("Unexpected private blob path");
+   },
+   put:async(key,body,options)=>{
+    if(key.endsWith("-export.jsonl")){
+     requests.rawPuts.push(options);
+     if(failRawPut)throw Error("synthetic immutable blob collision");
+    }else requests.statePuts.push({key,options});
+    return {url:"private-test://archive"};
+   }
+  };
+  if(name==="../lib/crm-shopify")return {
+   orderAccess:async()=>({read_orders:true,read_all_orders:true,read_products:true}),
+   queryShopify:async()=>{throw Error("query stub not expected");}
+  };
+  if(name==="../lib/crm-orders-bulk")return {
+   isExplicitBulkExportEnabled:()=>true,
+   start:async()=>{requests.starts++;return {id:"test-op",status:"CREATED"};},
+   poll:async()=>({status:"COMPLETED",url:"https://example.invalid/signed",objectCount:"2",rootObjectCount:"1"}),
+   downloadUrl:()=> "https://example.invalid/signed"
+  };
+  throw Error("Unexpected dependency: "+name);
+ };
+ const module={exports:{}};
+ vm.runInNewContext(source,{
+  module,require:requireStub,process:{env:{CRON_SECRET:"synthetic-test-key"}},
+  Buffer,console,Date,AbortSignal:{timeout:()=>undefined},
+  fetch:async()=>({ok:true,body:Readable.from(["synthetic JSONL\n"])}),
+ },{filename:"crm-orders-bulk.js"});
+ return {handler:module.exports,requests};
+}
+const authorizedBulkReq={method:"GET",headers:{authorization:"Bearer synthetic-test-key"}};
+test("orphaned Shopify Bulk archive blocks a new export before Shopify start or overwrite",async()=>{
+ const {handler,requests}=loadImmutableBulkRoute({archiveResponse:{statusCode:200}});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,409);
+ assert.equal(res.body.blockedReason,"bulk_archive_exists_without_checkpoint");
+ assert.equal(res.body.reviewRequired,true);
+ assert.equal(requests.starts,0);
+ assert.equal(requests.rawPuts.length,0);
+ assert.equal(requests.statePuts.length,0);
+});
+test("unavailable Bulk checkpoint cannot be mistaken for an absent checkpoint",async()=>{
+ const {handler,requests}=loadImmutableBulkRoute({stateResponse:{statusCode:503}});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(res.body.error,"bulk_export_failed");
+ assert.equal(requests.starts,0);
+ assert.equal(requests.rawPuts.length,0);
+});
+test("completed Bulk operation stores immutable raw JSONL and updates checkpoint afterwards",async()=>{
+ const {Readable}=require("node:stream");
+ const stateResponse={statusCode:200,stream:Readable.from([
+  JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false})
+ ])};
+ const {handler,requests}=loadImmutableBulkRoute({stateResponse});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.phase,"archived");
+ assert.equal(requests.rawPuts.length,1);
+ assert.equal(requests.rawPuts[0].access,"private");
+ assert.equal(requests.rawPuts[0].allowOverwrite,false);
+ assert.equal(requests.statePuts.length,1);
+});
+test("immutable archive collision keeps checkpoint unadvanced for manual review",async()=>{
+ const {Readable}=require("node:stream");
+ const stateResponse={statusCode:200,stream:Readable.from([
+  JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false})
+ ])};
+ const {handler,requests}=loadImmutableBulkRoute({stateResponse,failRawPut:true});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(requests.rawPuts[0].allowOverwrite,false);
+ assert.equal(requests.statePuts.length,0);
+ assert.equal(res.body.error,"bulk_export_failed");
+});
