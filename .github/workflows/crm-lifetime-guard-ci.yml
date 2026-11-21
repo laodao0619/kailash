@@ -1,0 +1,27 @@
+name: CRM lifetime spend audit guard
+on:
+  pull_request:
+    paths:
+      - 'lib/crm-lifetime-tier.js'
+      - 'tests/crm-lifetime-*.test.js'
+      - '.github/workflows/crm-lifetime-guard-ci.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Check tier implementation and tests
+        run: |
+          node --check lib/crm-lifetime-tier.js
+          node --check tests/crm-lifetime-tier.test.js
+          node --check tests/crm-lifetime-zero-spend.test.js
+      - name: Run lifetime grade regression
+        run: node --test tests/crm-lifetime-tier.test.js tests/crm-lifetime-zero-spend.test.js
