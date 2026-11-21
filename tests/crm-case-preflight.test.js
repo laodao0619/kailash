@@ -174,6 +174,8 @@ test("non-production Case writes are rejected before Feishu or checkpoint access
       { env: "development", vercel: undefined },
       { env: undefined, vercel: "1" },
       { env: undefined, vercel: undefined },
+      { env: "", vercel: undefined },
+      { env: "PRODUCTION", vercel: undefined },
       { env: "staging", vercel: "1" },
     ]) {
       if (scenario.env === undefined) delete process.env.VERCEL_ENV;
