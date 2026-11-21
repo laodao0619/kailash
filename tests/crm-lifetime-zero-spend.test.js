@@ -32,3 +32,22 @@ test("row normalization cannot turn historical zero net spend into a verified ti
  assert.equal(row.m180,0);
  assert.equal(row.f180,1);
 });
+
+test("unreconciled positive spend is provisional even when the tier boundary matches", () => {
+ const row=applyRow({
+  id:"synthetic-high-value",spendLifetime:3000,ordersLifetime:1,
+  f180:1,rDays:30,m180:8,tier:"B"
+ });
+ assert.equal(row.tier,"S+");
+ assert.equal(row.tierVerified,false);
+ assert.equal(row.tierStatus,"provisional_source_metrics_not_financial_audit");
+ assert.equal(row.tierPolicyVersion,"2026-11-12");
+ assert.equal(row.m180,8); // Recent behavioral spend is not lifetime spend.
+});
+
+test("zero-net order history remains unverified rather than provisional", () => {
+ const row=applyRow({spendLifetime:0,ordersLifetime:2,f180:0,rDays:190,tier:"沉睡"});
+ assert.equal(row.tier,"待核验");
+ assert.equal(row.tierVerified,false);
+ assert.equal(row.tierStatus,"unverified");
+});
