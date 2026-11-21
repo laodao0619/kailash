@@ -49,7 +49,16 @@ module.exports=async(req,res)=>{
    await save(state);
    return res.status(200).json({ok:true,phase:"started",status:state.status});
   }
-  if(state.downloaded)return res.status(200).json({ok:true,phase:"archived",completed:true,objectCount:state.objectCount,rootObjectCount:state.rootObjectCount});
+  if(state.downloaded){
+   // A checkpoint alone does not prove that the immutable financial evidence
+   // is still present. Never report a completed archive after Blob loss.
+   const archived=await get(RAW,{access:"private"});
+   if(!archived || archived.statusCode===404)return res.status(409).json({
+    ok:false,blockedReason:"bulk_archive_missing_after_checkpoint",reviewRequired:true
+   });
+   if(archived.statusCode!==200)throw Error("Private bulk export archive unavailable");
+   return res.status(200).json({ok:true,phase:"archived",completed:true,objectCount:state.objectCount,rootObjectCount:state.rootObjectCount});
+  }
   const op=await bulk.poll(shopify.queryShopify,state.id);
   state.status=op.status;
   if(op.status==="FAILED"||op.status==="CANCELED"||op.status==="EXPIRED"){
