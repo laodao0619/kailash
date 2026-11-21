@@ -51,3 +51,17 @@ test("zero-net order history remains unverified rather than provisional", () => 
  assert.equal(row.tierVerified,false);
  assert.equal(row.tierStatus,"unverified");
 });
+
+test("tier reclassification retains historical source label for reconciliation", () => {
+ const previous={id:"synthetic",tier:"B",spendLifetime:3000,ordersLifetime:1,f180:1,rDays:35,m180:90};
+ const migrated=applyRow(previous);
+ assert.equal(migrated.tier,"S+");
+ assert.equal(migrated.sourceTier,"B");
+ assert.equal(migrated.tierVerified,false);
+ assert.equal(applyRow(migrated).sourceTier,"B");
+ assert.equal(previous.tier,"B"); // No mutation of original snapshots.
+ const zero=applyRow({...previous,tier:"沉睡",spendLifetime:0});
+ assert.equal(zero.tier,"待核验");
+ assert.equal(zero.sourceTier,"沉睡");
+ assert.equal(zero.tierStatus,"unverified");
+});
