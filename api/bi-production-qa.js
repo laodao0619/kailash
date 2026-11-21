@@ -10,7 +10,7 @@ const productsHandler=require("./bi-workbench-products");
 const rfmCubeHandler=require("./bi-rfm-cube");
 const INDEX="kbi-index/v2/current.json";
 const BUILD_STATE="kbi-index/v2/build-state.json";
-const {canReuseRecentQa}=require("../lib/kbi-qa-freshness");
+const {canReuseRecentQa,completedBuildSnapshot,sameCompletedBuild}=require("../lib/kbi-qa-freshness");
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
  const expected=String(process.env.CRON_SECRET||"");
@@ -60,7 +60,12 @@ module.exports=async(req,res)=>{
   // The previous green report is valid only for the same completed index build.
   // This tiny private build-state read avoids downloading the full customer index.
   const build=await latestBuild();
-  const currentSnapshot=build?.complete?{generatedAt:build.completedAt,total:build.records,slot:build.slot}:null;
+  const currentSnapshot=completedBuildSnapshot(build);
+  // The previous completed index remains available while a new one is building.
+  // Never certify that old index with the new build slot or spend Shopify API budget.
+  if(!currentSnapshot)return res.status(200).json({
+    ok:true,skipped:"customer_index_build_not_complete",currentSnapshotVerified:false
+  });
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
@@ -123,7 +128,13 @@ module.exports=async(req,res)=>{
   report.metrics.rfmEightCoverage=rfm.data?.classified||0;
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
-  report.ready=Object.values(report.checks).every(Boolean);
+  // A build can finish during live Customer360 probes: fail closed on that race.
+  // Also reject QA that accidentally sampled the previous index record count.
+  const finishingBuild=await latestBuild();
+  const consistent=sameCompletedBuild(build,finishingBuild)&&
+   report.metrics.total===currentSnapshot.total;
+  report.ready=Object.values(report.checks).every(Boolean)&&consistent;
+  if(!consistent)report.failure="snapshot_changed_during_qa";
   // Attach non-PII build fingerprint for audit. A newer index requires fresh QA.
   report.snapshotSlot=build?.slot||null;
   report.snapshotCompletedAt=build?.completedAt||null;
