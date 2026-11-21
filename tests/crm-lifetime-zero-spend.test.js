@@ -22,6 +22,8 @@ test("never-purchased snapshot with a recorded last purchase requires verificati
  assert.equal(inconsistent.reason,"inconsistent_never_purchased");
  const consistent=classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null});
  assert.equal(consistent.grade,"从未购买");
+ // Legacy aggregate uses R=0 for never-purchased; maintain backward compatibility.
+ assert.equal(classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:0}).grade,"从未购买");
 });
 
 test("zero orders with zero net spend remains never purchased; paid tiers unchanged", () => {
