@@ -126,7 +126,7 @@ test("unavailable Bulk checkpoint cannot be mistaken for an absent checkpoint",a
 test("completed Bulk operation stores immutable raw JSONL and updates checkpoint afterwards",async()=>{
  const {Readable}=require("node:stream");
  const stateResponse={statusCode:200,stream:Readable.from([
-  JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false})
+  Buffer.from(JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false}))
  ])};
  const {handler,requests}=loadImmutableBulkRoute({stateResponse});
  const res=response();
@@ -141,7 +141,7 @@ test("completed Bulk operation stores immutable raw JSONL and updates checkpoint
 test("immutable archive collision keeps checkpoint unadvanced for manual review",async()=>{
  const {Readable}=require("node:stream");
  const stateResponse={statusCode:200,stream:Readable.from([
-  JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false})
+  Buffer.from(JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false}))
  ])};
  const {handler,requests}=loadImmutableBulkRoute({stateResponse,failRawPut:true});
  const res=response();
