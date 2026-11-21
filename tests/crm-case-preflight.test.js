@@ -247,3 +247,70 @@ test("invalid persisted offsets fail closed before Case writes or checkpoint cha
     }
   }
 });
+
+
+test("preview-only Case preflight bearer permits dryRun but never write or production access", async () => {
+  const originalEnv = process.env.VERCEL_ENV;
+  const originalSecret = process.env.CRM_CASE_PREFLIGHT_TOKEN;
+  const old = {
+    authorized: cases.authorized, allEvents: cases.allEvents,
+    groupCases: cases.groupCases, read: cases.read, save: cases.save,
+    tenantToken: feishu.tenantToken, ensureTable: writeback.ensureTable,
+    upsertCase: writeback.upsertCase,
+  };
+  const token = "preview-only-case-schema-uat-32chars";
+  let reads = 0, writes = 0, saves = 0;
+  cases.authorized = () => false;
+  cases.allEvents = async () => { reads++; return [{ synthetic: true }]; };
+  cases.groupCases = () => [example];
+  cases.read = async () => { reads++; return { offset: 0 }; };
+  cases.save = async () => { saves++; };
+  feishu.tenantToken = async () => { reads++; return "synthetic"; };
+  writeback.ensureTable = async () => ({ tableId: writeback.TABLE, schema: approvedSchema() });
+  writeback.upsertCase = async () => { writes++; return "created"; };
+  try {
+    process.env.VERCEL_ENV = "preview";
+    process.env.CRM_CASE_PREFLIGHT_TOKEN = token;
+    const request = (bearer, query = { dryRun: "1" }) => ({
+      method: "GET", headers: { authorization: "Bearer " + bearer }, query
+    });
+    for (const [env, secret, bearer, query] of [
+      ["preview", token, "X".repeat(token.length), { dryRun: "1" }],
+      ["preview", "short", token, { dryRun: "1" }],
+      ["preview", token, token, {}],
+      ["production", token, token, { dryRun: "1" }],
+      ["development", token, token, { dryRun: "1" }],
+    ]) {
+      process.env.VERCEL_ENV = env;
+      process.env.CRM_CASE_PREFLIGHT_TOKEN = secret;
+      const denied = makeRes();
+      await handler(request(bearer, query), denied);
+      assert.equal(denied.code, 401);
+      assert.equal(denied.body.ok, false);
+      assert.equal(reads, 0, "unauthorized requests must not access Feishu or Blob");
+      assert.equal(writes, 0);
+      assert.equal(saves, 0);
+    }
+    process.env.VERCEL_ENV = "preview";
+    process.env.CRM_CASE_PREFLIGHT_TOKEN = token;
+    const permitted = makeRes();
+    await handler(request(token), permitted);
+    assert.equal(permitted.code, 200);
+    assert.equal(permitted.body.dryRun, true);
+    assert.equal(permitted.body.checked, 1);
+    assert.equal(permitted.body.checkpointAdvanced, false);
+    assert.ok(reads > 0);
+    assert.equal(writes, 0);
+    assert.equal(saves, 0);
+  } finally {
+    if (originalEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = originalEnv;
+    if (originalSecret === undefined) delete process.env.CRM_CASE_PREFLIGHT_TOKEN;
+    else process.env.CRM_CASE_PREFLIGHT_TOKEN = originalSecret;
+    for (const [k,v] of Object.entries(old)) {
+      if (k === "tenantToken") feishu.tenantToken = v;
+      else if (k === "ensureTable" || k === "upsertCase") writeback[k] = v;
+      else cases[k] = v;
+    }
+  }
+});
