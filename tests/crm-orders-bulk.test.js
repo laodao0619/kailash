@@ -29,11 +29,13 @@ test("bulk export URL must use Shopify storage HTTPS endpoint",()=>{
 });
 
 
-test("full-history Shopify export requires an exact explicit server-side opt-in",()=>{
+test("full-history Shopify export requires a production stage AND exact explicit merchant opt-in",()=>{
  const {isExplicitBulkExportEnabled}=require("../lib/crm-orders-bulk");
  for(const value of [undefined,null,"","0","1","yes","TRUE","false",true])
-  assert.equal(isExplicitBulkExportEnabled({CRM_FINANCE_BULK_ENABLED:value}),false,String(value));
- assert.equal(isExplicitBulkExportEnabled({CRM_FINANCE_BULK_ENABLED:"true"}),true);
+  assert.equal(isExplicitBulkExportEnabled({VERCEL_ENV:"production",CRM_FINANCE_BULK_ENABLED:value}),false,String(value));
+ for(const stage of [undefined,null,"","preview","development","staging","PRODUCTION"])
+  assert.equal(isExplicitBulkExportEnabled({VERCEL_ENV:stage,CRM_FINANCE_BULK_ENABLED:"true"}),false,String(stage));
+ assert.equal(isExplicitBulkExportEnabled({VERCEL_ENV:"production",CRM_FINANCE_BULK_ENABLED:"true"}),true);
 });
 
 test("finance-only extraction preserves active production cron policy without adding a bulk job",()=>{
