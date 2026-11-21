@@ -1,0 +1,31 @@
+name: CRM Case unified safety tests
+on:
+  pull_request:
+    paths:
+      - 'api/crm-cases-feishu.js'
+      - 'lib/crm-case-*.js'
+      - 'lib/crm-feishu.js'
+      - 'tests/crm-case-*.test.js'
+      - '.github/workflows/crm-case-unified-ci.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify exact-source JavaScript syntax
+        run: |
+          node --check api/crm-cases-feishu.js
+          node --check lib/crm-case-feishu-writeback.js
+          node --check lib/crm-case-field-adapter.js
+          node --check lib/crm-feishu.js
+          for file in tests/crm-case-*.test.js; do node --check "$file"; done
+      - name: Run all Case regression tests
+        run: node --test tests/crm-case-*.test.js

@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { recordFields, HUMAN, TABLE, ensureTable, upsertCase } = require("../lib/crm-case-feishu-writeback");
+const { recordFields, HUMAN, TABLE, EXTRA, ensureTable, upsertCase } = require("../lib/crm-case-feishu-writeback");
 const feishu = require("../lib/crm-feishu");
 const gmail = require("../lib/crm-gmail");
 const cases = require("../lib/crm-cases");
@@ -36,7 +36,12 @@ test("Case updates an existing communication table record without touching task 
     assert.equal(value,"case:CASE-123456789ABC");
     return [{record_id:"rec-existing"}];
   };
-  feishu.request = async (...args) => {calls.push(args);return {};};
+  const schema = Object.keys(recordFields({caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"})).map(field_name => ({field_name,type:1}));
+  feishu.request = async (...args) => {
+    if (args[1].endsWith("/fields?page_size=100")) return {items:schema,has_more:false};
+    calls.push(args);
+    return {};
+  };
   try {
     const result=await upsertCase("test",TABLE,{caseId:"CASE-123456789ABC",category:"未收到货",priority:"紧急"});
     assert.equal(result,"updated");
@@ -50,8 +55,8 @@ test("Case sync refuses to create another CRM table", async () => {
   const original = feishu.request, calls=[];
   feishu.request=async (_t,path,method="GET",body) => {
     calls.push({path,method,body});
-    if(path.endsWith("/tables?page_size=100"))return {items:[{table_id:TABLE,name:"客户沟通与跟进"}]};
-    return {items:[{field_name:"Case ID"},{field_name:"关联邮箱"},{field_name:"客户原文摘录"},{field_name:"客服回复状态"},{field_name:"邮件数量"},{field_name:"CRM等级（Case核验）"}]};
+    if(path.endsWith("/tables?page_size=100"))return {items:[{table_id:TABLE,name:"客户沟通与跟进"}],has_more:false};
+    return {items:EXTRA.map(f => ({ field_name:f.field_name, type:f.type })),has_more:false};
   };
   try{
     assert.equal(await ensureTable("test"),TABLE);
