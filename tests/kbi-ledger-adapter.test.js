@@ -9,8 +9,10 @@ function fixture(){
   totals:{orders:5,eligible:5,missingLineParent:0,duplicateOrderIds:0,
    duplicateLineItemIds:0,unverifiedLines:0,unverifiedLineFinancials:0,
    missingLineItems:0,lineSubtotalMismatch:0,duplicateTransactionIdsAcrossOrders:0,
-   invalidOrderIds:0,invalidCustomerIds:0,missingOrderDate:0,futureOrders:0,
+   invalidOrderIds:0,invalidCustomerIds:0,missingOrderDate:0,futureOrders:0,withinWindow:5,
    refundMismatch:0,excluded:{}},
+  aggregates:{lifetimeMerchandiseCents:320000,windowMerchandiseCents:320000,
+   customersWithWindowOrders:1,customersWithWindowSpendOver3000:1},
   customers:new Map([["gid://shopify/Customer/101",{
     orders:5,merchandiseCents:320000,windowOrders:5,windowMerchandiseCents:320000,
     firstAt:Date.parse("2026-06-01T00:00:00Z"),lastAt:D
@@ -112,4 +114,40 @@ test("unreconciled refunds and payments block all historical CRM grades",()=>{
  assert.equal(prepareGrades(f,reviewed).reason,"audit_exclusions_invalid");
  const missing=fixture();delete missing.totals.excluded;
  assert.equal(prepareGrades(missing,reviewed).reason,"audit_exclusions_missing");
+});
+
+test("full-history grades reject missing or inconsistent global customer aggregates",()=>{
+ const missing=fixture();delete missing.aggregates;
+ assert.equal(prepareGrades(missing,reviewed).reason,"audit_aggregate_totals_missing");
+ const missingWindow=fixture();delete missingWindow.totals.withinWindow;
+ assert.equal(prepareGrades(missingWindow,reviewed).reason,"audit_window_count_missing");
+ for(const [location,key] of [
+  ["totals","eligible"],["totals","withinWindow"],
+  ["aggregates","lifetimeMerchandiseCents"],["aggregates","windowMerchandiseCents"],
+  ["aggregates","customersWithWindowOrders"],
+  ["aggregates","customersWithWindowSpendOver3000"]
+ ]){
+  const f=fixture();f[location][key]-=1;
+  const result=prepareGrades(f,reviewed);
+  assert.equal(result.ok,false,location+"."+key);
+  assert.equal(result.reason,"audit_customer_aggregate_mismatch",location+"."+key);
+  assert.equal(result.grades.size,0);
+ }
+});
+test("missing customer rows, impossible rolling values and unsafe sums never yield verified tiers",()=>{
+ const partial=fixture();partial.customers.clear();
+ assert.equal(prepareGrades(partial,reviewed).reason,"audit_customer_aggregate_mismatch");
+ for(const changes of [
+  {windowOrders:6},{windowMerchandiseCents:320001},
+  {orders:-1},{merchandiseCents:NaN}
+ ]){
+  const f=fixture();Object.assign(f.customers.get("gid://shopify/Customer/101"),changes);
+  assert.equal(prepareGrades(f,reviewed).reason,"audit_customer_metrics_invalid");
+ }
+ const tooLarge=fixture();
+ tooLarge.customers.set("gid://shopify/Customer/102",{
+  orders:1,windowOrders:1,merchandiseCents:Number.MAX_SAFE_INTEGER,
+  windowMerchandiseCents:Number.MAX_SAFE_INTEGER,lastAt:D
+ });
+ assert.equal(prepareGrades(tooLarge,reviewed).reason,"audit_aggregate_overflow");
 });
