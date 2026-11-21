@@ -151,3 +151,34 @@ test("immutable archive collision keeps checkpoint unadvanced for manual review"
  assert.equal(requests.statePuts.length,0);
  assert.equal(res.body.error,"bulk_export_failed");
 });
+
+
+test("archived checkpoint must verify that the private JSONL evidence still exists",async()=>{
+ const {Readable}=require("node:stream");
+ const makeState=()=>({statusCode:200,stream:Readable.from([
+  Buffer.from(JSON.stringify({id:"synthetic-done",status:"COMPLETED",downloaded:true,objectCount:"3",rootObjectCount:"2"}))
+ ])});
+ for(const [archiveResponse,expectedStatus,expectedReason] of [
+  [{statusCode:200},200,undefined],
+  [{statusCode:404},409,"bulk_archive_missing_after_checkpoint"],
+  [null,409,"bulk_archive_missing_after_checkpoint"],
+  [{statusCode:503},502,undefined],
+ ]){
+  const {handler,requests}=loadImmutableBulkRoute({stateResponse:makeState(),archiveResponse});
+  const res=response();
+  await handler(authorizedBulkReq,res);
+  assert.equal(res.statusCode,expectedStatus);
+  if(expectedStatus===200){
+   assert.equal(res.body.phase,"archived");
+   assert.equal(res.body.objectCount,"3");
+  }
+  if(expectedStatus===409){
+   assert.equal(res.body.blockedReason,expectedReason);
+   assert.equal(res.body.reviewRequired,true);
+  }
+  if(expectedStatus===502)assert.equal(res.body.error,"bulk_export_failed");
+  assert.equal(requests.starts,0);
+  assert.equal(requests.rawPuts.length,0);
+  assert.equal(requests.statePuts.length,0);
+ }
+});
