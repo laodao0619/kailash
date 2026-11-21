@@ -1,0 +1,28 @@
+name: Retire completed Gmail historical cron
+on:
+  pull_request:
+    paths:
+      - 'vercel.json'
+      - 'api/crm-gmail-filtered.js'
+      - 'api/crm-daily-gmail.js'
+      - 'tests/crm-gmail-history-cron-retirement.test.js'
+      - '.github/workflows/crm-gmail-history-retirement-ci.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Validate Vercel cron config
+        run: node -e 'JSON.parse(require("fs").readFileSync("vercel.json","utf8"))'
+      - name: Verify historical cron retirement and live daily schedules
+        run: node --test tests/crm-gmail-history-cron-retirement.test.js
+      - name: Run full regression suite
+        run: node --test tests/*.test.js
