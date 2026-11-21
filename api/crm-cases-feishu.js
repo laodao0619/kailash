@@ -1,4 +1,5 @@
 "use strict";
+const crypto = require("crypto");
 const cases = require("../lib/crm-cases");
 const feishu = require("../lib/crm-feishu");
 const writeback = require("../lib/crm-case-feishu-writeback");
@@ -43,10 +44,24 @@ function classifyCaseWriteFailure(error) {
   }
   return { code: "case_upsert_failed", blockedReason: null };
 }
+// Preview uses an independent, least-privilege UAT bearer for read-only schema
+// preflight. Never copy the production cron secret into Preview. This token is
+// invalid for scheduled writes, production, development, or other API routes.
+function authorizedPreviewPreflight(req) {
+  if (process.env.VERCEL_ENV !== "preview" || req.query?.dryRun !== "1") return false;
+  const expected = process.env.CRM_CASE_PREFLIGHT_TOKEN;
+  if (typeof expected !== "string" || Buffer.byteLength(expected, "utf8") < 24) return false;
+  const provided = String(req.headers?.authorization || "").match(/^Bearer\s+(\S+)$/i);
+  if (!provided) return false;
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(provided[1], "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ ok: false });
-  if (!cases.authorized(req)) return res.status(401).json({ ok: false });
+  if (!cases.authorized(req) && !authorizedPreviewPreflight(req)) return res.status(401).json({ ok: false });
   const dryRun = req.query?.dryRun === "1";
   // Only deployed production may perform Case writes. Preview, development,
   // and Vercel deployments with a missing/unknown environment are read-only,
