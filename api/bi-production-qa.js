@@ -60,7 +60,7 @@ module.exports=async(req,res)=>{
   // The previous green report is valid only for the same completed index build.
   // This tiny private build-state read avoids downloading the full customer index.
   const build=await latestBuild();
-  const currentSnapshot=build?.complete?{generatedAt:build.completedAt,total:build.records}:null;
+  const currentSnapshot=build?.complete?{generatedAt:build.completedAt,total:build.records,slot:build.slot}:null;
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
