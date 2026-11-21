@@ -9,6 +9,8 @@ const casesHandler=require("./bi-workbench-cases");
 const productsHandler=require("./bi-workbench-products");
 const rfmCubeHandler=require("./bi-rfm-cube");
 const INDEX="kbi-index/v2/current.json";
+const BUILD_STATE="kbi-index/v2/build-state.json";
+const {canReuseRecentQa}=require("../lib/kbi-qa-freshness");
 const RESULT="kbi-index/v2/production-qa.json";
 function authorized(req){
  const expected=String(process.env.CRON_SECRET||"");
@@ -27,6 +29,12 @@ async function call(handler,query){
 async function indexed(){
  const r=await get(INDEX,{access:"private"});
  return !!(r&&r.statusCode===200);
+}
+async function latestBuild(){
+ const r=await get(BUILD_STATE,{access:"private"});
+ if(!r||r.statusCode!==200)return null;
+ const chunks=[];for await(const part of r.stream)chunks.push(part);
+ return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 async function save(report){
  await put(RESULT,JSON.stringify(report),{access:"private",allowOverwrite:true,addRandomSuffix:false,contentType:"application/json"});
@@ -49,11 +57,15 @@ module.exports=async(req,res)=>{
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  // The previous green report is valid only for the same completed index build.
+  // This tiny private build-state read avoids downloading the full customer index.
+  const build=await latestBuild();
+  const currentSnapshot=build?.complete?{generatedAt:build.completedAt,total:build.records}:null;
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   if(previous.version===4&&canReuseRecentQa(previous,currentSnapshot))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
@@ -112,6 +124,9 @@ module.exports=async(req,res)=>{
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
   report.ready=Object.values(report.checks).every(Boolean);
+  // Attach non-PII build fingerprint for audit. A newer index requires fresh QA.
+  report.snapshotSlot=build?.slot||null;
+  report.snapshotCompletedAt=build?.completedAt||null;
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
    metrics:report.metrics,note:"Only aggregate QA results; no customer PII exposed."});
