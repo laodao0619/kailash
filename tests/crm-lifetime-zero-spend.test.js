@@ -15,6 +15,15 @@ test("purchased customers with zero lifetime net USD always require reconciliati
  }
 });
 
+test("never-purchased snapshot with a recorded last purchase requires verification", () => {
+ const inconsistent=classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:14});
+ assert.equal(inconsistent.grade,"待核验");
+ assert.equal(inconsistent.verified,false);
+ assert.equal(inconsistent.reason,"inconsistent_never_purchased");
+ const consistent=classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null});
+ assert.equal(consistent.grade,"从未购买");
+});
+
 test("zero orders with zero net spend remains never purchased; paid tiers unchanged", () => {
  assert.equal(classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null}).grade,"从未购买");
  assert.equal(classify({lifetimeSpend:0.01,lifetimeOrders:1,f:1,r:1}).grade,"B");
