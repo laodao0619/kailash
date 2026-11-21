@@ -29,9 +29,13 @@ module.exports=async(req,res)=>{
   const [mailToken,feishuToken]=await Promise.all([gmail.token(),feishu.tenantToken()]);
   let pages=0;
   const began=Date.now();
-  while(pages<4&&Date.now()-began<80000){
+  // Small, fully committed pages bound the time spent in serial Gmail +
+  // Feishu lookups. Never stop midway through a page: its nextPageToken is
+  // safe to save only after every returned message has been handled.
+  // A later scheduled invocation resumes the same unfinished cursor.
+  while(pages<20&&Date.now()-began<45000){
    const list=await gmail.listMessages(mailToken,{
-    pageToken:checkpoint.cursor||undefined,maxResults:40,after:checkpoint.windowStart
+    pageToken:checkpoint.cursor||undefined,maxResults:3,after:checkpoint.windowStart
    });
    for(const item of list.messages||[]){
     checkpoint.counters.scanned++;
