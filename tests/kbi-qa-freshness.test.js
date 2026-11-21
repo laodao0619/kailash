@@ -1,0 +1,70 @@
+"use strict";
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const {verifiedForSnapshot,canReuseRecentQa,REQUIRED_CHECKS,completedBuildSnapshot,sameCompletedBuild}=require("../lib/kbi-qa-freshness");
+
+const oldQa={version:4,ready:true,at:"2026-11-21T00:05:17.079Z",
+ checks:Object.fromEntries(REQUIRED_CHECKS.map(k=>[k,true])),snapshotSlot:"2026-11-21-morning",
+ metrics:{total:10918}};
+const current={generatedAt:"2026-11-21T01:20:25.373Z",total:10922,slot:"2026-11-21-morning"};
+const rechecked={...oldQa,at:"2026-11-21T01:30:00.000Z",metrics:{total:10922}};
+
+test("reject green QA from earlier snapshot when new index has 4 more records",()=>{
+ assert.equal(verifiedForSnapshot(oldQa,current),false);
+ assert.equal(canReuseRecentQa(oldQa,current,Date.parse("2026-11-21T03:00:00Z")),false);
+});
+test("reject green QA from earlier snapshot even if customer count is unchanged",()=>{
+ assert.equal(verifiedForSnapshot({...oldQa,metrics:{total:10922}},current),false);
+});
+test("accept same-snapshot QA and reuse within four hours only",()=>{
+ assert.equal(verifiedForSnapshot(rechecked,current),true);
+ assert.equal(canReuseRecentQa(rechecked,current,Date.parse("2026-11-21T02:00:00Z")),true);
+ assert.equal(canReuseRecentQa(rechecked,current,Date.parse("2026-11-21T05:30:00Z")),false);
+});
+test("fail closed on unknown timestamps, uncompleted build and unknown record counts",()=>{
+ assert.equal(verifiedForSnapshot({ready:true,at:"bad",metrics:{total:10922}},current),false);
+ assert.equal(verifiedForSnapshot(rechecked,{generatedAt:"bad",total:10922}),false);
+ assert.equal(verifiedForSnapshot(rechecked,{generatedAt:current.generatedAt,total:null}),false);
+ assert.equal(canReuseRecentQa(rechecked,null,Date.parse("2026-11-21T02:00:00Z")),false);
+ assert.equal(canReuseRecentQa(rechecked,current,Date.parse("2026-11-21T01:00:00Z")),false);
+});
+test("never treat failed QA or mismatched counts as current verified",()=>{
+ assert.equal(verifiedForSnapshot({...rechecked,ready:false},current),false);
+ assert.equal(verifiedForSnapshot({...rechecked,metrics:{total:10921}},current),false);
+});
+
+test("reject a green flag when a required QA probe failed or was omitted",()=>{
+ const failed={...rechecked,checks:{...rechecked.checks,noteRead:false}};
+ assert.equal(verifiedForSnapshot(failed,current),false);
+ const missing={...rechecked,checks:{...rechecked.checks}};
+ delete missing.checks.productHistory;
+ assert.equal(verifiedForSnapshot(missing,current),false);
+ assert.equal(verifiedForSnapshot({...rechecked,checks:{}},current),false);
+});
+test("reject untagged, mismatched-build, and legacy-version green reports",()=>{
+ assert.equal(verifiedForSnapshot({...rechecked,snapshotSlot:null},current),false);
+ assert.equal(verifiedForSnapshot({...rechecked,snapshotSlot:"2026-11-20-noon"},current),false);
+ assert.equal(verifiedForSnapshot(rechecked,{...current,slot:"2026-11-21-evening"}),false);
+ assert.equal(verifiedForSnapshot(rechecked,{...current,slot:null}),false);
+ assert.equal(verifiedForSnapshot({...rechecked,version:3},current),false);
+});
+
+test("defer verification until a completed and valid index build exists",()=>{
+ const a={slot:"2026-11-21-afternoon",records:10924,
+  completedAt:"2026-11-21T08:15:25.028Z",complete:false};
+ assert.equal(completedBuildSnapshot(a),null);
+ assert.equal(completedBuildSnapshot({...a,complete:true,records:null}),null);
+ assert.equal(completedBuildSnapshot({...a,complete:true,completedAt:"bad"}),null);
+ assert.deepEqual(completedBuildSnapshot({...a,complete:true}),{
+  generatedAt:a.completedAt,total:10924,slot:a.slot
+ });
+});
+test("do not certify a concurrent build that finishes during QA probes",()=>{
+ const first={slot:"2026-11-21-afternoon",records:10924,
+  completedAt:"2026-11-21T08:15:25.028Z",complete:true};
+ assert.equal(sameCompletedBuild(first,{...first}),true);
+ assert.equal(sameCompletedBuild(first,{...first,complete:false}),false);
+ assert.equal(sameCompletedBuild(first,{...first,completedAt:"2026-11-21T08:20:25.028Z"}),false);
+ assert.equal(sameCompletedBuild(first,{...first,records:10925}),false);
+ assert.equal(sameCompletedBuild(first,{...first,slot:"2026-11-22-morning"}),false);
+});

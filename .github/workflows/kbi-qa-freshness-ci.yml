@@ -1,0 +1,30 @@
+name: KBI QA snapshot freshness CI
+on:
+  push:
+    branches: ['fix/qa-snapshot-freshness-20261121']
+  pull_request:
+    paths:
+      - 'lib/kbi-qa-freshness.js'
+      - 'api/bi-index-health.js'
+      - 'api/bi-production-qa.js'
+      - 'tests/kbi-qa-freshness.test.js'
+      - '.github/workflows/kbi-qa-freshness-ci.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          node --check lib/kbi-qa-freshness.js
+          node --check api/bi-index-health.js
+          node --check api/bi-production-qa.js
+          node --check tests/kbi-qa-freshness.test.js
+      - name: Pure synthetic freshness tests
+        run: node --test tests/kbi-qa-freshness.test.js
