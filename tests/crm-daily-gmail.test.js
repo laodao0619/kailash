@@ -163,3 +163,42 @@ test("Gmail transient failure never advances page cursor before safe retry",asyn
   else process.env.BLOB_READ_WRITE_TOKEN=previous;
  }
 });
+
+
+test("unfinished morning Gmail checkpoint resumes next slot without resetting cursor",async()=>{
+ const before=process.env.BLOB_READ_WRITE_TOKEN;
+ process.env.BLOB_READ_WRITE_TOKEN="synthetic-private-blob";
+ const restores=[],requests=[],writes=[];
+ const spy=(obj,name,fn)=>{const m=mock.method(obj,name,fn);restores.push(m);};
+ const unfinished={version:2,day:"2026-11-21",slot:"before_work",
+  slotKey:"2026-11-21/before_work",windowStart:"2026-11-20T00:00:00.000Z",
+  cursor:"morning-page-two",completed:false,startedAt:"2026-11-21T01:00:00.000Z",
+  counters:{scanned:3,accepted:0,excluded:3,created:0,updated:0,duplicates:0,pages:1}};
+ spy(state,"read",async path=>path.includes("gmail-filtered-cursor")?{finished:true}:
+  path.includes("import-cursor")?{shopifyCycleComplete:true}:structuredClone(unfinished));
+ spy(state,"save",async(_p,value)=>writes.push(structuredClone(value)));
+ spy(gmail,"token",async()=>"test-gmail");
+ spy(feishu,"tenantToken",async()=>"test-feishu");
+ spy(gmail,"listMessages",async(_token,args)=>{
+  requests.push({cursor:args.pageToken,after:args.after,size:args.maxResults});
+  return {messages:[{id:"last-message"}],nextPageToken:null};
+ });
+ spy(gmail,"message",async(_token,id)=>({id,threadId:"thread",labelIds:["INBOX"],
+  payload:{headers:[{name:"From",value:"no-reply@shopify.com"}]}}));
+ try{
+  const out=res();await handler(req,out);
+  assert.equal(out.code,200);assert.equal(out.value.completed,true);
+  assert.deepEqual(requests,[{cursor:"morning-page-two",
+   after:"2026-11-20T00:00:00.000Z",size:3}]);
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].slotKey,"2026-11-21/before_work");
+  assert.equal(writes[0].counters.scanned,4);
+  assert.equal(writes[0].counters.pages,2);
+  assert.equal(writes[0].counters.excluded,4);
+  assert.equal(writes[0].cursor,null);
+ }finally{
+  for(const m of restores)m.mock.restore();
+  if(before===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;
+  else process.env.BLOB_READ_WRITE_TOKEN=before;
+ }
+});
