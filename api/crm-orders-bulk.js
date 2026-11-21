@@ -13,7 +13,8 @@ function authorized(req){
 }
 async function read(){
  const result=await get(STATE,{access:"private"});
- if(!result||result.statusCode!==200)return null;
+ if(!result||result.statusCode===404)return null;
+ if(result.statusCode!==200)throw Error("Private bulk export checkpoint unavailable");
  const chunks=[];for await(const c of result.stream)chunks.push(c);
  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
@@ -35,6 +36,14 @@ module.exports=async(req,res)=>{
    return res.status(200).json({ok:true,paused:true,reason:"missing_shopify_scopes",scopes});
   let state=await read();
   if(!state){
+   // A lost checkpoint must never authorize re-exporting or overwriting an
+   // existing immutable archive. Require explicit reconciliation first.
+   const existingArchive=await get(RAW,{access:"private"});
+   if(existingArchive?.statusCode===200)return res.status(409).json({
+    ok:false,blockedReason:"bulk_archive_exists_without_checkpoint",reviewRequired:true
+   });
+   if(existingArchive&&existingArchive.statusCode!==404)
+    throw Error("Private bulk export archive status unavailable");
    const op=await bulk.start(shopify.queryShopify);
    state={id:op.id,status:op.status,startedAt:new Date().toISOString(),completed:false,downloaded:false};
    await save(state);
@@ -56,7 +65,7 @@ module.exports=async(req,res)=>{
   const response=await fetch(url,{redirect:"error",signal:AbortSignal.timeout(85000)});
   if(!response.ok||!response.body)throw Error("Shopify bulk export download failed: "+response.status);
   // Store raw immutable-format JSONL in private Blob, then reconcile separately.
-  await put(RAW,response.body,{access:"private",addRandomSuffix:false,allowOverwrite:true,contentType:"application/x-ndjson"});
+  await put(RAW,response.body,{access:"private",addRandomSuffix:false,allowOverwrite:false,contentType:"application/x-ndjson"});
   state.downloaded=true;state.archivedAt=new Date().toISOString();await save(state);
   return res.status(200).json({ok:true,phase:"archived",completed:true,objectCount:state.objectCount,rootObjectCount:state.rootObjectCount});
  }catch{
