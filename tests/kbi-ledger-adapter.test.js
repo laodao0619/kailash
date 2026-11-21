@@ -68,6 +68,9 @@ test("zero-order customers are never inferred from the paid-order ledger",()=>{
 test("full ledger lifetime spend governs tier even when recent spend and frequency are low",()=>{
  const f=fixture();const c=f.customers.get("gid://shopify/Customer/101");
  c.windowOrders=1;c.windowMerchandiseCents=2000;c.lastAt=Date.parse("2026-06-01T00:00:00Z");
+ f.totals.withinWindow=1;
+ f.aggregates.windowMerchandiseCents=2000;
+ f.aggregates.customersWithWindowSpendOver3000=0;
  const result=prepareGrades(f,reviewed).grades.get("gid://shopify/Customer/101");
  assert.equal(result.tier,"S+");assert.equal(result.M,20);assert.equal(result.F,1);
 });
