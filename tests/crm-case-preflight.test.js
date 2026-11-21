@@ -150,33 +150,52 @@ test("authenticated Case dryRun returns only safe counts, no upsert or checkpoin
 });
 
 
-test("preview Case endpoint rejects live writes before Feishu or checkpoint access", async () => {
+test("non-production Case writes are rejected before Feishu or checkpoint access", async () => {
   const originalEnv = process.env.VERCEL_ENV;
+  const originalVercel = process.env.VERCEL;
   const originalAuth = cases.authorized;
   const originalToken = feishu.tenantToken;
-  let tokenCalls = 0;
-  process.env.VERCEL_ENV = "preview";
+  const originalRead = cases.read;
+  let tokenCalls = 0, checkpointReads = 0;
   cases.authorized = () => true;
   feishu.tenantToken = async () => {
     tokenCalls++;
-    throw Error("Unexpected Preview Feishu token fetch");
+    throw Error("Unexpected non-production Feishu token fetch");
+  };
+  cases.read = async () => {
+    checkpointReads++;
+    throw Error("Unexpected non-production checkpoint read");
   };
   try {
-    const res = makeRes();
-    await handler({method:"GET", query:{}}, res);
-    assert.equal(res.code, 403);
-    assert.deepEqual(res.body, {
-      ok:false, blockedReason:"case_preview_readonly", checkpointAdvanced:false,
-    });
+    for (const scenario of [
+      { env: "preview", vercel: undefined },
+      { env: "development", vercel: undefined },
+      { env: undefined, vercel: "1" },
+      { env: "staging", vercel: "1" },
+    ]) {
+      if (scenario.env === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = scenario.env;
+      if (scenario.vercel === undefined) delete process.env.VERCEL;
+      else process.env.VERCEL = scenario.vercel;
+      const res = makeRes();
+      await handler({ method: "GET", query: {} }, res);
+      assert.equal(res.code, 403);
+      assert.deepEqual(res.body, {
+        ok: false, blockedReason: "case_nonproduction_readonly", checkpointAdvanced: false,
+      });
+    }
     assert.equal(tokenCalls, 0);
+    assert.equal(checkpointReads, 0);
   } finally {
     if (originalEnv === undefined) delete process.env.VERCEL_ENV;
     else process.env.VERCEL_ENV = originalEnv;
+    if (originalVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = originalVercel;
     cases.authorized = originalAuth;
+    cases.read = originalRead;
     feishu.tenantToken = originalToken;
   }
 });
-
 
 test("invalid persisted offsets fail closed before Case writes or checkpoint changes", async () => {
   const originals = {
