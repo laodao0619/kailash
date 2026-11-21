@@ -25,3 +25,5 @@ jobs:
           node --check tests/crm-lifetime-zero-spend.test.js
       - name: Run lifetime grade regression
         run: node --test tests/crm-lifetime-tier.test.js tests/crm-lifetime-zero-spend.test.js
+      - name: Run project-wide compatibility tests
+        run: node --test tests/*.test.js
