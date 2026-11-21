@@ -1,11 +1,12 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {verifiedForSnapshot,canReuseRecentQa}=require("../lib/kbi-qa-freshness");
+const {verifiedForSnapshot,canReuseRecentQa,REQUIRED_CHECKS}=require("../lib/kbi-qa-freshness");
 
 const oldQa={version:4,ready:true,at:"2026-11-21T00:05:17.079Z",
+ checks:Object.fromEntries(REQUIRED_CHECKS.map(k=>[k,true])),snapshotSlot:"2026-11-21-morning",
  metrics:{total:10918}};
-const current={generatedAt:"2026-11-21T01:20:25.373Z",total:10922};
+const current={generatedAt:"2026-11-21T01:20:25.373Z",total:10922,slot:"2026-11-21-morning"};
 const rechecked={...oldQa,at:"2026-11-21T01:30:00.000Z",metrics:{total:10922}};
 
 test("reject green QA from earlier snapshot when new index has 4 more records",()=>{
@@ -30,4 +31,20 @@ test("fail closed on unknown timestamps, uncompleted build and unknown record co
 test("never treat failed QA or mismatched counts as current verified",()=>{
  assert.equal(verifiedForSnapshot({...rechecked,ready:false},current),false);
  assert.equal(verifiedForSnapshot({...rechecked,metrics:{total:10921}},current),false);
+});
+
+test("reject a green flag when a required QA probe failed or was omitted",()=>{
+ const failed={...rechecked,checks:{...rechecked.checks,noteRead:false}};
+ assert.equal(verifiedForSnapshot(failed,current),false);
+ const missing={...rechecked,checks:{...rechecked.checks}};
+ delete missing.checks.productHistory;
+ assert.equal(verifiedForSnapshot(missing,current),false);
+ assert.equal(verifiedForSnapshot({...rechecked,checks:{}},current),false);
+});
+test("reject untagged, mismatched-build, and legacy-version green reports",()=>{
+ assert.equal(verifiedForSnapshot({...rechecked,snapshotSlot:null},current),false);
+ assert.equal(verifiedForSnapshot({...rechecked,snapshotSlot:"2026-11-20-noon"},current),false);
+ assert.equal(verifiedForSnapshot(rechecked,{...current,slot:"2026-11-21-evening"}),false);
+ assert.equal(verifiedForSnapshot(rechecked,{...current,slot:null}),false);
+ assert.equal(verifiedForSnapshot({...rechecked,version:3},current),false);
 });
