@@ -48,12 +48,15 @@ module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ ok: false });
   if (!cases.authorized(req)) return res.status(401).json({ ok: false });
   const dryRun = req.query?.dryRun === "1";
-  // Preview deployments may be configured with production-like credentials for
-  // read-only diagnostics. They must never write to the approved live Case table.
-  // Isolated synthetic write UAT requires a separate explicitly approved path.
-  if (process.env.VERCEL_ENV === "preview" && !dryRun) {
+  // Only deployed production may perform Case writes. Preview, development,
+  // and Vercel deployments with a missing/unknown environment are read-only,
+  // even if shared private Blob or Feishu credentials happen to be configured.
+  // Dry-run continues to require authorization and performs no writes.
+  const runtimeEnv = process.env.VERCEL_ENV;
+  if (!dryRun && ((runtimeEnv && runtimeEnv !== "production") ||
+      (process.env.VERCEL === "1" && runtimeEnv !== "production"))) {
     return res.status(403).json({
-      ok: false, blockedReason: "case_preview_readonly", checkpointAdvanced: false,
+      ok: false, blockedReason: "case_nonproduction_readonly", checkpointAdvanced: false,
     });
   }
   try {
