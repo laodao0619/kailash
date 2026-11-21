@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {verifiedForSnapshot,canReuseRecentQa,REQUIRED_CHECKS}=require("../lib/kbi-qa-freshness");
+const {verifiedForSnapshot,canReuseRecentQa,REQUIRED_CHECKS,completedBuildSnapshot,sameCompletedBuild}=require("../lib/kbi-qa-freshness");
 
 const oldQa={version:4,ready:true,at:"2026-11-21T00:05:17.079Z",
  checks:Object.fromEntries(REQUIRED_CHECKS.map(k=>[k,true])),snapshotSlot:"2026-11-21-morning",
@@ -47,4 +47,24 @@ test("reject untagged, mismatched-build, and legacy-version green reports",()=>{
  assert.equal(verifiedForSnapshot(rechecked,{...current,slot:"2026-11-21-evening"}),false);
  assert.equal(verifiedForSnapshot(rechecked,{...current,slot:null}),false);
  assert.equal(verifiedForSnapshot({...rechecked,version:3},current),false);
+});
+
+test("defer verification until a completed and valid index build exists",()=>{
+ const a={slot:"2026-11-21-afternoon",records:10924,
+  completedAt:"2026-11-21T08:15:25.028Z",complete:false};
+ assert.equal(completedBuildSnapshot(a),null);
+ assert.equal(completedBuildSnapshot({...a,complete:true,records:null}),null);
+ assert.equal(completedBuildSnapshot({...a,complete:true,completedAt:"bad"}),null);
+ assert.deepEqual(completedBuildSnapshot({...a,complete:true}),{
+  generatedAt:a.completedAt,total:10924,slot:a.slot
+ });
+});
+test("do not certify a concurrent build that finishes during QA probes",()=>{
+ const first={slot:"2026-11-21-afternoon",records:10924,
+  completedAt:"2026-11-21T08:15:25.028Z",complete:true};
+ assert.equal(sameCompletedBuild(first,{...first}),true);
+ assert.equal(sameCompletedBuild(first,{...first,complete:false}),false);
+ assert.equal(sameCompletedBuild(first,{...first,completedAt:"2026-11-21T08:20:25.028Z"}),false);
+ assert.equal(sameCompletedBuild(first,{...first,records:10925}),false);
+ assert.equal(sameCompletedBuild(first,{...first,slot:"2026-11-22-morning"}),false);
 });
