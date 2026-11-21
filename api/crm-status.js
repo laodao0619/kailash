@@ -1,4 +1,5 @@
 const {get}=require("@vercel/blob");
+const {evaluateDailyHealth}=require("../lib/crm-delta-health");
 async function readJson(path){
  try{
   const file=await get(path,{access:"private"});
@@ -48,6 +49,11 @@ module.exports=async(req,res)=>{
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
           updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null}
       },
+      // Non-PII operational snapshot: success requires today + due Beijing slot.
+      // Never treat yesterday's completed flag as the current daily checkpoint.
+      daily_incremental_health:evaluateDailyHealth({
+        customers:dailyCustomers,orders:dailyOrders,gmail:dailyGmail
+      }),
       customer_cases:{
         started:!!caseSync,
         last_checkpoint:caseSync?.lastRunAt||null,

@@ -1,0 +1,28 @@
+name: CRM daily checkpoint freshness
+on:
+  push:
+    branches: ['fix/delta-checkpoint-freshness-20261121']
+  pull_request:
+    paths:
+      - 'lib/crm-delta-health.js'
+      - 'api/crm-status.js'
+      - 'tests/crm-delta-health.test.js'
+      - '.github/workflows/crm-delta-health-ci.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify JavaScript syntax
+        run: |
+          node --check lib/crm-delta-health.js
+          node --check api/crm-status.js
+          node --check tests/crm-delta-health.test.js
+      - name: Seven read-only checkpoint regressions
+        run: node --test tests/crm-delta-health.test.js
