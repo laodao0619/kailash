@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'lib/crm-lifetime-tier.js'
+      - 'lib/kbi-rfm.js'
+      - 'tests/kbi-rfm.test.js'
       - 'tests/crm-lifetime-*.test.js'
       - '.github/workflows/crm-lifetime-guard-ci.yml'
 permissions:
