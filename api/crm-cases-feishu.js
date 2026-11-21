@@ -63,13 +63,11 @@ module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ ok: false });
   if (!cases.authorized(req) && !authorizedPreviewPreflight(req)) return res.status(401).json({ ok: false });
   const dryRun = req.query?.dryRun === "1";
-  // Only deployed production may perform Case writes. Preview, development,
-  // and Vercel deployments with a missing/unknown environment are read-only,
-  // even if shared private Blob or Feishu credentials happen to be configured.
-  // Dry-run continues to require authorization and performs no writes.
+  // Fail closed for *every* unknown runtime, including local/non-Vercel
+  // environments. A valid CRON_SECRET alone must not enable Feishu writes.
+  // Authenticated dryRun is read-only in all environments.
   const runtimeEnv = process.env.VERCEL_ENV;
-  if (!dryRun && ((runtimeEnv && runtimeEnv !== "production") ||
-      (process.env.VERCEL === "1" && runtimeEnv !== "production"))) {
+  if (!dryRun && runtimeEnv !== "production") {
     return res.status(403).json({
       ok: false, blockedReason: "case_nonproduction_readonly", checkpointAdvanced: false,
     });

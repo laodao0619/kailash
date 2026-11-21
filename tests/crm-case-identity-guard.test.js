@@ -6,6 +6,8 @@ const feishu = require("../lib/crm-feishu");
 const cases = require("../lib/crm-cases");
 const writeback = require("../lib/crm-case-feishu-writeback");
 const handler = require("../api/crm-cases-feishu");
+// Simulate the explicit deployment stage for tests exercising the write path.
+process.env.VERCEL_ENV = "production";
 
 const CASE_ID = "CASE-ABCD12345678";
 

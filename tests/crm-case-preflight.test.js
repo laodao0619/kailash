@@ -5,6 +5,8 @@ const writeback = require("../lib/crm-case-feishu-writeback");
 const cases = require("../lib/crm-cases");
 const feishu = require("../lib/crm-feishu");
 const handler = require("../api/crm-cases-feishu");
+// Simulate the explicit deployment stage for tests exercising the write path.
+process.env.VERCEL_ENV = "production";
 
 const example = {
   caseId: "CASE-123456789ABC", customerEmail: "fake@example.invalid",
@@ -171,6 +173,7 @@ test("non-production Case writes are rejected before Feishu or checkpoint access
       { env: "preview", vercel: undefined },
       { env: "development", vercel: undefined },
       { env: undefined, vercel: "1" },
+      { env: undefined, vercel: undefined },
       { env: "staging", vercel: "1" },
     ]) {
       if (scenario.env === undefined) delete process.env.VERCEL_ENV;
@@ -214,7 +217,7 @@ test("invalid persisted offsets fail closed before Case writes or checkpoint cha
     tableId: writeback.TABLE, schema: approvedSchema(),
   });
   writeback.upsertCase = async () => { writes++; return "created"; };
-  delete process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "production";
   try {
     for (const offset of [-1, 1.5, 2, "1", NaN]) {
       cases.read = async () => ({ offset });

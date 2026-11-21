@@ -5,6 +5,8 @@ const cases = require("../lib/crm-cases");
 const feishu = require("../lib/crm-feishu");
 const writeback = require("../lib/crm-case-feishu-writeback");
 const handler = require("../api/crm-cases-feishu");
+// Simulate the explicit deployment stage for tests exercising the write path.
+process.env.VERCEL_ENV = "production";
 
 // Pure mocked cron regression. Does NOT perform a live Feishu write or
 // establish production checkpoint acceptance.
