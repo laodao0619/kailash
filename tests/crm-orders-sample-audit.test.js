@@ -385,3 +385,16 @@ test("seven-customer sample blocks REFUNDED order with outstanding captured cash
  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
  assert.equal(out.sampleAudit.verified,false);
 });
+
+test("seven-customer audit blocks PAID zero-merchandise entries with captured funds",async()=>{
+ const rows=[order(1,{displayFinancialStatus:"PAID",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(0),
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}]}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].excluded.zero_merchandise_settlement_unreconciled,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.verified,false);
+});
