@@ -18,6 +18,11 @@ function order(n,opts={}){
   transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}],
   ...opts
  };
+ // Synthetic high-value samples need matching settled payment evidence.
+ if(opts.currentSubtotalPriceSet && !Object.prototype.hasOwnProperty.call(opts,"transactions") &&
+    Number(result.currentSubtotalPriceSet?.shopMoney?.amount)>120){
+  result.transactions[0]={...result.transactions[0],amountSet:usd(result.currentSubtotalPriceSet.shopMoney.amount)};
+ }
  if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
   ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(n*1000+i+1):tx.id
  }));
@@ -37,6 +42,16 @@ async function run(rows,ids=sampleCustomerIds,
   asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:ids,sampleExpectedOrderCounts
  });
 }
+test("seven-customer sample refuses a PAID order with insufficient successful captures",async()=>{
+ const rows=[order(1,{transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(1)}]}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.customers[0].excluded.settlement_below_merchandise,1);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.verified,false);
+});
+
 test("exactly seven existing samples yield evidence awaiting manual finance review, not verified grades",async()=>{
  const out=await run(Array.from({length:7},(_,i)=>order(i+1)));
  assert.equal(out.sampleAudit.requested,7);
