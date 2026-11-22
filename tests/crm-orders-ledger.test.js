@@ -875,3 +875,24 @@ test("REFUNDED status with unrecovered captured cash blocks full-history finance
   rootObjectCount:"1",objectCount:"1"
  }).status,"BLOCKED_REFUND_RECONCILIATION");
 });
+
+test("PAID zero-merchandise orders with settled cash must not silently pass archive finance review",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const row=order({id:"gid://shopify/Order/5501",displayFinancialStatus:"PAID",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(0),
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(25)}]});
+ assert.deepEqual(classifyOrder(row),{
+  eligible:false,reason:"zero_merchandise_settlement_unreconciled"});
+ const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(audit.totals.excluded.zero_merchandise_settlement_unreconciled,1);
+ assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(verifyArchiveIntegrity(audit,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"1"
+ }).status,"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+ assert.deepEqual(classifyOrder(order({id:"gid://shopify/Order/5502",
+  displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(0),
+  totalRefundedSet:usd(0),transactions:[]})),{
+  eligible:false,reason:"fully_refunded_or_zero"});
+});
