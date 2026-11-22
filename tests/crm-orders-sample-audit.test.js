@@ -371,3 +371,17 @@ test("contradictory PARTIALLY_REFUNDED with zero Shopify refund blocks financial
   rootObjectCount:"7",objectCount:"14"
  }).status,"BLOCKED_REFUND_RECONCILIATION");
 });
+
+test("seven-customer sample blocks REFUNDED order with outstanding captured cash",async()=>{
+ const rows=[order(1,{displayFinancialStatus:"REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(20),
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].excluded.fully_refunded_settlement_unreconciled,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
+ assert.equal(out.sampleAudit.verified,false);
+});
