@@ -42,6 +42,18 @@ async function run(rows,ids=sampleCustomerIds,
   asOf:"2026-11-13T00:00:00Z",sampleCustomerIds:ids,sampleExpectedOrderCounts
  });
 }
+test("seven-customer sample flags a voided order with captured settlement",async()=>{
+ const rows=Array.from({length:7},(_,i)=>order(i+1));
+ rows[0]=order(1,{displayFinancialStatus:"VOIDED",totalRefundedSet:usd(0),
+  transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(120)}]});
+ const out=await run(rows);
+ assert.equal(out.totals.excluded.nonpurchase_settlement_unreconciled,1);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].excluded.nonpurchase_settlement_unreconciled,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_NONPURCHASE_SETTLEMENT_RECONCILIATION");
+ assert.equal(out.sampleAudit.verified,false);
+});
+
 test("seven-customer sample refuses a PAID order with insufficient successful captures",async()=>{
  const rows=[order(1,{transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(1)}]}),
   ...Array.from({length:6},(_,i)=>order(i+2))];
