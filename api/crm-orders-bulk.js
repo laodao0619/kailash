@@ -107,6 +107,15 @@ module.exports=async(req,res)=>{
   if(op.status!=="COMPLETED"){
    await save(state);return res.status(200).json({ok:true,phase:"running",status:op.status,objectCount:op.objectCount});
   }
+  // A previous attempt may have persisted the immutable JSONL archive and
+  // crashed before saving downloaded=true. Never re-download or overwrite
+  // that evidence: the original Shopify operation and Blob need manual review.
+  const existingArchive=await get(RAW,{access:"private",useCache:false});
+  if(existingArchive?.statusCode===200)return res.status(409).json({
+   ok:false,blockedReason:"bulk_archive_exists_with_unadvanced_checkpoint",reviewRequired:true
+  });
+  if(existingArchive&&existingArchive.statusCode!==404)
+   throw Error("Private bulk export archive status unavailable");
   state.completed=true;state.objectCount=op.objectCount;state.rootObjectCount=op.rootObjectCount;
   if(!op.url)throw Error("Shopify bulk operation completed without a download URL");
   const url=bulk.downloadUrl(op.url);
