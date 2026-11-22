@@ -36,7 +36,9 @@ module.exports=async(req,res)=>{
   const audit=await auditJsonl(archive.stream,{sampleCustomerIds,sampleExpectedOrderCounts});
   // Do not mark a partial or mismatched private archive as audit-ready. Shopify
   // supplies objectCount and rootObjectCount for the same finished Bulk job.
-  const stateResponse=await get(STATE,{access:"private"});
+  // Match the audit to the current persisted Bulk checkpoint, not a stale
+  // private Blob CDN copy from before an overwrite.
+  const stateResponse=await get(STATE,{access:"private",useCache:false});
   let state=null;
   if(stateResponse&&stateResponse.statusCode!==200&&stateResponse.statusCode!==404)
    throw Error("Private full-history checkpoint unavailable");
