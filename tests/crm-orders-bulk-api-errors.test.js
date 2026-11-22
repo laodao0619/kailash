@@ -123,6 +123,29 @@ test("unavailable Bulk checkpoint cannot be mistaken for an absent checkpoint",a
  assert.equal(requests.starts,0);
  assert.equal(requests.rawPuts.length,0);
 });
+test("malformed or oversized private Bulk checkpoint blocks restart and all writes",async()=>{
+ const {Readable}=require("node:stream");
+ const badStates=[
+  "null", "[]", "{}", "{invalid-json",
+  JSON.stringify({id:"test-op",status:"RUNNING",downloaded:"false"}),
+  JSON.stringify({id:"test-op",status:"COMPLETED",downloaded:true,completed:false}),
+  "x".repeat(16385),
+ ];
+ for(const raw of badStates){
+  const {handler,requests}=loadImmutableBulkRoute({
+   stateResponse:{statusCode:200,stream:Readable.from([raw])}
+  });
+  const res=response();
+  await handler(authorizedBulkReq,res);
+  assert.equal(res.statusCode,502);
+  assert.equal(res.body.error,"bulk_export_failed");
+  assert.equal(requests.starts,0);
+  assert.equal(requests.rawPuts.length,0);
+  assert.equal(requests.statePuts.length,0);
+  assert.deepEqual(requests.reads,["crm-execution/orders-bulk-v1-state.json"]);
+ }
+});
+
 test("completed Bulk operation stores immutable raw JSONL and updates checkpoint afterwards",async()=>{
  const {Readable}=require("node:stream");
  const stateResponse={statusCode:200,stream:Readable.from([
