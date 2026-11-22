@@ -59,3 +59,23 @@ test("bounded evidence strips malformed and customer fields",()=>{
  assert.equal(clean.length,1);
  assert.doesNotMatch(JSON.stringify(clean),/private@example.com/);
 });
+
+test("each independent service keeps nine total checkpoint observations without cross-service leaks",()=>{
+ const serviceTotals={customers:[27,5,3],orders:[21,2,1],gmail:[19,6,4]};
+ const slots=[morning,midday,evening];
+ const finished=[at("2026-11-22T00:51:00Z"),at("2026-11-22T05:17:00Z"),at("2026-11-22T07:47:00Z")];
+ const outputs={};
+ for(const [service,totals] of Object.entries(serviceTotals)){
+  let state=null;
+  for(let i=0;i<slots.length;i++){
+   state=cycle(state,slots[i]);
+   state.counters.scanned=totals[i];
+   state.customerEmail="should-never-appear@example.com";
+   done(state,finished[i]);
+  }
+  outputs[service]=[...slotHistory(state)].map(s=>s.counters.scanned);
+  assert.equal(slotHistory(state).length,3);
+  assert.doesNotMatch(JSON.stringify(slotHistory(state)),/should-never-appear@example.com/);
+ }
+ assert.deepEqual(outputs,serviceTotals);
+});
