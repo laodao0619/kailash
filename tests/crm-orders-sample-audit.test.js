@@ -398,3 +398,15 @@ test("seven-customer audit blocks PAID zero-merchandise entries with captured fu
  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(out.sampleAudit.verified,false);
 });
+
+test("seven-customer sample blocks missing refund evidence even on excluded unpaid orders",async()=>{
+ const rows=[order(1,{
+  displayFinancialStatus:"PENDING",totalRefundedSet:undefined,transactions:[]
+ }),...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].excluded.unverified_excluded_refund_evidence,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
+ assert.equal(out.sampleAudit.verified,false);
+});
