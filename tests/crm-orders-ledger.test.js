@@ -36,6 +36,34 @@ test("a PAID order with a token capture cannot substantiate its full merchandise
   "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
 });
 
+
+test("cancelled orders with captured funds are quarantined before lifetime audit approval",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const cancelled=order({id:"gid://shopify/Order/4901",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PAID",
+  totalRefundedSet:usd(0),transactions:[{
+   kind:"SALE",status:"SUCCESS",amountSet:usd(80)}]});
+ assert.deepEqual(classifyOrder(cancelled),{
+  eligible:false,reason:"cancelled_settlement_unreconciled"});
+ const pendingWithCapture=order({id:"gid://shopify/Order/4902",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
+  transactions:[{kind:"CAPTURE",status:"SUCCESS",amountSet:usd(80)}]});
+ assert.equal(classifyOrder(pendingWithCapture).reason,"cancelled_settlement_unreconciled");
+ const cancelledWithoutFunds=order({id:"gid://shopify/Order/4903",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
+  transactions:[]});
+ assert.equal(classifyOrder(cancelledWithoutFunds).reason,"cancelled");
+ const out=await auditJsonl(Readable.from([JSON.stringify(cancelled)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(out.totals.eligible,0);
+ assert.equal(out.totals.excluded.cancelled_settlement_unreconciled,1);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(verifyArchiveIntegrity(out,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"1"
+ }).status,"BLOCKED_CANCELLED_SETTLEMENT_RECONCILIATION");
+});
+
 test("net merchandise isn't reduced a second time by refund",()=>{
  const x=classifyOrder(order());assert.equal(x.eligible,true);
  assert.equal(x.netMerchandiseCents,8000);assert.equal(x.transactionRefundCents,2000);
