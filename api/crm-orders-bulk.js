@@ -28,10 +28,17 @@ async function read(){
  let state;
  try{state=JSON.parse(Buffer.concat(chunks).toString("utf8"));}
  catch{throw Error("Private bulk export checkpoint invalid JSON");}
+ // A durable START_RESERVED marker is deliberately not a Shopify operation ID.
+ // Never auto-restart one: the prior request may have started Shopify and then
+ // crashed before recording the returned operation ID.
+ const reserved=state?.status==="START_RESERVED" && state.id===null &&
+  state.downloaded===false && state.completed===false &&
+  typeof state.reservedAt==="string" && Number.isFinite(Date.parse(state.reservedAt));
+ const started=typeof state?.id==="string" && !!state.id.trim() &&
+  state.status!=="START_RESERVED";
  if(!state||typeof state!=="object"||Array.isArray(state)||
-    typeof state.id!=="string"||!state.id.trim()||
     typeof state.status!=="string"||!state.status.trim()||
-    typeof state.downloaded!=="boolean"||
+    typeof state.downloaded!=="boolean"||!(reserved||started)||
     (state.downloaded&&(state.completed!==true||state.status!=="COMPLETED")))
   throw Error("Private bulk export checkpoint invalid structure");
  return state;
@@ -62,10 +69,24 @@ module.exports=async(req,res)=>{
    });
    if(existingArchive&&existingArchive.statusCode!==404)
     throw Error("Private bulk export archive status unavailable");
+   // Reserve the unique checkpoint BEFORE making the irreversible Shopify call.
+   // allowOverwrite:false is the concurrency gate: if another invocation
+   // reserved the key first, this call cannot launch a second export.
+   // A failed start or a lost response leaves the reservation for manual
+   // Shopify operation-ID reconciliation; it must never silently retry.
+   state={id:null,status:"START_RESERVED",reservedAt:new Date().toISOString(),
+    completed:false,downloaded:false};
+   await put(STATE,JSON.stringify(state),{access:"private",addRandomSuffix:false,
+    allowOverwrite:false,contentType:"application/json"});
    const op=await bulk.start(shopify.queryShopify);
    state={id:op.id,status:op.status,startedAt:new Date().toISOString(),completed:false,downloaded:false};
    await save(state);
    return res.status(200).json({ok:true,phase:"started",status:state.status});
+  }
+  if(state.status==="START_RESERVED"){
+   // No Shopify polling or restart without a human reconciling the operation.
+   return res.status(409).json({ok:false,
+    blockedReason:"bulk_start_reservation_requires_manual_review",reviewRequired:true});
   }
   if(state.downloaded){
    // A checkpoint alone does not prove that the immutable financial evidence
