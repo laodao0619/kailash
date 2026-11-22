@@ -671,7 +671,7 @@ test("excluded Shopify orders still require valid historical dates before archiv
  assert.equal(audit.totals.missingOrderDate,2);
  assert.equal(audit.totals.futureOrders,1);
  assert.equal(audit.totals.excluded.test,1);
- assert.equal(audit.totals.excluded.cancelled,1);
+ assert.equal(audit.totals.excluded.cancelled_settlement_unreconciled,1);
  assert.equal(audit.totals.excluded.fully_refunded_or_zero,1);
  assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
  const state={status:"COMPLETED",downloaded:true,archivedAt:"2026-11-20T00:00:00Z",
