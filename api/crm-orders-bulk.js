@@ -12,7 +12,9 @@ function authorized(req){
  return !!expected.length&&expected.length===given.length&&crypto.timingSafeEqual(given,expected);
 }
 async function read(){
- const result=await get(STATE,{access:"private"});
+ // Private Blob overwrites can remain CDN-cached for up to 60 seconds.
+ // Read the latest checkpoint before deciding whether a Bulk export may start.
+ const result=await get(STATE,{access:"private",useCache:false});
  if(!result||result.statusCode===404)return null;
  if(result.statusCode!==200)throw Error("Private bulk export checkpoint unavailable");
  // A corrupt or oversized persisted checkpoint is never equivalent to a
