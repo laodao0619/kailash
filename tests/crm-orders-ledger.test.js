@@ -896,3 +896,26 @@ test("PAID zero-merchandise orders with settled cash must not silently pass arch
   totalRefundedSet:usd(0),transactions:[]})),{
   eligible:false,reason:"fully_refunded_or_zero"});
 });
+
+test("excluded cancelled and unpaid orders cannot conceal missing refund evidence",async()=>{
+ const unpaid=order({id:"gid://shopify/Order/6611",
+  displayFinancialStatus:"PENDING",totalRefundedSet:undefined,transactions:[]});
+ const cancelled=order({id:"gid://shopify/Order/6612",
+  displayFinancialStatus:"PENDING",cancelledAt:"2026-08-02T00:00:00Z",
+  totalRefundedSet:usd("not-a-dollar-amount"),transactions:[]});
+ for(const row of [unpaid,cancelled]){
+  assert.deepEqual(classifyOrder(row),{
+   eligible:false,reason:"unverified_excluded_refund_evidence"
+  });
+ }
+ const out=await auditJsonl(Readable.from([
+  JSON.stringify(unpaid)+"\n"+JSON.stringify(cancelled)+"\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(out.totals.excluded.unverified_excluded_refund_evidence,2);
+ assert.equal(out.totals.eligible,0);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(out,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"2"
+ }).status,"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+});
