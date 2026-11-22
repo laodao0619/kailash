@@ -1,12 +1,8 @@
 const {get}=require("@vercel/blob");
-async function readJson(path){
- try{
-  const file=await get(path,{access:"private"});
-  if(!file||file.statusCode!==200)return null;
-  const chunks=[];for await(const ch of file.stream)chunks.push(ch);
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
- }catch{return null;}
-}
+const {readCheckpoint}=require("../lib/crm-status-checkpoint");
+const {slotHistory}=require("../lib/crm-daily-state");
+const {summarizeDailyWindows}=require("../lib/crm-sync-window-evidence");
+async function readJson(path){return readCheckpoint(get,path);}
 module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
   if(req.method!=="GET") return res.status(405).json({ok:false});
@@ -42,12 +38,13 @@ module.exports=async(req,res)=>{
       },
       daily_incremental:{
         customers:{started:!!dailyCustomers,completed:!!dailyCustomers?.completed,day:dailyCustomers?.day||null,
-          updated_at:dailyCustomers?.updatedAt||null,totals:dailyCustomers?.counters||null},
+          updated_at:dailyCustomers?.updatedAt||null,completed_at:dailyCustomers?.completedAt||null,slot:dailyCustomers?.slot||null,slot_key:dailyCustomers?.slotKey||null,totals:dailyCustomers?.counters||null,recent_slots:slotHistory(dailyCustomers)},
         orders:{started:!!dailyOrders,completed:!!dailyOrders?.completed,day:dailyOrders?.day||null,
-          updated_at:dailyOrders?.updatedAt||null,totals:dailyOrders?.counters||null},
+          updated_at:dailyOrders?.updatedAt||null,completed_at:dailyOrders?.completedAt||null,slot:dailyOrders?.slot||null,slot_key:dailyOrders?.slotKey||null,totals:dailyOrders?.counters||null,recent_slots:slotHistory(dailyOrders)},
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
-          updated_at:dailyGmail?.updatedAt||null,totals:dailyGmail?.counters||null}
+          updated_at:dailyGmail?.updatedAt||null,completed_at:dailyGmail?.completedAt||null,slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,totals:dailyGmail?.counters||null,recent_slots:slotHistory(dailyGmail)}
       },
+      sync_windows:summarizeDailyWindows({customers:dailyCustomers,orders:dailyOrders,gmail:dailyGmail}),
       customer_cases:{
         started:!!caseSync,
         last_checkpoint:caseSync?.lastRunAt||null,
