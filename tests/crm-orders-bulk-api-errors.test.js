@@ -21,7 +21,7 @@ function loadRoute(filename) {
   throw Error("Unexpected test dependency");
  };
  vm.runInNewContext(source,{
-  module,require:requireStub,process:{env:{CRON_SECRET:"synthetic-test-key"}},
+  module,require:requireStub,process:{env:{CRON_SECRET:"synthetic-test-key",VERCEL_ENV:"production"}},
   Buffer,console
  },{filename});
  return module.exports;
@@ -181,4 +181,88 @@ test("archived checkpoint must verify that the private JSONL evidence still exis
   assert.equal(requests.rawPuts.length,0);
   assert.equal(requests.statePuts.length,0);
  }
+});
+
+ 
+// Finance audit has no permission to read an archived customer ledger in a
+// Vercel Preview or to overwrite the production report through a copied token.
+// These cases use only in-memory synthetic Blob and ledger stubs.
+function loadProtectedFinanceAudit({stage="preview",archiveStatus=200,stateStatus=200}={}){
+ const {Readable}=require("node:stream");
+ const source=fs.readFileSync(path.join(__dirname,"../api/crm-orders-bulk-audit.js"),"utf8");
+ const stats={reads:[],writes:0,audits:0};
+ const blobResponse=status=>({statusCode:status,stream:Readable.from(["{}"])});
+ const requireStub=name=>{
+  if(name==="crypto")return crypto;
+  if(name==="@vercel/blob")return {
+   get:async key=>{
+    stats.reads.push(key);
+    if(key.endsWith("-export.jsonl"))return blobResponse(archiveStatus);
+    if(key.endsWith("-state.json"))return blobResponse(stateStatus);
+    throw Error("Unexpected private Blob read");
+   },
+   put:async()=>{stats.writes++;return {url:"private-test://audit"};}
+  };
+  if(name==="../lib/crm-orders-ledger")return {
+   auditJsonl:async()=>{stats.audits++;return {sampleAudit:{status:"BLOCKED_REQUIRE_EXACTLY_SEVEN_SAMPLE_CUSTOMERS"}};},
+   verifyArchiveIntegrity:()=>({status:"BLOCKED_EXPORT_NOT_ARCHIVED"})
+  };
+  throw Error("Unexpected audit dependency: "+name);
+ };
+ const module={exports:{}};
+ vm.runInNewContext(source,{
+  module,require:requireStub,
+  process:{env:{CRON_SECRET:"synthetic-test-key",VERCEL_ENV:stage}},
+  Buffer,console,Date
+ },{filename:"crm-orders-bulk-audit.js"});
+ return {handler:module.exports,stats};
+}
+test("private financial audit refuses non-production stages before any Blob read or report write",async()=>{
+ for(const stage of ["preview","development","staging","",null,undefined]){
+  const {handler,stats}=loadProtectedFinanceAudit({stage});
+  const res=response();
+  await handler(authorizedBulkReq,res);
+  assert.equal(res.statusCode,403,String(stage));
+  assert.equal(res.body.blockedReason,"finance_audit_production_only");
+  assert.equal(stats.reads.length,0);
+  assert.equal(stats.writes,0);
+  assert.equal(stats.audits,0);
+ }
+});
+test("private financial audit still checks authorization before disclosing its stage",async()=>{
+ const {handler,stats}=loadProtectedFinanceAudit({stage:"preview"});
+ const res=response();
+ await handler({method:"GET",headers:{authorization:"Bearer wrong"}},res);
+ assert.equal(res.statusCode,401);
+ assert.equal(stats.reads.length,0);
+});
+test("an inaccessible private financial archive is an error, never an empty waiting state",async()=>{
+ const {handler,stats}=loadProtectedFinanceAudit({stage:"production",archiveStatus:403});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(res.body.error,"financial_audit_failed");
+ assert.equal(stats.reads.length,1);
+ assert.equal(stats.writes,0);
+ assert.equal(stats.audits,0);
+});
+test("an unreadable private financial checkpoint blocks report overwrite",async()=>{
+ const {handler,stats}=loadProtectedFinanceAudit({stage:"production",stateStatus:503});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(res.body.error,"financial_audit_failed");
+ assert.equal(stats.reads.length,2);
+ assert.equal(stats.writes,0);
+ assert.equal(stats.audits,1);
+});
+test("a verified absent archive remains a waiting state without an audit write",async()=>{
+ const {handler,stats}=loadProtectedFinanceAudit({stage:"production",archiveStatus:404});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.waiting,true);
+ assert.equal(stats.reads.length,1);
+ assert.equal(stats.writes,0);
+ assert.equal(stats.audits,0);
 });
