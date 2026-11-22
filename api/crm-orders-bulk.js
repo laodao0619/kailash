@@ -15,8 +15,24 @@ async function read(){
  const result=await get(STATE,{access:"private"});
  if(!result||result.statusCode===404)return null;
  if(result.statusCode!==200)throw Error("Private bulk export checkpoint unavailable");
- const chunks=[];for await(const c of result.stream)chunks.push(c);
- return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+ // A corrupt or oversized persisted checkpoint is never equivalent to a
+ // missing checkpoint. Do not start a second Shopify export on bad evidence.
+ const chunks=[];let bytes=0;
+ for await(const part of result.stream){
+  const chunk=Buffer.from(part);bytes+=chunk.length;
+  if(bytes>16384)throw Error("Private bulk export checkpoint exceeds size limit");
+  chunks.push(chunk);
+ }
+ let state;
+ try{state=JSON.parse(Buffer.concat(chunks).toString("utf8"));}
+ catch{throw Error("Private bulk export checkpoint invalid JSON");}
+ if(!state||typeof state!=="object"||Array.isArray(state)||
+    typeof state.id!=="string"||!state.id.trim()||
+    typeof state.status!=="string"||!state.status.trim()||
+    typeof state.downloaded!=="boolean"||
+    (state.downloaded&&(state.completed!==true||state.status!=="COMPLETED")))
+  throw Error("Private bulk export checkpoint invalid structure");
+ return state;
 }
 async function save(s){
  s.updatedAt=new Date().toISOString();
