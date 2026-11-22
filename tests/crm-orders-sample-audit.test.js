@@ -52,6 +52,20 @@ test("seven-customer sample refuses a PAID order with insufficient successful ca
  assert.equal(out.sampleAudit.verified,false);
 });
 
+
+test("seven-customer audit blocks cancellation with unsettled payment or refund evidence",async()=>{
+ const rows=[order(1,{cancelledAt:"2026-10-03T00:00:00Z"}),
+  ...Array.from({length:6},(_,i)=>order(i+2))];
+ const out=await run(rows);
+ assert.equal(out.sampleAudit.requested,7);
+ assert.equal(out.sampleAudit.matched,7);
+ assert.equal(out.sampleAudit.customers[0].totalOrders,1);
+ assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+ assert.equal(out.sampleAudit.customers[0].excluded.cancelled_settlement_unreconciled,1);
+ assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_CANCELLED_SETTLEMENT_RECONCILIATION");
+ assert.equal(out.sampleAudit.verified,false);
+});
+
 test("exactly seven existing samples yield evidence awaiting manual finance review, not verified grades",async()=>{
  const out=await run(Array.from({length:7},(_,i)=>order(i+1)));
  assert.equal(out.sampleAudit.requested,7);
