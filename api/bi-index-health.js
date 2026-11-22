@@ -1,6 +1,7 @@
 "use strict";
 // Public operational health: non-PII counts/timestamps only.
 const {read,STATE,CURRENT}=require("./bi-index-build");
+const {qaMatchesSnapshot}=require("../lib/kbi-qa-freshness");
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
@@ -11,6 +12,8 @@ module.exports=async(req,res)=>{
     startedAt:state.startedAt,completedAt:state.completedAt||null}:null,
    snapshot:current?{generatedAt:current.generatedAt,total:current.total,slot:current.slot,
     source:current.source,grading:"historical_snapshot_not_final_audit"}:null,
-   productionQA:qa?{ready:qa.ready,at:qa.at,checks:qa.checks,metrics:qa.metrics}:null});
+   productionQA:qa?{ready:qaMatchesSnapshot(qa,current),stale:qa.ready===true&&!qaMatchesSnapshot(qa,current),
+    sourceQAReady:qa.ready===true,sourceGeneratedAt:current?.generatedAt||null,
+    at:qa.at,checks:qa.checks,metrics:qa.metrics}:null});
  }catch(_){return res.status(503).json({ok:false,error:"health_unavailable"});}
 };
