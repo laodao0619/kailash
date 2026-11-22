@@ -745,7 +745,10 @@ test("missing financial status quarantines historical Shopify rows and blocks ar
   });
  }
  for(const status of ["PENDING","AUTHORIZED","VOIDED","EXPIRED"]){
-  assert.deepEqual(classifyOrder(order({displayFinancialStatus:status})),{
+  // No successful payment or refund evidence: a genuinely unpaid order
+  // remains excluded without implying an unreconciled cash movement.
+  assert.deepEqual(classifyOrder(order({displayFinancialStatus:status,
+   totalRefundedSet:usd(0),transactions:[]})),{
    eligible:false,reason:"financial_status"
   });
  }
