@@ -64,6 +64,31 @@ test("cancelled orders with captured funds are quarantined before lifetime audit
  }).status,"BLOCKED_CANCELLED_SETTLEMENT_RECONCILIATION");
 });
 
+test("refund-only evidence on cancelled orders blocks full-history financial approval",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const refundOnly=order({id:"gid://shopify/Order/4904",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
+  totalRefundedSet:usd(20),transactions:[{
+   kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]});
+ assert.equal(classifyOrder(refundOnly).reason,"cancelled_settlement_unreconciled");
+ const reportedOnly=order({id:"gid://shopify/Order/4905",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
+  totalRefundedSet:usd(20),transactions:[]});
+ assert.equal(classifyOrder(reportedOnly).reason,"cancelled_settlement_unreconciled");
+ const noRefund=order({id:"gid://shopify/Order/4906",
+  cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
+  totalRefundedSet:usd(0),transactions:[]});
+ assert.equal(classifyOrder(noRefund).reason,"cancelled");
+ const result=await auditJsonl(Readable.from([JSON.stringify(refundOnly)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(result.totals.eligible,0);
+ assert.equal(result.totals.excluded.cancelled_settlement_unreconciled,1);
+ assert.equal(verifyArchiveIntegrity(result,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"1"
+ }).status,"BLOCKED_CANCELLED_SETTLEMENT_RECONCILIATION");
+});
+
 test("net merchandise isn't reduced a second time by refund",()=>{
  const x=classifyOrder(order());assert.equal(x.eligible,true);
  assert.equal(x.netMerchandiseCents,8000);assert.equal(x.transactionRefundCents,2000);
