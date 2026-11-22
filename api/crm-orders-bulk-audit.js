@@ -14,9 +14,15 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!authorized(req))return res.status(401).json({ok:false});
+ // A copied CRON_SECRET or Blob token must not let Preview/Development read
+ // private financial records or overwrite the single shared audit report.
+ if(process.env.VERCEL_ENV!=="production")
+  return res.status(403).json({ok:false,blockedReason:"finance_audit_production_only"});
  try{
   const archive=await get(ARCHIVE,{access:"private"});
-  if(!archive||archive.statusCode!==200)return res.status(200).json({ok:true,waiting:true,reason:"full_history_not_archived"});
+  if(!archive||archive.statusCode===404)
+   return res.status(200).json({ok:true,waiting:true,reason:"full_history_not_archived"});
+  if(archive.statusCode!==200)throw Error("Private full-history archive unavailable");
   // Merchant-selected Shopify GIDs are confidential operational data. They
   // must be configured server-side; this endpoint is CRON_SECRET protected.
   // Missing/partial samples are reported as BLOCKED, never invented.
@@ -32,6 +38,8 @@ module.exports=async(req,res)=>{
   // supplies objectCount and rootObjectCount for the same finished Bulk job.
   const stateResponse=await get(STATE,{access:"private"});
   let state=null;
+  if(stateResponse&&stateResponse.statusCode!==200&&stateResponse.statusCode!==404)
+   throw Error("Private full-history checkpoint unavailable");
   if(stateResponse&&stateResponse.statusCode===200){
    const chunks=[];let bytes=0;
    for await(const part of stateResponse.stream){
