@@ -10,12 +10,14 @@ test("bulk export includes all orders, customer IDs and product facts without a 
   assert.ok(BULK_QUERY.includes(field),field);
 });
 test("Bulk JSONL retains shop currency and original presentment currency for reconciliation",()=>{
- const shop=(BULK_QUERY.match(/shopMoney \\{ amount currencyCode \\}/g)||[]).length;
- const presentment=(BULK_QUERY.match(/presentmentMoney \\{ amount currencyCode \\}/g)||[]).length;
- assert.equal(shop,7);
- assert.equal(presentment,shop,"Every MoneyBag must retain both currency perspectives");
- assert.match(BULK_QUERY,/currencyCode\\s+subtotalPriceSet/);
- assert.match(BULK_QUERY,/transactions \\{ id kind status amountSet/);
+ // All seven Shopify MoneyBag selections must retain both shop and presentment amounts.
+ // Match real GraphQL braces, not literal backslash characters.
+ const paired=/shopMoney\s*\{\s*amount\s+currencyCode\s*\}\s+presentmentMoney\s*\{\s*amount\s+currencyCode\s*\}/g;
+ assert.equal((BULK_QUERY.match(paired)||[]).length,7,"Every MoneyBag must retain both currency perspectives");
+ assert.equal((BULK_QUERY.match(/\bshopMoney\b/g)||[]).length,7,"No unpaired shopMoney allowed");
+ assert.equal((BULK_QUERY.match(/\bpresentmentMoney\b/g)||[]).length,7,"No unpaired presentmentMoney allowed");
+ assert.match(BULK_QUERY,/\bcurrencyCode\s+subtotalPriceSet\b/);
+ assert.match(BULK_QUERY,/transactions\s*\{\s*id\s+kind\s+status\s+amountSet\b/);
  // The financial audit uses shop USD, not presentment numbers as a fake FX conversion.
  const {money}=require("../lib/crm-orders-ledger");
  assert.equal(money({
