@@ -1,5 +1,6 @@
 const {get}=require("@vercel/blob");
 const {readCheckpoint}=require("../lib/crm-status-checkpoint");
+const {slotHistory}=require("../lib/crm-daily-state");
 async function readJson(path){return readCheckpoint(get,path);}
 module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
@@ -36,11 +37,11 @@ module.exports=async(req,res)=>{
       },
       daily_incremental:{
         customers:{started:!!dailyCustomers,completed:!!dailyCustomers?.completed,day:dailyCustomers?.day||null,
-          updated_at:dailyCustomers?.updatedAt||null,completed_at:dailyCustomers?.completedAt||null,slot:dailyCustomers?.slot||null,slot_key:dailyCustomers?.slotKey||null,totals:dailyCustomers?.counters||null},
+          updated_at:dailyCustomers?.updatedAt||null,completed_at:dailyCustomers?.completedAt||null,slot:dailyCustomers?.slot||null,slot_key:dailyCustomers?.slotKey||null,totals:dailyCustomers?.counters||null,recent_slots:slotHistory(dailyCustomers)},
         orders:{started:!!dailyOrders,completed:!!dailyOrders?.completed,day:dailyOrders?.day||null,
-          updated_at:dailyOrders?.updatedAt||null,completed_at:dailyOrders?.completedAt||null,slot:dailyOrders?.slot||null,slot_key:dailyOrders?.slotKey||null,totals:dailyOrders?.counters||null},
+          updated_at:dailyOrders?.updatedAt||null,completed_at:dailyOrders?.completedAt||null,slot:dailyOrders?.slot||null,slot_key:dailyOrders?.slotKey||null,totals:dailyOrders?.counters||null,recent_slots:slotHistory(dailyOrders)},
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
-          updated_at:dailyGmail?.updatedAt||null,completed_at:dailyGmail?.completedAt||null,slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,totals:dailyGmail?.counters||null}
+          updated_at:dailyGmail?.updatedAt||null,completed_at:dailyGmail?.completedAt||null,slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,totals:dailyGmail?.counters||null,recent_slots:slotHistory(dailyGmail)}
       },
       customer_cases:{
         started:!!caseSync,
