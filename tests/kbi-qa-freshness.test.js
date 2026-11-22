@@ -47,3 +47,21 @@ test("QA writer fails closed on incomplete or truthy-only service checks",()=>{
  assert.equal(fullChecksPass({...complete,sort:"true"}),false);
  assert.equal(fullChecksPass({...complete,extraCheck:false}),false);
 });
+
+test("QA report must include exact generation identity, not just total",()=>{
+ const older=qa();delete older.sourceSnapshot;
+ assert.equal(qaMatchesSnapshot(older,snapshot()),false);
+ assert.equal(qaMatchesSnapshot(qa(),{...snapshot(),generatedAt:"2026-11-22T05:50:00Z"}),false);
+ assert.equal(qaMatchesSnapshot(qa(),{...snapshot(),slot:"2026-11-23-morning"}),false);
+});
+test("no PII is captured in persisted snapshot identity",()=>{
+ const {snapshotIdentity}=require("../lib/kbi-qa-freshness");
+ const stored=snapshotIdentity({...snapshot(),customers:[{email:"secret@example.test"}]});
+ assert.deepEqual(Object.keys(stored),["version","slot","generatedAt","total"]);
+});
+test("in-progress, nonmatching generation cannot prove readiness",()=>{
+ const {completedSnapshotMatchesState,sameSnapshot}=require("../lib/kbi-qa-freshness");
+ assert.equal(completedSnapshotMatchesState(snapshot(),{...state(),complete:false}),false);
+ assert.equal(completedSnapshotMatchesState(snapshot(),{...state(),slot:"2026-11-23-morning"}),false);
+ assert.equal(sameSnapshot(snapshot(),{...snapshot(),generatedAt:"2026-11-22T05:45:26Z"}),false);
+});
