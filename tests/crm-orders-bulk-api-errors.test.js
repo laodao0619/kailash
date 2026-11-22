@@ -186,6 +186,44 @@ test("immutable archive collision keeps checkpoint unadvanced for manual review"
 });
 
 
+test("completed Bulk refuses re-download when immutable archive exists but checkpoint is unadvanced",async()=>{
+ const {Readable}=require("node:stream");
+ const stateResponse={statusCode:200,stream:Readable.from([
+  Buffer.from(JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false}))
+ ])};
+ const {handler,requests}=loadImmutableBulkRoute({
+  stateResponse,archiveResponse:{statusCode:200}
+ });
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,409);
+ assert.equal(res.body.blockedReason,"bulk_archive_exists_with_unadvanced_checkpoint");
+ assert.equal(res.body.reviewRequired,true);
+ assert.equal(requests.starts,0);
+ assert.equal(requests.rawPuts.length,0);
+ assert.equal(requests.statePuts.length,0);
+ const archiveRead=requests.readOptions.find(item=>item.key.endsWith("-export.jsonl"));
+ assert.ok(archiveRead);
+ assert.equal(archiveRead.options.access,"private");
+ assert.equal(archiveRead.options.useCache,false);
+});
+test("inaccessible immutable archive blocks re-download without altering the checkpoint",async()=>{
+ const {Readable}=require("node:stream");
+ const stateResponse={statusCode:200,stream:Readable.from([
+  Buffer.from(JSON.stringify({id:"synthetic-completed",status:"RUNNING",downloaded:false}))
+ ])};
+ const {handler,requests}=loadImmutableBulkRoute({
+  stateResponse,archiveResponse:{statusCode:503}
+ });
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(res.body.error,"bulk_export_failed");
+ assert.equal(requests.starts,0);
+ assert.equal(requests.rawPuts.length,0);
+ assert.equal(requests.statePuts.length,0);
+});
+
 test("archived checkpoint must verify that the private JSONL evidence still exists",async()=>{
  const {Readable}=require("node:stream");
  const makeState=()=>({statusCode:200,stream:Readable.from([
