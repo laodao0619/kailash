@@ -10,11 +10,32 @@ function order(overrides={}){
   currentSubtotalPriceSet:usd(80),totalRefundedSet:usd(20),transactions:[
    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
    {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}],...overrides};
+ // Synthetic high-value orders need matching settlement evidence.
+ if(overrides.currentSubtotalPriceSet && !Object.prototype.hasOwnProperty.call(overrides,"transactions") &&
+    Number(result.currentSubtotalPriceSet?.shopMoney?.amount)>100){
+  result.transactions[0]={...result.transactions[0],amountSet:usd(result.currentSubtotalPriceSet.shopMoney.amount)};
+ }
  if(Array.isArray(result.transactions))result.transactions=result.transactions.map((tx,i)=>({
   ...tx,id:tx.id===undefined?"gid://shopify/OrderTransaction/"+(i+1):tx.id
  }));
  return result;
 }
+test("a PAID order with a token capture cannot substantiate its full merchandise spend",async()=>{
+ const underfunded=order({id:"gid://shopify/Order/4001",displayFinancialStatus:"PAID",
+  currentSubtotalPriceSet:usd(150),totalRefundedSet:usd(0),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd("0.01")}]});
+ assert.deepEqual(classifyOrder(underfunded),{eligible:false,reason:"settlement_below_merchandise"});
+ const out=await auditJsonl(Readable.from([JSON.stringify(underfunded)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(out.totals.excluded.settlement_below_merchandise,1);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(out.totals.eligible,0);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-13T00:00:00Z",rootObjectCount:"1",objectCount:"1"}).status,
+  "BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
+});
+
 test("net merchandise isn't reduced a second time by refund",()=>{
  const x=classifyOrder(order());assert.equal(x.eligible,true);
  assert.equal(x.netMerchandiseCents,8000);assert.equal(x.transactionRefundCents,2000);
