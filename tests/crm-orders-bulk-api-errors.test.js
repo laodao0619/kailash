@@ -64,12 +64,13 @@ for(const [filename,code] of [
 function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,failRawPut=false}={}){
  const {Readable}=require("node:stream");
  const source=fs.readFileSync(path.join(__dirname,"../api/crm-orders-bulk.js"),"utf8");
- const requests={starts:0,rawPuts:[],statePuts:[],reads:[]};
+ const requests={starts:0,rawPuts:[],statePuts:[],reads:[],readOptions:[]};
  const requireStub=name=>{
   if(name==="crypto")return crypto;
   if(name==="@vercel/blob")return {
-   get:async key=>{
+   get:async (key,options)=>{
     requests.reads.push(key);
+    requests.readOptions.push({key,options});
     if(key.endsWith("-state.json"))return stateResponse;
     if(key.endsWith("-export.jsonl"))return archiveResponse;
     throw Error("Unexpected private blob path");
@@ -213,13 +214,14 @@ test("archived checkpoint must verify that the private JSONL evidence still exis
 function loadProtectedFinanceAudit({stage="preview",archiveStatus=200,stateStatus=200}={}){
  const {Readable}=require("node:stream");
  const source=fs.readFileSync(path.join(__dirname,"../api/crm-orders-bulk-audit.js"),"utf8");
- const stats={reads:[],writes:0,audits:0};
+ const stats={reads:[],readOptions:[],writes:0,audits:0};
  const blobResponse=status=>({statusCode:status,stream:Readable.from(["{}"])});
  const requireStub=name=>{
   if(name==="crypto")return crypto;
   if(name==="@vercel/blob")return {
-   get:async key=>{
+   get:async (key,options)=>{
     stats.reads.push(key);
+    stats.readOptions.push({key,options});
     if(key.endsWith("-export.jsonl"))return blobResponse(archiveStatus);
     if(key.endsWith("-state.json"))return blobResponse(stateStatus);
     throw Error("Unexpected private Blob read");
@@ -288,4 +290,31 @@ test("a verified absent archive remains a waiting state without an audit write",
  assert.equal(stats.reads.length,1);
  assert.equal(stats.writes,0);
  assert.equal(stats.audits,0);
+});
+
+// Private Blob's CDN may return overwritten state for up to 60 seconds unless
+// useCache:false is requested. A stale checkpoint must never govern a Bulk
+// restart decision or financial audit of the current immutable archive.
+test("Bulk export reads the mutable checkpoint with consistent private Blob reads",async()=>{
+ const {handler,requests}=loadImmutableBulkRoute({stateResponse:{statusCode:503}});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(requests.readOptions.length,1);
+ assert.equal(requests.readOptions[0].key,"crm-execution/orders-bulk-v1-state.json");
+ assert.equal(requests.readOptions[0].options.access,"private");
+ assert.equal(requests.readOptions[0].options.useCache,false);
+ assert.equal(requests.starts,0);
+});
+
+test("financial audit reads the latest mutable Bulk checkpoint before issuing a report",async()=>{
+ const {handler,stats}=loadProtectedFinanceAudit({stage:"production"});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,200);
+ assert.equal(stats.readOptions.length,2);
+ const stateRead=stats.readOptions.find(item=>item.key==="crm-execution/orders-bulk-v1-state.json");
+ assert.ok(stateRead);
+ assert.equal(stateRead.options.access,"private");
+ assert.equal(stateRead.options.useCache,false);
 });
