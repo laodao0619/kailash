@@ -20,6 +20,29 @@ function order(overrides={}){
  }));
  return result;
 }
+test("PENDING and VOIDED orders with settled money require explicit reconciliation",async()=>{
+ const pending=order({id:"gid://shopify/Order/5201",displayFinancialStatus:"PENDING",
+  totalRefundedSet:usd(0),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]});
+ const voided=order({id:"gid://shopify/Order/5202",displayFinancialStatus:"VOIDED",
+  totalRefundedSet:usd(10),transactions:[]});
+ const genuinelyUnpaid=order({id:"gid://shopify/Order/5203",
+  displayFinancialStatus:"PENDING",totalRefundedSet:usd(0),transactions:[]});
+ assert.equal(classifyOrder(pending).reason,"nonpurchase_settlement_unreconciled");
+ assert.equal(classifyOrder(voided).reason,"nonpurchase_settlement_unreconciled");
+ assert.equal(classifyOrder(genuinelyUnpaid).reason,"financial_status");
+ const out=await auditJsonl(Readable.from([JSON.stringify(pending)+"\n"+JSON.stringify(voided)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(out.totals.excluded.nonpurchase_settlement_unreconciled,2);
+ assert.equal(out.totals.eligible,0);
+ assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ assert.equal(verifyArchiveIntegrity(out,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"2"
+ }).status,"BLOCKED_NONPURCHASE_SETTLEMENT_RECONCILIATION");
+});
+
 test("a PAID order with a token capture cannot substantiate its full merchandise spend",async()=>{
  const underfunded=order({id:"gid://shopify/Order/4001",displayFinancialStatus:"PAID",
   currentSubtotalPriceSet:usd(150),totalRefundedSet:usd(0),transactions:[
