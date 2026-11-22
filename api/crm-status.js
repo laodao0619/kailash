@@ -1,6 +1,7 @@
 const {get}=require("@vercel/blob");
 const {readCheckpoint}=require("../lib/crm-status-checkpoint");
 const {slotHistory}=require("../lib/crm-daily-state");
+const {summarizeDailyWindows}=require("../lib/crm-sync-window-evidence");
 async function readJson(path){return readCheckpoint(get,path);}
 module.exports=async(req,res)=>{
   res.setHeader("Cache-Control","no-store");
@@ -43,6 +44,7 @@ module.exports=async(req,res)=>{
         gmail:{started:!!dailyGmail,completed:!!dailyGmail?.completed,day:dailyGmail?.day||null,
           updated_at:dailyGmail?.updatedAt||null,completed_at:dailyGmail?.completedAt||null,slot:dailyGmail?.slot||null,slot_key:dailyGmail?.slotKey||null,totals:dailyGmail?.counters||null,recent_slots:slotHistory(dailyGmail)}
       },
+      sync_windows:summarizeDailyWindows({customers:dailyCustomers,orders:dailyOrders,gmail:dailyGmail}),
       customer_cases:{
         started:!!caseSync,
         last_checkpoint:caseSync?.lastRunAt||null,
