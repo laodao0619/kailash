@@ -179,7 +179,7 @@ test("immutable archive collision keeps checkpoint unadvanced for manual review"
 test("archived checkpoint must verify that the private JSONL evidence still exists",async()=>{
  const {Readable}=require("node:stream");
  const makeState=()=>({statusCode:200,stream:Readable.from([
-  Buffer.from(JSON.stringify({id:"synthetic-done",status:"COMPLETED",downloaded:true,objectCount:"3",rootObjectCount:"2"}))
+  Buffer.from(JSON.stringify({id:"synthetic-done",status:"COMPLETED",completed:true,downloaded:true,objectCount:"3",rootObjectCount:"2"}))
  ])});
  for(const [archiveResponse,expectedStatus,expectedReason] of [
   [{statusCode:200},200,undefined],
