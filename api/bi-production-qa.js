@@ -1,8 +1,8 @@
 "use strict";
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
-const {read,STATE}=require("./bi-index-build");
-const {canReuseQA,fullChecksPass}=require("../lib/kbi-qa-freshness");
+const {read,STATE,CURRENT}=require("./bi-index-build");
+const {canReuseQA,fullChecksPass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -51,13 +51,18 @@ module.exports=async(req,res)=>{
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  // Verify the source has finished publishing before multi-endpoint QA.
+  const [indexAtStart,stateAtStart]=await Promise.all([read(CURRENT),read(STATE)]);
+  if(!completedSnapshotMatchesState(indexAtStart,stateAtStart))
+   return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  report.sourceSnapshot=snapshotIdentity(indexAtStart); // metadata only, no PII
+  report.at=new Date().toISOString();
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
    // An old successful report cannot skip QA for a newly built index.
-   const indexState=await read(STATE);
-   if(canReuseQA(previous,indexState))
+   if(canReuseQA(previous,stateAtStart,indexAtStart))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
@@ -116,6 +121,11 @@ module.exports=async(req,res)=>{
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
   // Future changes must not silently omit required service checks.
+  // Cron can rebuild the index concurrently; reject mixed-generation QA.
+  const [indexAtEnd,stateAtEnd]=await Promise.all([read(CURRENT),read(STATE)]);
+  if(!sameSnapshot(indexAtStart,indexAtEnd)||
+     !completedSnapshotMatchesState(indexAtEnd,stateAtEnd))
+   throw Error("customer_index_changed_during_qa");
   report.ready=fullChecksPass(report.checks);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
