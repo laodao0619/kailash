@@ -2,7 +2,7 @@
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {read,STATE}=require("./bi-index-build");
-const {canReuseQA}=require("../lib/kbi-qa-freshness");
+const {canReuseQA,fullChecksPass}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -115,7 +115,8 @@ module.exports=async(req,res)=>{
   report.metrics.rfmEightCoverage=rfm.data?.classified||0;
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
-  report.ready=Object.values(report.checks).every(Boolean);
+  // Future changes must not silently omit required service checks.
+  report.ready=fullChecksPass(report.checks);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
    metrics:report.metrics,note:"Only aggregate QA results; no customer PII exposed."});
