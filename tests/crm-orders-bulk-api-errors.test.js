@@ -61,7 +61,8 @@ for(const [filename,code] of [
 
 // No production services are contacted. Validate that a missing checkpoint
 // cannot overwrite a previously archived private Shopify JSONL export.
-function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,failRawPut=false}={}){
+function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,
+ failRawPut=false,failReservationPut=false,failStart=false}={}){
  const {Readable}=require("node:stream");
  const source=fs.readFileSync(path.join(__dirname,"../api/crm-orders-bulk.js"),"utf8");
  const requests={starts:0,rawPuts:[],statePuts:[],reads:[],readOptions:[]};
@@ -79,7 +80,11 @@ function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,failRaw
     if(key.endsWith("-export.jsonl")){
      requests.rawPuts.push(options);
      if(failRawPut)throw Error("synthetic immutable blob collision");
-    }else requests.statePuts.push({key,options});
+    }else {
+     requests.statePuts.push({key,body,options});
+     if(failReservationPut && options.allowOverwrite===false)
+      throw Error("synthetic competing reservation");
+    }
     return {url:"private-test://archive"};
    }
   };
@@ -89,7 +94,11 @@ function loadImmutableBulkRoute({stateResponse=null,archiveResponse=null,failRaw
   };
   if(name==="../lib/crm-orders-bulk")return {
    isExplicitBulkExportEnabled:()=>true,
-   start:async()=>{requests.starts++;return {id:"test-op",status:"CREATED"};},
+   start:async()=>{
+    requests.starts++;
+    if(failStart)throw Error("synthetic lost Shopify response");
+    return {id:"test-op",status:"CREATED"};
+   },
    poll:async()=>({status:"COMPLETED",url:"https://example.invalid/signed",objectCount:"2",rootObjectCount:"1"}),
    downloadUrl:()=> "https://example.invalid/signed"
   };
@@ -317,4 +326,79 @@ test("financial audit reads the latest mutable Bulk checkpoint before issuing a 
  assert.ok(stateRead);
  assert.equal(stateRead.options.access,"private");
  assert.equal(stateRead.options.useCache,false);
+});
+
+test("first Bulk start commits an immutable reservation before calling Shopify",async()=>{
+ const {handler,requests}=loadImmutableBulkRoute();
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,200);
+ assert.equal(res.body.phase,"started");
+ assert.equal(requests.starts,1);
+ assert.equal(requests.statePuts.length,2);
+ const first=requests.statePuts[0],second=requests.statePuts[1];
+ assert.equal(first.options.access,"private");
+ assert.equal(first.options.addRandomSuffix,false);
+ assert.equal(first.options.allowOverwrite,false);
+ assert.equal(JSON.parse(first.body).status,"START_RESERVED");
+ assert.equal(JSON.parse(first.body).id,null);
+ assert.equal(second.options.allowOverwrite,true);
+ assert.equal(JSON.parse(second.body).id,"test-op");
+ assert.equal(requests.rawPuts.length,0);
+});
+
+test("lost Shopify start response leaves manual-only reservation and prevents retry",async()=>{
+ const {Readable}=require("node:stream");
+ const first=loadImmutableBulkRoute({failStart:true});
+ const firstResponse=response();
+ await first.handler(authorizedBulkReq,firstResponse);
+ assert.equal(firstResponse.statusCode,502);
+ assert.equal(first.requests.starts,1);
+ assert.equal(first.requests.statePuts.length,1);
+ const checkpoint=first.requests.statePuts[0].body;
+ assert.equal(JSON.parse(checkpoint).status,"START_RESERVED");
+
+ // A subsequent request must fail closed without checking Shopify or
+ // modifying the saved reservation, even if the start might have succeeded.
+ const second=loadImmutableBulkRoute({
+  stateResponse:{statusCode:200,stream:Readable.from([checkpoint])}
+ });
+ const secondResponse=response();
+ await second.handler(authorizedBulkReq,secondResponse);
+ assert.equal(secondResponse.statusCode,409);
+ assert.equal(secondResponse.body.blockedReason,"bulk_start_reservation_requires_manual_review");
+ assert.equal(secondResponse.body.reviewRequired,true);
+ assert.equal(second.requests.starts,0);
+ assert.equal(second.requests.statePuts.length,0);
+ assert.equal(second.requests.rawPuts.length,0);
+});
+
+test("competing immutable reservation denies Shopify start",async()=>{
+ const {handler,requests}=loadImmutableBulkRoute({failReservationPut:true});
+ const res=response();
+ await handler(authorizedBulkReq,res);
+ assert.equal(res.statusCode,502);
+ assert.equal(res.body.error,"bulk_export_failed");
+ assert.equal(requests.starts,0);
+ assert.equal(requests.statePuts.length,1);
+ assert.equal(requests.statePuts[0].options.allowOverwrite,false);
+ assert.equal(requests.rawPuts.length,0);
+});
+
+test("malformed START_RESERVED checkpoints never authorize a new export",async()=>{
+ const {Readable}=require("node:stream");
+ for(const state of [
+  {id:"test-op",status:"START_RESERVED",reservedAt:new Date().toISOString(),completed:false,downloaded:false},
+  {id:null,status:"START_RESERVED",reservedAt:"not-a-date",completed:false,downloaded:false},
+  {id:null,status:"START_RESERVED",reservedAt:new Date().toISOString(),completed:true,downloaded:false}
+ ]){
+  const {handler,requests}=loadImmutableBulkRoute({
+   stateResponse:{statusCode:200,stream:Readable.from([JSON.stringify(state)])}
+  });
+  const res=response();
+  await handler(authorizedBulkReq,res);
+  assert.equal(res.statusCode,502);
+  assert.equal(requests.starts,0);
+  assert.equal(requests.statePuts.length,0);
+ }
 });
