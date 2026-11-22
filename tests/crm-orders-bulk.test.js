@@ -9,6 +9,24 @@ test("bulk export includes all orders, customer IDs and product facts without a 
  for(const field of ["customer { id }","totalRefundedSet","currentSubtotalPriceSet","transactions { id kind status amountSet","lineItems","vendor tags description","cancelledAt","test"])
   assert.ok(BULK_QUERY.includes(field),field);
 });
+test("Bulk JSONL retains shop currency and original presentment currency for reconciliation",()=>{
+ const shop=(BULK_QUERY.match(/shopMoney \\{ amount currencyCode \\}/g)||[]).length;
+ const presentment=(BULK_QUERY.match(/presentmentMoney \\{ amount currencyCode \\}/g)||[]).length;
+ assert.equal(shop,7);
+ assert.equal(presentment,shop,"Every MoneyBag must retain both currency perspectives");
+ assert.match(BULK_QUERY,/currencyCode\\s+subtotalPriceSet/);
+ assert.match(BULK_QUERY,/transactions \\{ id kind status amountSet/);
+ // The financial audit uses shop USD, not presentment numbers as a fake FX conversion.
+ const {money}=require("../lib/crm-orders-ledger");
+ assert.equal(money({
+  shopMoney:{amount:"15.00",currencyCode:"USD"},
+  presentmentMoney:{amount:"2300",currencyCode:"JPY"},
+ }),1500);
+ assert.equal(money({
+  shopMoney:{amount:"15.00",currencyCode:"EUR"},
+  presentmentMoney:{amount:"15.00",currencyCode:"USD"},
+ }),null);
+});
 test("bulk start rejects API user errors",async()=>{
  await assert.rejects(()=>start(async()=>({bulkOperationRunQuery:{userErrors:[{message:"scope missing"}],bulkOperation:null}})),/scope missing/);
 });
