@@ -857,3 +857,21 @@ test("paid order merchandise subtotal must match discounted line totals before a
  assert.equal(verifyArchiveIntegrity(correct,state).status,
   "PENDING_MANUAL_EXPORT_AND_FINANCIAL_RECONCILIATION");
 });
+
+test("REFUNDED status with unrecovered captured cash blocks full-history finance signoff",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const row=order({id:"gid://shopify/Order/5301",displayFinancialStatus:"REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(20),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]});
+ assert.deepEqual(classifyOrder(row),{
+  eligible:false,reason:"fully_refunded_settlement_unreconciled"});
+ const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{
+  asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(audit.totals.excluded.fully_refunded_settlement_unreconciled,1);
+ assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(verifyArchiveIntegrity(audit,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"1",objectCount:"1"
+ }).status,"BLOCKED_REFUND_RECONCILIATION");
+});
