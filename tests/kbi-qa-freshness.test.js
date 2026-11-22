@@ -65,3 +65,13 @@ test("in-progress, nonmatching generation cannot prove readiness",()=>{
  assert.equal(completedSnapshotMatchesState(snapshot(),{...state(),slot:"2026-11-23-morning"}),false);
  assert.equal(sameSnapshot(snapshot(),{...snapshot(),generatedAt:"2026-11-22T05:45:26Z"}),false);
 });
+
+test("public health validates completed checkpoint and QA together",()=>{
+ const {qaMatchesCompletedSnapshot}=require("../lib/kbi-qa-freshness");
+ assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),state()),true);
+ assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),{...state(),complete:false}),false);
+ assert.equal(qaMatchesCompletedSnapshot({...qa(),at:"2026-11-22T05:45:25.500Z"},snapshot(),state()),false);
+ assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),{...state(),slot:"2026-11-22-noon"}),false);
+ assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),{...state(),records:10929}),false);
+ assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),null),false);
+});
