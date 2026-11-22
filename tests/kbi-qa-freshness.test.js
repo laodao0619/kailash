@@ -1,7 +1,7 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
-const {qaMatchesSnapshot,canReuseQA,REQUIRED_CHECKS}=require("../lib/kbi-qa-freshness");
+const {qaMatchesSnapshot,canReuseQA,REQUIRED_CHECKS,fullChecksPass}=require("../lib/kbi-qa-freshness");
 const qa=()=>({version:4,ready:true,at:"2026-11-22T06:00:00Z",checks:Object.fromEntries(REQUIRED_CHECKS.map(name=>[name,true])),metrics:{total:10930}});
 const snapshot=()=>({generatedAt:"2026-11-22T05:45:25Z",total:10930});
 const state=()=>({complete:true,completedAt:"2026-11-22T05:45:26Z",records:10930});
@@ -37,4 +37,13 @@ test("unknown failed checks cannot be hidden alongside the full required suite",
  const partial=qa();
  partial.checks.unexpectedNewCheck=false;
  assert.equal(qaMatchesSnapshot(partial,snapshot()),false);
+});
+
+test("QA writer fails closed on incomplete or truthy-only service checks",()=>{
+ const complete=qa().checks;
+ assert.equal(fullChecksPass(complete),true);
+ const missing={...complete};delete missing.noteRead;
+ assert.equal(fullChecksPass(missing),false);
+ assert.equal(fullChecksPass({...complete,sort:"true"}),false);
+ assert.equal(fullChecksPass({...complete,extraCheck:false}),false);
 });
