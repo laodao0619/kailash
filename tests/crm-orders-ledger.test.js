@@ -51,7 +51,7 @@ test("cancelled orders with captured funds are quarantined before lifetime audit
  assert.equal(classifyOrder(pendingWithCapture).reason,"cancelled_settlement_unreconciled");
  const cancelledWithoutFunds=order({id:"gid://shopify/Order/4903",
   cancelledAt:"2026-08-02T00:00:00Z",displayFinancialStatus:"PENDING",
-  transactions:[]});
+  totalRefundedSet:usd(0),transactions:[]});
  assert.equal(classifyOrder(cancelledWithoutFunds).reason,"cancelled");
  const out=await auditJsonl(Readable.from([JSON.stringify(cancelled)+"\n"]),{
   asOf:"2026-11-13T00:00:00Z"});
