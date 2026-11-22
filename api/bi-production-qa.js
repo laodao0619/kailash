@@ -1,6 +1,8 @@
 "use strict";
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
+const {read,STATE}=require("./bi-index-build");
+const {canReuseQA}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -53,7 +55,9 @@ module.exports=async(req,res)=>{
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   // An old successful report cannot skip QA for a newly built index.
+   const indexState=await read(STATE);
+   if(canReuseQA(previous,indexState))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
