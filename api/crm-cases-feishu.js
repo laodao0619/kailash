@@ -6,6 +6,7 @@ const writeback = require("../lib/crm-case-feishu-writeback");
 
 const STATE = "crm-cases/v1/feishu-writeback-state.json";
 const BATCH_LIMIT = 40;
+const EVENT_SCAN_LIMIT = 500; // Bounded archive window; not a complete-history audit.
 // Authenticated UAT may expose a fixed diagnostic code and a known field label,
 // never source Case text, customer values, Feishu response bodies or tokens.
 const SAFE_PREFLIGHT_FIELDS = new Set([
@@ -76,8 +77,11 @@ module.exports = async (req, res) => {
     const token = await feishu.tenantToken();
     // One fresh, validated field schema per request, shared across up to 40 Case writes.
     const { tableId, schema } = await writeback.ensureTable(token, { includeSchema: true });
-    const events = await cases.allEvents(500);
+    const events = await cases.allEvents(EVENT_SCAN_LIMIT);
     const grouped = cases.groupCases(events);
+    // Counts from the bounded event window are not counts of all archived Cases.
+    const sourceCoverage = { eventScanLimit: EVENT_SCAN_LIMIT, eventWindowCount: events.length,
+      fullHistoryCoverageVerified: false };
     const state = await cases.read(STATE) || { offset: 0 };
     // A malformed or out-of-range persisted offset must not silently rewind
     // the Case writer. Fail closed without touching the checkpoint or Feishu.
@@ -87,7 +91,7 @@ module.exports = async (req, res) => {
       console.error("[crm-cases-feishu] invalid Case checkpoint offset");
       return res.status(409).json({
         ok: false, blockedReason: "case_checkpoint_invalid",
-        totalCases: grouped.length, processed: 0, checkpointAdvanced: false,
+        totalCases: grouped.length, ...sourceCoverage, processed: 0, checkpointAdvanced: false,
       });
     }
     const start = offset === grouped.length ? 0 : offset;
@@ -107,13 +111,13 @@ module.exports = async (req, res) => {
       return res.status(409).json({
         ok: false, dryRun, blockedReason: "case_schema_preflight",
         ...(dryRun ? { diagnostic } : {}),
-        totalCases: grouped.length, processed: 0,
+        totalCases: grouped.length, ...sourceCoverage, processed: 0,
         checkpointAdvanced: false,
       });
     }
     if (dryRun) return res.status(200).json({
       ok: true, dryRun: true, tableId, checked,
-      totalCases: grouped.length, processed: 0,
+      totalCases: grouped.length, ...sourceCoverage, processed: 0,
       checkpointAdvanced: false,
     });
     const result = { created: 0, updated: 0, failed: 0 };
@@ -145,7 +149,7 @@ module.exports = async (req, res) => {
     });
     return res.status(result.failed ? 502 : 200).json({
       ok: !result.failed, tableId, tableUrl: `https://ycnic6l8vkfx.feishu.cn/base/Y7VvbgreAasoLtsYdhrcmmDUn5d?table=${tableId}`,
-      totalCases: grouped.length, processed: attempted, unattempted: batch.length - attempted, batchSize: batch.length,
+      totalCases: grouped.length, ...sourceCoverage, processed: attempted, unattempted: batch.length - attempted, batchSize: batch.length,
       blockedReason, ...result,
     });
   } catch (err) {
