@@ -5,6 +5,7 @@ on:
       - 'api/crm-cases-feishu.js'
       - 'lib/crm-case-*.js'
       - 'lib/crm-feishu.js'
+      - 'lib/crm-cases.js'
       - 'tests/crm-case-*.test.js'
       - '.github/workflows/crm-case-unified-ci.yml'
 permissions:
@@ -26,6 +27,7 @@ jobs:
           node --check lib/crm-case-feishu-writeback.js
           node --check lib/crm-case-field-adapter.js
           node --check lib/crm-feishu.js
+          node --check lib/crm-cases.js
           for file in tests/crm-case-*.test.js; do node --check "$file"; done
       - name: Run all Case regression tests
         run: node --test tests/crm-case-*.test.js
