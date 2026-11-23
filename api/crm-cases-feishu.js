@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const cases = require("../lib/crm-cases");
 const feishu = require("../lib/crm-feishu");
 const writeback = require("../lib/crm-case-feishu-writeback");
+const {checkpointForArchive} = require("../lib/crm-case-checkpoint-integrity");
 
 const STATE = "crm-cases/v1/feishu-writeback-state.json";
 const BATCH_LIMIT = 40;
@@ -83,17 +84,19 @@ module.exports = async (req, res) => {
     const sourceCoverage = { eventScanLimit: EVENT_SCAN_LIMIT, eventWindowCount: events.length,
       fullHistoryCoverageVerified: false };
     const state = await cases.read(STATE) || { offset: 0 };
-    // A malformed or out-of-range persisted offset must not silently rewind
-    // the Case writer. Fail closed without touching the checkpoint or Feishu.
-    // Equality means the preceding batch reached the end and may wrap.
-    const offset = state.offset === undefined ? 0 : state.offset;
-    if (!Number.isSafeInteger(offset) || offset < 0 || offset > grouped.length) {
-      console.error("[crm-cases-feishu] invalid Case checkpoint offset");
+    // A saved positional offset is valid only for the exact archive window
+    // it originally indexed. New events can reorder existing Cases; fail
+    // closed on drift or legacy nonzero checkpoints without a fingerprint.
+    // A zero offset may safely adopt the latest window on the next sweep.
+    const checkpoint = checkpointForArchive(state, grouped);
+    if (!checkpoint.ok) {
+      console.error("[crm-cases-feishu] Case checkpoint blocked", checkpoint.blockedReason);
       return res.status(409).json({
-        ok: false, blockedReason: "case_checkpoint_invalid",
+        ok: false, blockedReason: checkpoint.blockedReason,
         totalCases: grouped.length, ...sourceCoverage, processed: 0, checkpointAdvanced: false,
       });
     }
+    const {offset, fingerprint} = checkpoint;
     const start = offset === grouped.length ? 0 : offset;
     const batch = grouped.slice(start, start + BATCH_LIMIT);
     // Authenticated, read-only UAT mode: checks the real approved Feishu
@@ -142,6 +145,7 @@ module.exports = async (req, res) => {
       offset: start + batch.length >= grouped.length ? 0 : start + batch.length,
       lastRunAt: new Date().toISOString(), tableId,
       scannedEvents: events.length, totalCases: grouped.length,
+      sourceFingerprint: fingerprint,
       lastBatchProcessed: batch.length,
       lastBatchCreated: result.created,
       lastBatchUpdated: result.updated,
