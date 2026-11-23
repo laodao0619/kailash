@@ -12,8 +12,16 @@ test("CRM tier uses lifetime spend and a single recent order, independent of RFM
  assert.equal(g({M:0,F:1}).tier,"S+");
 });
 test("lifetime spending boundaries",()=>{
- for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"],[0,"基础客户"]])
+ for(const [spend,tier] of [[3000,"S+"],[2999.99,"S"],[1500,"S"],[1499.99,"A"],[800,"A"],[799.99,"B"],[0.01,"B"]])
   assert.equal(g({M:0,F:1,lifetimeSpendUSD:spend}).tier,tier);
+});
+test("zero-net lifetime with prior orders is unverified for active and dormant windows",()=>{
+ for(const patch of [{F:1,M:0,lifetimeSpendUSD:0},{F:0,M:0,lifetimeSpendUSD:0,latestValidOrderDate:"2026-01-01"}]){
+  const result=g(patch);
+  assert.equal(result.tier,null);
+  assert.equal(result.status,"unverified");
+  assert.equal(result.reason,"zero_net_spend_with_orders");
+ }
 });
 test("at exactly 180 days a customer can still be active; after 180 dormant",()=>{
  assert.equal(g({M:800,F:2,latestValidOrderDate:"2026-05-12"}).R,180);
