@@ -97,7 +97,7 @@ test("corrupt private JSON cannot silently reset Case checkpoint or hide event",
 
 test("malformed present event IDs cannot bypass archive deduplication", async()=>{
  const listPage=async()=>({blobs:[blob("malformed")],hasMore:false});
- for(const eventId of [42,false,{},[]," ","\\t"]) {
+ for(const eventId of [42,false,{},[]," ",String.fromCharCode(9)]) {
    await assert.rejects(allEvents(1,{
      listPage,readRecord:async()=>({...record("malformed"),eventId})
    }),/Case archive event ID invalid/);
