@@ -5,7 +5,9 @@ on:
       - 'api/crm-orders-bulk*.js'
       - 'lib/crm-orders-bulk.js'
       - 'lib/crm-orders-ledger.js'
+      - 'lib/crm-finance-audit-preflight.js'
       - 'tests/crm-orders-*.test.js'
+      - 'tests/crm-finance-audit-preflight.test.js'
       - '.github/workflows/crm-bulk-ci.yml'
   push:
     branches: ['crm-bulk-accel']
@@ -24,10 +26,12 @@ jobs:
         run: |
           node --check lib/crm-orders-bulk.js
           node --check lib/crm-orders-ledger.js
+          node --check lib/crm-finance-audit-preflight.js
           node --check api/crm-orders-bulk.js
           node --check api/crm-orders-bulk-audit.js
           node --check tests/crm-orders-bulk.test.js
           node --check tests/crm-orders-ledger.test.js
           node --check tests/crm-orders-sample-audit.test.js
+          node --check tests/crm-finance-audit-preflight.test.js
       - name: Run synthetic Shopify orders, refunds and seven-customer sample tests
-        run: node --test tests/crm-orders-bulk.test.js tests/crm-orders-ledger.test.js tests/crm-orders-sample-audit.test.js
+        run: node --test tests/crm-orders-bulk.test.js tests/crm-orders-ledger.test.js tests/crm-orders-sample-audit.test.js tests/crm-finance-audit-preflight.test.js
