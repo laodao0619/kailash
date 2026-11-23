@@ -7,9 +7,16 @@ const ARCHIVE="crm-execution/orders-bulk-v1-export.jsonl";
 const STATE="crm-execution/orders-bulk-v1-state.json";
 const REPORT="crm-execution/orders-bulk-v1-audit.json";
 function authorized(req){
- const expected=Buffer.from(process.env.CRON_SECRET||"");
- const given=Buffer.from((req.headers.authorization||"").replace(/^Bearer\s+/i,""));
- return !!expected.length&&expected.length===given.length&&crypto.timingSafeEqual(given,expected);
+ const secret=process.env.CRON_SECRET;
+ const authorization=req.headers?.authorization;
+ // A malformed or repeated Authorization header must fail closed, not throw
+ // before the request reaches the protected preflight/audit gates.
+ if(typeof secret!=="string"||!secret.length||typeof authorization!=="string")return false;
+ const match=/^Bearer ([^\s,]+)$/i.exec(authorization);
+ if(!match)return false;
+ const expected=Buffer.from(secret);
+ const given=Buffer.from(match[1]);
+ return expected.length===given.length&&crypto.timingSafeEqual(given,expected);
 }
 module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","no-store");
