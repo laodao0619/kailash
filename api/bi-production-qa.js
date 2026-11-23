@@ -2,7 +2,7 @@
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {read,STATE,CURRENT}=require("./bi-index-build");
-const {canReuseQA,fullChecksPass,tierFilterEvidencePass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
+const {canReuseQA,fullChecksPass,tierFilterEvidencePass,paginationSortEvidencePass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -66,12 +66,14 @@ module.exports=async(req,res)=>{
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
-  report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000;
+  report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000&&
+   first.data?.asOf===indexAtStart.generatedAt&&first.data?.slot===indexAtStart.slot;
   if(!report.checks.list)throw Error("list_not_ready");
   const d=first.data;
   report.metrics.total=d.masterTotal;report.metrics.pageCount=d.pageCount;
   report.metrics.firstPageCount=d.customers.length;
-  report.checks.sort=sorted(d.customers,"m180","desc");
+  const second=await call(listHandler,{page:"2",size:"25",sort:"m180",dir:"desc"});
+  report.checks.sort=second.code===200&&paginationSortEvidencePass(d,second.data,indexAtStart);
   const filtered=await call(listHandler,{page:"1",size:"50",tier:"S+"});
   report.checks.tier=filtered.code===200&&tierFilterEvidencePass(d,filtered.data,"S+",50);
   const sample=d.customers.find(c=>c.email&&c.id&&c.ordersLifetime>0);
