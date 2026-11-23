@@ -101,6 +101,7 @@ module.exports=async(req,res)=>{
   }
   const summary=await call(summaryHandler,{});
   report.checks.rfmSummary=summary.code===200&&summary.data?.ok&&
+   summary.data.generatedAt===indexAtStart.generatedAt&&
    summary.data.masterTotal===d.masterTotal&&
    summary.data.tiers.reduce((n,g)=>n+g.count,0)===d.masterTotal;
   report.metrics.rfmKnown=summary.data?.historical?.m180?.coverage||null;
@@ -115,6 +116,8 @@ module.exports=async(req,res)=>{
   const rfm=await call(rfmCubeHandler,{tier:"",aov:"all",r:"90",f:"2",m:"800"});
   const breakdown=rfm.data?.segments||[];
   report.checks.rfmEight=rfm.code===200&&rfm.data?.ok&&
+   rfm.data.asOf===indexAtStart.generatedAt&&
+   rfm.data.indexTotal===indexAtStart.total&&
    breakdown.length===8&&breakdown.every(x=>Number.isInteger(x.count)&&x.count>=0)&&
    breakdown.reduce((v,x)=>v+x.count,0)===rfm.data.classified&&
    rfm.data.classified+rfm.data.unknown?.count===d.masterTotal;
