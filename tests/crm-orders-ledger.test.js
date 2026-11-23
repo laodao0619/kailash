@@ -919,3 +919,34 @@ test("excluded cancelled and unpaid orders cannot conceal missing refund evidenc
   rootObjectCount:"2",objectCount:"2"
  }).status,"BLOCKED_PAYMENT_OR_CURRENCY_EVIDENCE");
 });
+
+test("guest or deleted-customer settled orders never disappear from full-history cash audit",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const guestPaid=order({id:"gid://shopify/Order/5501",customer:null,
+  displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(200),
+  totalRefundedSet:usd(0),transactions:[
+   {kind:"SALE",status:"SUCCESS",amountSet:usd(200)}]});
+ const guestRefund=order({id:"gid://shopify/Order/5502",customer:{},
+  displayFinancialStatus:"PENDING",totalRefundedSet:usd(20),transactions:[
+   {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]});
+ for(const guest of [guestPaid,guestRefund])
+  assert.equal(classifyOrder(guest).reason,"unassigned_customer_financial_evidence");
+ const audit=await auditJsonl(Readable.from([
+  JSON.stringify(guestPaid)+"\n"+JSON.stringify(guestRefund)+"\n"
+ ]),{asOf:"2026-11-13T00:00:00Z"});
+ assert.equal(audit.totals.excluded.unassigned_customer_financial_evidence,2);
+ assert.equal(audit.totals.eligible,0);
+ assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(verifyArchiveIntegrity(audit,{
+  status:"COMPLETED",downloaded:true,archivedAt:"2026-11-13T00:00:00Z",
+  rootObjectCount:"2",objectCount:"2"
+ }).status,"BLOCKED_UNASSIGNED_CUSTOMER_SETTLEMENT");
+});
+test("genuinely unpaid guest orders remain excluded without inventing a customer",()=>{
+ const guest=order({id:"gid://shopify/Order/5503",customer:null,
+  displayFinancialStatus:"PENDING",totalRefundedSet:usd(0),transactions:[]});
+ assert.deepEqual(classifyOrder(guest),{eligible:false,reason:"no_customer"});
+ assert.equal(classifyOrder(order({id:"gid://shopify/Order/5504",customer:null,
+  displayFinancialStatus:"PENDING",totalRefundedSet:null,transactions:[]})).reason,
+  "unassigned_customer_financial_evidence");
+});
