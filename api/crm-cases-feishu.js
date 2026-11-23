@@ -1,36 +1,228 @@
 "use strict";
+const crypto = require("crypto");
 const cases = require("../lib/crm-cases");
 const feishu = require("../lib/crm-feishu");
 const writeback = require("../lib/crm-case-feishu-writeback");
+const {checkpointForArchive} = require("../lib/crm-case-checkpoint-integrity");
 
 const STATE = "crm-cases/v1/feishu-writeback-state.json";
 const BATCH_LIMIT = 40;
+const EVENT_SCAN_LIMIT = 500; // Bounded archive window; not a complete-history audit.
+// Authenticated UAT may expose a fixed diagnostic code and a known field label,
+// never source Case text, customer values, Feishu response bodies or tokens.
+const SAFE_PREFLIGHT_FIELDS = new Set([
+  "CRM等级（Case核验）", "问题类别", "任务优先级", "沟通渠道", "沟通方向", "任务状态"
+]);
+function safePreflightDiagnostic(error) {
+  const message = String(error?.message || error);
+  let code = "schema_mismatch";
+  if (/Duplicate Case ID/.test(message)) code = "duplicate_case_id";
+  else if (/Invalid Case ID/.test(message)) code = "invalid_case_id";
+  else if (/select option not configured/.test(message)) code = "option_not_configured";
+  else if (/select options unavailable/.test(message)) code = "select_options_missing";
+  else if (/schema missing:/.test(message)) code = "field_missing";
+  else if (/duplicate field name/.test(message)) code = "duplicate_schema_field";
+  else if (/Invalid (?:single|multi)-select value/.test(message)) code = "invalid_select_value";
+  else if (/human-owned field/.test(message)) code = "human_field_guard";
+  const match = message.match(/(?:for:|missing:|mismatch:) (.+)$/);
+  const candidate = match ? match[1].trim() : null;
+  return { code, field: SAFE_PREFLIGHT_FIELDS.has(candidate) ? candidate : null };
+}
+// Only fixed diagnostic codes are logged. Upstream Feishu errors can contain
+// private Case text, customer identifiers, and credential fragments.
+function classifyCaseWriteFailure(error) {
+  const message = String(error?.message || error || "");
+  if (/Feishu Case identity lookup incomplete|Feishu Case identity record invalid|Duplicate Case ID in Feishu/.test(message)) {
+    return { code: "case_identity_blocked", blockedReason: "case_identity_lookup" };
+  }
+  if (/MultiSelectFieldConvFail|SingleSelectFieldConvFail|select option not configured|Case field type mismatch|Feishu field schema/.test(message)) {
+    return { code: "schema_conversion_blocked", blockedReason: "case_schema_conversion" };
+  }
+  if (/(?:\b429\b|rate.?limit|TooManyRequests)/i.test(message)) {
+    return { code: "rate_limited", blockedReason: "case_rate_limited" };
+  }
+  if (/(?:\b401\b|\b403\b|Unauthorized|Forbidden|InvalidAccessToken)/i.test(message)) {
+    return { code: "upstream_auth_blocked", blockedReason: "case_upstream_auth" };
+  }
+  return { code: "case_upsert_failed", blockedReason: null };
+}
+// Preview uses an independent, least-privilege UAT bearer for read-only schema
+// preflight. Never copy the production cron secret into Preview. This token is
+// invalid for scheduled writes, production, development, or other API routes.
+function authorizedPreviewPreflight(req) {
+  if (process.env.VERCEL_ENV !== "preview" || req.query?.dryRun !== "1") return false;
+  const expected = process.env.CRM_CASE_PREFLIGHT_TOKEN;
+  if (typeof expected !== "string" || Buffer.byteLength(expected, "utf8") < 24) return false;
+  const provided = String(req.headers?.authorization || "").match(/^Bearer\s+(\S+)$/i);
+  if (!provided) return false;
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(provided[1], "utf8");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET") return res.status(405).json({ ok: false });
-  if (!cases.authorized(req)) return res.status(401).json({ ok: false });
+  if (!cases.authorized(req) && !authorizedPreviewPreflight(req)) return res.status(401).json({ ok: false });
+  const dryRun = req.query?.dryRun === "1";
+  // Explicit authenticated, read-only manifest audit. This runs separately
+  // from Feishu schema checks, reads no Case bodies, and cannot save a cursor.
+  // Listing completeness does NOT prove that all events have been read or
+  // that the communication table contains every archived Case.
+  if (req.query?.auditArchive === "1") {
+    if (!dryRun) return res.status(400).json({
+      ok:false, blockedReason:"case_archive_audit_requires_dry_run",
+      checkpointAdvanced:false,
+    });
+    // A Preview-only schema preflight credential must never authorize private
+    // archive inspection, even for a metadata-only read. Keep least privilege
+    // identical to the private content audit below.
+    if (!cases.authorized(req)) return res.status(403).json({
+      ok:false, blockedReason:"case_archive_audit_not_authorized",
+      checkpointAdvanced:false,
+    });
+    try {
+      const {list} = require("@vercel/blob");
+      const {auditCaseArchive} = require("../lib/crm-case-archive-manifest");
+      const manifest = await auditCaseArchive({listPage:list,prefix:cases.PREFIX});
+      return res.status(200).json({
+        ok:true,dryRun:true,archiveManifest:manifest,
+        processed:0,checkpointAdvanced:false,feishuWrites:0,
+      });
+    } catch {
+      // Never emit upstream paths, customer data or provider errors.
+      console.error("[crm-cases-feishu] archive manifest incomplete");
+      return res.status(503).json({
+        ok:false,blockedReason:"case_archive_manifest_incomplete",
+        checkpointAdvanced:false,
+      });
+    }
+  }
+  // Content audit is separate from manifest listing. Only the production
+  // cron bearer may read the original private archived events; a Preview
+  // schema-preflight token never grants message-content access. Response
+  // contains aggregate evidence, no Case IDs, emails, subjects, or excerpts.
+  if (req.query?.auditContent === "1") {
+    if (!dryRun) return res.status(400).json({
+      ok:false, blockedReason:"case_content_audit_requires_dry_run", checkpointAdvanced:false,
+    });
+    if (!cases.authorized(req)) return res.status(403).json({
+      ok:false, blockedReason:"case_content_audit_not_authorized", checkpointAdvanced:false,
+    });
+    try {
+      const {list} = require("@vercel/blob");
+      // Content window is capped at three 100-object pages per authorized
+      // request. This is NOT a complete archive or Feishu reconciliation.
+      const requested = req.query?.contentPages;
+      if (requested !== undefined &&
+          (typeof requested !== "string" || !/^[123]$/.test(requested))) {
+        return res.status(400).json({
+          ok:false,blockedReason:"case_content_audit_bounds_invalid",
+          checkpointAdvanced:false,
+        });
+      }
+      const pages = requested ? Number(requested) : 1;
+      const page = pages === 1
+        ? await require("../lib/crm-case-content-audit").auditCaseContentPage({
+            listPage:list, readRecord:cases.read,
+            cursor:req.query?.contentCursor,
+          })
+        : await require("../lib/crm-case-content-window").auditCaseContentWindow({
+            listPage:list, readRecord:cases.read,
+            cursor:req.query?.contentCursor, maxPages:pages,
+          });
+      return res.status(200).json({
+        ok:true,dryRun:true,contentAudit:page,
+        processed:0,feishuWrites:0,checkpointAdvanced:false,
+      });
+    } catch {
+      console.error("[crm-cases-feishu] private content audit incomplete");
+      return res.status(503).json({
+        ok:false,blockedReason:"case_content_audit_incomplete",checkpointAdvanced:false,
+      });
+    }
+  }
+  // Fail closed for *every* unknown runtime, including local/non-Vercel
+  // environments. A valid CRON_SECRET alone must not enable Feishu writes.
+  // Authenticated dryRun is read-only in all environments.
+  const runtimeEnv = process.env.VERCEL_ENV;
+  if (!dryRun && runtimeEnv !== "production") {
+    return res.status(403).json({
+      ok: false, blockedReason: "case_nonproduction_readonly", checkpointAdvanced: false,
+    });
+  }
   try {
     const token = await feishu.tenantToken();
-    const tableId = await writeback.ensureTable(token);
-    const events = await cases.allEvents(500);
+    // One fresh, validated field schema per request, shared across up to 40 Case writes.
+    const { tableId, schema } = await writeback.ensureTable(token, { includeSchema: true });
+    const events = await cases.allEvents(EVENT_SCAN_LIMIT);
     const grouped = cases.groupCases(events);
+    // Counts from the bounded event window are not counts of all archived Cases.
+    const sourceCoverage = { eventScanLimit: EVENT_SCAN_LIMIT, eventWindowCount: events.length,
+      fullHistoryCoverageVerified: false };
     const state = await cases.read(STATE) || { offset: 0 };
-    const start = Number(state.offset) >= grouped.length ? 0 : Number(state.offset) || 0;
+    // A saved positional offset is valid only for the exact archive window
+    // it originally indexed. New events can reorder existing Cases; fail
+    // closed on drift or legacy nonzero checkpoints without a fingerprint.
+    // A zero offset may safely adopt the latest window on the next sweep.
+    const checkpoint = checkpointForArchive(state, grouped);
+    if (!checkpoint.ok) {
+      console.error("[crm-cases-feishu] Case checkpoint blocked", checkpoint.blockedReason);
+      return res.status(409).json({
+        ok: false, blockedReason: checkpoint.blockedReason,
+        totalCases: grouped.length, ...sourceCoverage, processed: 0, checkpointAdvanced: false,
+      });
+    }
+    const {offset, fingerprint} = checkpoint;
+    const start = offset === grouped.length ? 0 : offset;
     const batch = grouped.slice(start, start + BATCH_LIMIT);
+    // Authenticated, read-only UAT mode: checks the real approved Feishu
+    // field schema/options and the next Case batch; never writes or advances
+    // the checkpoint. No source events or customer PII in the response.
+
+    let checked;
+    try {
+      checked = writeback.preflightCaseBatch(batch, schema);
+    } catch (err) {
+      const diagnostic = safePreflightDiagnostic(err);
+      // The scheduled cron emits only a fixed error code. The authorized
+      // dryRun exposes only known schema field labels for isolated diagnosis.
+      console.error("[crm-cases-feishu] schema preflight blocked", diagnostic.code);
+      return res.status(409).json({
+        ok: false, dryRun, blockedReason: "case_schema_preflight",
+        ...(dryRun ? { diagnostic } : {}),
+        totalCases: grouped.length, ...sourceCoverage, processed: 0,
+        checkpointAdvanced: false,
+      });
+    }
+    if (dryRun) return res.status(200).json({
+      ok: true, dryRun: true, tableId, checked,
+      totalCases: grouped.length, ...sourceCoverage, processed: 0,
+      checkpointAdvanced: false,
+    });
     const result = { created: 0, updated: 0, failed: 0 };
-    // A failed record must be retried; no checkpoint advance on partial failure.
+    let attempted = 0;
+    let blockedReason = null;
+    // Keep the entire batch checkpoint on any failure. Do not fan out a
+    // deterministic Feishu schema error to all 40 Cases in the same run.
     for (const item of batch) {
+      attempted++;
       try {
-        result[await writeback.upsertCase(token, tableId, item)]++;
+        result[await writeback.upsertCase(token, tableId, item, schema)]++;
       } catch (err) {
         result.failed++;
-        console.error("[crm-cases-feishu] upsert failed", item.caseId, String(err.message || err).slice(0, 110));
+        const failure = classifyCaseWriteFailure(err);
+        console.error("[crm-cases-feishu] upsert failed", failure.code);
+        // Stop on the first upstream failure; retain the prior checkpoint.
+        blockedReason = failure.blockedReason || "case_write_failed";
+        break;
       }
     }
     if (!result.failed) await cases.save(STATE, {
       offset: start + batch.length >= grouped.length ? 0 : start + batch.length,
       lastRunAt: new Date().toISOString(), tableId,
       scannedEvents: events.length, totalCases: grouped.length,
+      sourceFingerprint: fingerprint,
       lastBatchProcessed: batch.length,
       lastBatchCreated: result.created,
       lastBatchUpdated: result.updated,
@@ -38,10 +230,12 @@ module.exports = async (req, res) => {
     });
     return res.status(result.failed ? 502 : 200).json({
       ok: !result.failed, tableId, tableUrl: `https://ycnic6l8vkfx.feishu.cn/base/Y7VvbgreAasoLtsYdhrcmmDUn5d?table=${tableId}`,
-      totalCases: grouped.length, processed: batch.length, ...result,
+      totalCases: grouped.length, ...sourceCoverage, processed: attempted, unattempted: batch.length - attempted, batchSize: batch.length,
+      blockedReason, ...result,
     });
   } catch (err) {
-    console.error("[crm-cases-feishu] failed", String(err.message || err).slice(0, 140));
+    // Upstream error strings can contain customer text, search filters or credentials.
+    console.error("[crm-cases-feishu] failed", classifyCaseWriteFailure(err).code);
     return res.status(502).json({ok:false,error:"feishu_writeback_unavailable",retryable:true});
   }
 };
