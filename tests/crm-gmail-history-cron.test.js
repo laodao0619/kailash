@@ -25,3 +25,19 @@ test("Shopify customer/order windows and service reminders remain scheduled",()=
   assert.deepEqual(entries.filter(x=>x.path===route).map(x=>x.schedule).sort(),times.sort());
  }
 });
+
+test("customer support, BI freshness, ops reporting and worker maintenance schedules survive retirement",()=>{
+ const required=[
+  ["/api/crm-case-private-preview","*/5 * * * *"],
+  ["/api/crm-worker","0 0 * * *"],
+  ["/api/bi-index-build","*/5 * * * *"],
+  ["/api/bi-production-qa","*/5 * * * *"],
+  ["/api/bi-ops-dashboard","0,30 * * * *"],
+  ["/api/bi-crm-report","30 5 * * *"],
+ ];
+ for(const [route,schedule] of required){
+  assert.deepEqual(entries.filter(x=>x.path===route).map(x=>x.schedule),[schedule],route);
+ }
+ const pairs=entries.map(x=>x.path+" "+x.schedule);
+ assert.equal(new Set(pairs).size,pairs.length,"duplicate scheduled invocation");
+});
