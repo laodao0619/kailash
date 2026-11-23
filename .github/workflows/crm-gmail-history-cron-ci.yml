@@ -1,0 +1,23 @@
+name: Retired Gmail History Cron Safety
+on:
+  pull_request:
+    paths:
+      - "vercel.json"
+      - "tests/crm-gmail-history-cron.test.js"
+      - ".github/workflows/crm-gmail-history-cron-ci.yml"
+  push:
+    paths:
+      - "vercel.json"
+      - "tests/crm-gmail-history-cron.test.js"
+      - ".github/workflows/crm-gmail-history-cron-ci.yml"
+jobs:
+  scheduled-safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: node --test tests/crm-gmail-history-cron.test.js
