@@ -16,10 +16,25 @@ test("metadata-only audit reaches final page beyond old 500-event window", async
   assert.deepEqual(pages,["first","p2"]);
   assert.equal(result.eventObjectCount,502);
   assert.equal(result.pageCount,2);
-  assert.equal(result.fullArchiveListingVerified,true);
+  assert.equal(result.paginationTraversalCompleted,true);
+  assert.equal(result.fullArchiveListingVerified,false);
+  assert.equal(result.sourceSnapshotConsistencyVerified,false);
   assert.equal(result.feishuCoverageVerified,false);
   assert.match(result.listingFingerprint,/^[a-f0-9]{64}$/);
   assert.equal(JSON.stringify(result).includes("crm-cases/"),false);
+});
+
+test("single-page traversal cannot certify a mutable source snapshot",async()=>{
+  const result=await auditCaseArchive({listPage:async()=>({
+    blobs:[blob("single")],hasMore:false,
+  })});
+  assert.equal(result.pageCount,1);
+  assert.equal(result.eventObjectCount,1);
+  assert.equal(result.paginationTraversalCompleted,true);
+  assert.equal(result.fullArchiveListingVerified,false);
+  assert.equal(result.sourceSnapshotConsistencyVerified,false);
+  assert.equal(result.eventContentVerified,false);
+  assert.equal(result.feishuCoverageVerified,false);
 });
 
 test("duplicate paths across pages block manifest completion",async()=>{
