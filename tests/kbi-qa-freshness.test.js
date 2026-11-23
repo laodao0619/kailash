@@ -78,10 +78,16 @@ test("public health validates completed checkpoint and QA together",()=>{
 
 test("tier-filter QA verifies a non-empty full-index result instead of vacuous every()",()=>{
  const {tierFilterEvidencePass}=require("../lib/kbi-qa-freshness");
- const master={masterTotal:10935,facets:{tiers:[{value:"S+",count:65},{value:"B",count:1000}]}};
- const page={ok:true,masterTotal:10935,total:65,page:1,pageSize:50,pageCount:2,
+ const master={masterTotal:10935,asOf:"2026-11-23T01:20:24Z",slot:"2026-11-23-morning",facets:{tiers:[{value:"S+",count:65},{value:"B",count:1000}]}};
+ const page={ok:true,masterTotal:10935,asOf:master.asOf,slot:master.slot,total:65,page:1,pageSize:50,pageCount:2,
   customers:Array.from({length:50},(_,i)=>({id:String(i+1),tier:"S+"}))};
  assert.equal(tierFilterEvidencePass(master,page),true);
+ assert.equal(tierFilterEvidencePass(master,{...page,asOf:"2026-11-22T05:45:25Z"}),false,
+  "tier filter from a previous private index is never accepted");
+ assert.equal(tierFilterEvidencePass(master,{...page,slot:"2026-11-22-afternoon"}),false);
+ assert.equal(tierFilterEvidencePass({...master,asOf:null},page),false);
+ assert.equal(tierFilterEvidencePass(master,{...page,customers:[...page.customers.slice(1),page.customers[1]]}),false,
+  "duplicated customer IDs in the filtered page cannot pass QA");
  assert.equal(tierFilterEvidencePass(master,{...page,customers:[]}),false,
   "empty rows must not satisfy Array.every");
  assert.equal(tierFilterEvidencePass(master,{...page,total:0,customers:[],pageCount:0}),false,
@@ -91,7 +97,7 @@ test("tier-filter QA verifies a non-empty full-index result instead of vacuous e
  assert.equal(tierFilterEvidencePass(master,{...page,masterTotal:10930}),false,
   "mixed index generations must not be green");
  assert.equal(tierFilterEvidencePass(master,{...page,customers:[...page.customers.slice(1),{tier:"B"}]}),false);
- assert.equal(tierFilterEvidencePass({masterTotal:10935,facets:{tiers:[]}},page),false,
+ assert.equal(tierFilterEvidencePass({...master,facets:{tiers:[]}},page),false,
   "unknown expected tier count is not proof of filtering");
 });
 
