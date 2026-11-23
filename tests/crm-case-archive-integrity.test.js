@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {allEvents,PREFIX} = require("../lib/crm-cases");
+const {allEvents,PREFIX,decodePrivateBlob} = require("../lib/crm-cases");
 
 // Synthetic-only Blob mocks. No Feishu, Gmail or production state is touched.
 const blob = name => ({pathname: PREFIX + name + ".json"});
@@ -75,4 +75,22 @@ test("duplicate Gmail event evidence at distinct Blob paths fails closed",async(
   listPage:async()=>({blobs:[blob("a"),blob("b")],hasMore:false}),
   readRecord:async()=>record("same-id")
  }),/Case archive duplicate event/);
+});
+
+test("private Blob read failures cannot masquerade as absent Case checkpoint",async()=>{
+  assert.equal(await decodePrivateBlob(null),null); // Truly missing, first-run only.
+  for (const statusCode of [401,403,404,500,503]) {
+    await assert.rejects(
+      decodePrivateBlob({statusCode,stream:(async function*(){yield Buffer.from("{}")})()}),
+      /Case private Blob read incomplete/
+    );
+  }
+  await assert.rejects(decodePrivateBlob({statusCode:200}),/Case private Blob read incomplete/);
+});
+test("corrupt private JSON cannot silently reset Case checkpoint or hide event",async()=>{
+  const response = value=>({statusCode:200,stream:(async function*(){yield Buffer.from(value)})()});
+  for (const value of ["", "null", "{malformed", "undefined"]) {
+    await assert.rejects(decodePrivateBlob(response(value)),/Case private Blob JSON invalid/);
+  }
+  assert.deepEqual(await decodePrivateBlob(response('{"offset":40}')),{offset:40});
 });
