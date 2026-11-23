@@ -124,3 +124,16 @@ test("a zero-order high-value sample blocks both preflight and archive audit",as
   assert.equal(audit.statusCode,409);
   assert.equal(audit.body.archiveScanned,false);
 });
+
+
+test("malformed or repeated authorization fails closed before private reads",async()=>{
+  for(const authorization of [null,[],["Bearer synthetic-cron-secret"],{},123,
+    "synthetic-cron-secret","Bearer synthetic-cron-secret,Bearer synthetic-cron-secret",
+    "Bearer  synthetic-cron-secret","Basic synthetic-cron-secret"]){
+    for(const query of [{preflight:"1"},{}]){
+      const response=await invokePreflight({query,authorization});
+      assert.equal(response.statusCode,401);
+      assert.equal(response.body.ok,false);
+    }
+  }
+});
