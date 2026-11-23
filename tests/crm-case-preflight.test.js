@@ -233,9 +233,13 @@ test("invalid persisted offsets fail closed before Case writes or checkpoint cha
     }
     assert.equal(writes, 0);
     assert.equal(saves, 0);
-    // Equality at a completed batch boundary is a legitimate wrap, not
-    // corrupted state. A dry-run still must never advance the checkpoint.
-    cases.read = async () => ({ offset: 1 });
+    // Equality at a completed batch boundary is a legitimate wrap only
+    // when the persisted window identity matches the exact current archive.
+    // A legacy offset without provenance must now fail closed.
+    const {archiveFingerprint} = require("../lib/crm-case-checkpoint-integrity");
+    cases.read = async () => ({
+      offset: 1, sourceFingerprint: archiveFingerprint([example]),
+    });
     const wrap = makeRes();
     await handler({ method: "GET", query: { dryRun: "1" } }, wrap);
     assert.equal(wrap.code, 200);
