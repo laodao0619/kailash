@@ -104,11 +104,26 @@ module.exports = async (req, res) => {
     });
     try {
       const {list} = require("@vercel/blob");
-      const {auditCaseContentPage} = require("../lib/crm-case-content-audit");
-      const page = await auditCaseContentPage({
-        listPage:list, readRecord:cases.read,
-        cursor:req.query?.contentCursor,
-      });
+      // Content window is capped at three 100-object pages per authorized
+      // request. This is NOT a complete archive or Feishu reconciliation.
+      const requested = req.query?.contentPages;
+      if (requested !== undefined &&
+          (typeof requested !== "string" || !/^[123]$/.test(requested))) {
+        return res.status(400).json({
+          ok:false,blockedReason:"case_content_audit_bounds_invalid",
+          checkpointAdvanced:false,
+        });
+      }
+      const pages = requested ? Number(requested) : 1;
+      const page = pages === 1
+        ? await require("../lib/crm-case-content-audit").auditCaseContentPage({
+            listPage:list, readRecord:cases.read,
+            cursor:req.query?.contentCursor,
+          })
+        : await require("../lib/crm-case-content-window").auditCaseContentWindow({
+            listPage:list, readRecord:cases.read,
+            cursor:req.query?.contentCursor, maxPages:pages,
+          });
       return res.status(200).json({
         ok:true,dryRun:true,contentAudit:page,
         processed:0,feishuWrites:0,checkpointAdvanced:false,
