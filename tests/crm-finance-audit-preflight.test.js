@@ -106,3 +106,21 @@ test("unauthorized preflight and missing configuration never read the archive",a
   assert.equal(audit.statusCode,409);
   assert.equal(audit.body.archiveScanned,false);
 });
+
+
+test("a zero-order high-value sample blocks both preflight and archive audit",async()=>{
+  const counts=JSON.parse(good.CRM_FINANCE_SAMPLE_EXPECTED_ORDER_COUNTS);
+  counts[ids[0]]=0;
+  const env={...good,CRM_FINANCE_SAMPLE_EXPECTED_ORDER_COUNTS:JSON.stringify(counts)};
+  const configuration=financeAuditConfiguration(env);
+  assert.equal(configuration.ready,false);
+  assert.equal(configuration.diagnostic.sourceOrderCountsFormatValid,false);
+  assert.ok(configuration.diagnostic.blockers.includes("seven_verified_source_order_counts"));
+  const diagnostic=await invokePreflight({query:{preflight:"1"},env});
+  assert.equal(diagnostic.statusCode,200);
+  assert.equal(diagnostic.body.ok,false);
+  assert.equal(diagnostic.body.archiveScanned,false);
+  const audit=await invokePreflight({env});
+  assert.equal(audit.statusCode,409);
+  assert.equal(audit.body.archiveScanned,false);
+});
