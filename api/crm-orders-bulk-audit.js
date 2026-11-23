@@ -17,6 +17,12 @@ module.exports=async(req,res)=>{
  if(!authorized(req))return res.status(401).json({ok:false});
  // Protected read-only preflight: never loads bulk JSONL, saves checkpoints,
  // returns seven customer IDs, or discloses configured source counts.
+ // A malformed or repeated preflight parameter must never fall through to
+ // the report-writing audit path (e.g. preflight=1&preflight=1).
+ if(req.query && Object.prototype.hasOwnProperty.call(req.query,"preflight") &&
+    req.query.preflight!=="1")return res.status(400).json({
+  ok:false,error:"invalid_preflight_mode",archiveScanned:false,feishuWrites:0
+ });
  const configuration=financeAuditConfiguration(process.env);
  if(req.query?.preflight==="1")return res.status(200).json({
   ok:configuration.ready,dryRun:true,financialAuditApproved:false,
