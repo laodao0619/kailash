@@ -94,3 +94,36 @@ test("tier-filter QA verifies a non-empty full-index result instead of vacuous e
  assert.equal(tierFilterEvidencePass({masterTotal:10935,facets:{tiers:[]}},page),false,
   "unknown expected tier count is not proof of filtering");
 });
+
+
+test("cross-page sorted customer index requires consistent metadata and disjoint IDs",()=>{
+ const {paginationSortEvidencePass}=require("../lib/kbi-qa-freshness");
+ const source={version:2,slot:"2026-11-23-morning",generatedAt:"2026-11-23T01:20:24Z",total:10935};
+ const rows=(start)=>Array.from({length:25},(_,i)=>({id:String(start+i),m180:10000-(start+i)}));
+ const first={ok:true,page:1,pageSize:25,pageCount:438,total:10935,masterTotal:10935,
+  asOf:source.generatedAt,slot:source.slot,customers:rows(1)};
+ const second={...first,page:2,customers:rows(26)};
+ assert.equal(paginationSortEvidencePass(first,second,source),true);
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:first.customers},source),false,
+  "repeated page one must fail even when every row is correctly sorted");
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:rows(26).reverse()},source),false,
+  "unsorted second page must fail");
+ assert.equal(paginationSortEvidencePass(first,{...second,asOf:"2026-11-22T05:45:25Z"},source),false);
+ assert.equal(paginationSortEvidencePass({...first,masterTotal:10930},second,source),false);
+ assert.equal(paginationSortEvidencePass(first,{...second,pageCount:437},source),false);
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:second.customers.slice(1)},source),false);
+ assert.equal(paginationSortEvidencePass(first,second,{...source,total:10936}),false);
+});
+test("cross-page QA rejects unknown-first, nonnumeric and duplicate-ID sort evidence",()=>{
+ const {paginationSortEvidencePass}=require("../lib/kbi-qa-freshness");
+ const source={version:2,slot:"morning",generatedAt:"2026-11-23T01:00:00Z",total:1000};
+ const rows=(offset)=>Array.from({length:25},(_,i)=>({id:String(offset+i),m180:500-offset-i}));
+ const first={ok:true,page:1,pageSize:25,pageCount:40,total:1000,masterTotal:1000,
+  asOf:source.generatedAt,slot:source.slot,customers:rows(1)};
+ const second={...first,page:2,customers:rows(26)};
+ assert.equal(paginationSortEvidencePass(first,second,source),true);
+ assert.equal(paginationSortEvidencePass({...first,customers:first.customers.map(row=>({...row,m180:null}))},second,source),false);
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:[{...second.customers[0],m180:"99"},...second.customers.slice(1)]},source),false);
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:[{...second.customers[0],id:"1"},...second.customers.slice(1)]},source),false);
+ assert.equal(paginationSortEvidencePass(first,{...second,customers:[{...second.customers[0],id:"abc"},...second.customers.slice(1)]},source),false);
+});
