@@ -154,3 +154,21 @@ test("missing customer rows, impossible rolling values and unsafe sums never yie
  });
  assert.equal(prepareGrades(tooLarge,reviewed).reason,"audit_aggregate_overflow");
 });
+
+test("rolling M/F cannot be relabelled with a different snapshot day",()=>{
+ const f=fixture();
+ for(const day of ["2026-11-07","2026-11-09",null,"invalid"]){
+  const x=prepareGrades(f,{...reviewed,asOfDate:day});
+  assert.equal(x.ok,false);
+  assert.equal(x.reason,"audit_snapshot_date_mismatch");
+  assert.equal(x.grades.size,0);
+ }
+ const x=prepareGrades(f,{...reviewed,asOfDate:"2026-11-08"});
+ assert.equal(x.ok,true);
+ assert.equal(x.grades.get("gid://shopify/Customer/101").evidence.auditDate,"2026-11-08");
+ delete f.asOf;
+ const missing=prepareGrades(f,{...reviewed,asOfDate:"2026-11-08"});
+ assert.equal(missing.ok,false);
+ assert.equal(missing.reason,"invalid_snapshot_date");
+ assert.equal(missing.grades.size,0);
+});
