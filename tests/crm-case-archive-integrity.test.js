@@ -94,3 +94,20 @@ test("corrupt private JSON cannot silently reset Case checkpoint or hide event",
   }
   assert.deepEqual(await decodePrivateBlob(response('{"offset":40}')),{offset:40});
 });
+
+test("malformed present event IDs cannot bypass archive deduplication", async()=>{
+ const listPage=async()=>({blobs:[blob("malformed")],hasMore:false});
+ for(const eventId of [42,false,{},[]," ","\\t"]) {
+   await assert.rejects(allEvents(1,{
+     listPage,readRecord:async()=>({...record("malformed"),eventId})
+   }),/Case archive event ID invalid/);
+ }
+ // Legacy archives may have genuinely absent IDs; do not rewrite or discard
+ // historical source evidence solely because the old schema had no eventId.
+ for(const eventId of [undefined,null,""]) {
+   const rows=await allEvents(1,{
+     listPage,readRecord:async()=>({...record("legacy"),eventId})
+   });
+   assert.equal(rows.length,1);
+ }
+});
