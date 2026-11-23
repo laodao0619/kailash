@@ -2,7 +2,7 @@
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {read,STATE,CURRENT}=require("./bi-index-build");
-const {canReuseQA,fullChecksPass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
+const {canReuseQA,fullChecksPass,tierFilterEvidencePass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -73,8 +73,7 @@ module.exports=async(req,res)=>{
   report.metrics.firstPageCount=d.customers.length;
   report.checks.sort=sorted(d.customers,"m180","desc");
   const filtered=await call(listHandler,{page:"1",size:"50",tier:"S+"});
-  report.checks.tier=filtered.code===200&&filtered.data?.ok&&
-   filtered.data.customers.every(row=>row.tier==="S+");
+  report.checks.tier=filtered.code===200&&tierFilterEvidencePass(d,filtered.data,"S+",50);
   const sample=d.customers.find(c=>c.email&&c.id&&c.ordersLifetime>0);
   if(sample){
    const searched=await call(listHandler,{q:sample.email,size:"25"});
