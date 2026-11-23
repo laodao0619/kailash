@@ -83,7 +83,8 @@ test("authenticated Case dryRun returns only safe counts, no upsert or checkpoin
     assert.equal(res.code,200);
     assert.deepEqual(res.body, {
       ok:true, dryRun:true, tableId:writeback.TABLE, checked:1,
-      totalCases:1, processed:0, checkpointAdvanced:false,
+      totalCases:1, eventScanLimit:500, eventWindowCount:1,
+      fullHistoryCoverageVerified:false, processed:0, checkpointAdvanced:false,
     });
     assert.equal(writes,0);
     assert.equal(saves,0);
