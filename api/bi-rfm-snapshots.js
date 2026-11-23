@@ -1,10 +1,11 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put,list}=require("@vercel/blob");
 const ROOT="kbi-rfm-snapshots/v1/";
 function auth(req){
  const k=String(process.env.KBI_ACCESS_TOKEN||""),g=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- return k.length>=24&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(k).digest(),crypto.createHash("sha256").update(g).digest());
+ return isKbiTokenConfigured(k)&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(k).digest(),crypto.createHash("sha256").update(g).digest());
 }
 function safeId(v){return /^[a-zA-Z0-9_-]{8,60}$/.test(String(v||""));}
 async function read(path){

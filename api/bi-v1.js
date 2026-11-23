@@ -1,5 +1,6 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {tenantToken}=require("../lib/crm-feishu");
 async function request(t,path){
  const r=await fetch("https://open.feishu.cn/open-apis"+path,{headers:{Authorization:"Bearer "+t}});
@@ -13,7 +14,7 @@ const SIZE=50;
 function auth(req){
  const secret=process.env.KBI_ACCESS_TOKEN||"";
  const given=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
- if(secret.length<24||!given)return false;
+ if(!isKbiTokenConfigured(secret)||!given)return false;
  const x=crypto.createHash("sha256").update(given).digest();
  const y=crypto.createHash("sha256").update(secret).digest();
  return crypto.timingSafeEqual(x,y);
@@ -89,7 +90,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
+ if(!isKbiTokenConfigured())return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
  if(!auth(req))return res.status(401).json({ok:false,error:"unauthorized"});
  try{
   const mode=String(req.query?.mode||"customers");

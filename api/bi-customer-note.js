@@ -1,11 +1,12 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const ROOT="kbi-customer-notes/v1";
 function authorized(req){
  const expected=String(process.env.KBI_ACCESS_TOKEN||"");
  const actual=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- if(expected.length<24||!actual)return false;
+ if(!isKbiTokenConfigured(expected)||!actual)return false;
  return crypto.timingSafeEqual(
   crypto.createHash("sha256").update(expected).digest(),
   crypto.createHash("sha256").update(actual).digest());

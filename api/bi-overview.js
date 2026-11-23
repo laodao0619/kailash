@@ -1,11 +1,12 @@
 "use strict";
-const crypto=require("node:crypto");
+
+const {isKbiTokenConfigured}=require("../lib/kbi-auth");const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
 let cached=null, pending=null;
 function authorized(req){
  const expected=String(process.env.KBI_ACCESS_TOKEN||"");
  const got=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
- if(expected.length<24||!got)return false;
+ if(!isKbiTokenConfigured(expected)||!got)return false;
  return crypto.timingSafeEqual(crypto.createHash("sha256").update(expected).digest(),
   crypto.createHash("sha256").update(got).digest());
 }
@@ -20,7 +21,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"auth_not_configured"});
+ if(!isKbiTokenConfigured())return res.status(503).json({ok:false,error:"auth_not_configured"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  if(!process.env.SHOPIFY_SHOP_DOMAIN||
     !(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||
