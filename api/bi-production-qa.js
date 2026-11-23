@@ -1,6 +1,8 @@
 "use strict";
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
+const {read,STATE,CURRENT}=require("./bi-index-build");
+const {canReuseQA,fullChecksPass,tierFilterEvidencePass,paginationSortEvidencePass,snapshotIdentity,sameSnapshot,completedSnapshotMatchesState}=require("../lib/kbi-qa-freshness");
 const listHandler=require("./bi-customers-v2");
 const journeyHandler=require("./bi-journey");
 const noteHandler=require("./bi-customer-note");
@@ -49,23 +51,31 @@ module.exports=async(req,res)=>{
  const report={version:4,at:new Date().toISOString(),ready:false,checks:{},metrics:{}};
  try{
   if(!await indexed())return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  // Verify the source has finished publishing before multi-endpoint QA.
+  const [indexAtStart,stateAtStart]=await Promise.all([read(CURRENT),read(STATE)]);
+  if(!completedSnapshotMatchesState(indexAtStart,stateAtStart))
+   return res.status(200).json({ok:true,skipped:"customer_index_still_building"});
+  report.sourceSnapshot=snapshotIdentity(indexAtStart); // metadata only, no PII
+  report.at=new Date().toISOString();
   const prior=await get(RESULT,{access:"private"});
   if(prior?.statusCode===200){
    const chunks=[];for await(const c of prior.stream)chunks.push(c);
    const previous=JSON.parse(Buffer.concat(chunks).toString("utf8"));
-   if(previous.version===4&&previous.ready&&Date.now()-Date.parse(previous.at)<4*3600000)
+   // An old successful report cannot skip QA for a newly built index.
+   if(canReuseQA(previous,stateAtStart,indexAtStart))
     return res.status(200).json({ok:true,skipped:"verified_recently",at:previous.at});
   }
   const first=await call(listHandler,{page:"1",size:"25",sort:"m180",dir:"desc"});
-  report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000;
+  report.checks.list=first.code===200&&first.data?.ok===true&&first.data?.masterTotal>1000&&
+   first.data?.asOf===indexAtStart.generatedAt&&first.data?.slot===indexAtStart.slot;
   if(!report.checks.list)throw Error("list_not_ready");
   const d=first.data;
   report.metrics.total=d.masterTotal;report.metrics.pageCount=d.pageCount;
   report.metrics.firstPageCount=d.customers.length;
-  report.checks.sort=sorted(d.customers,"m180","desc");
+  const second=await call(listHandler,{page:"2",size:"25",sort:"m180",dir:"desc"});
+  report.checks.sort=second.code===200&&paginationSortEvidencePass(d,second.data,indexAtStart);
   const filtered=await call(listHandler,{page:"1",size:"50",tier:"S+"});
-  report.checks.tier=filtered.code===200&&filtered.data?.ok&&
-   filtered.data.customers.every(row=>row.tier==="S+");
+  report.checks.tier=filtered.code===200&&tierFilterEvidencePass(d,filtered.data,"S+",50);
   const sample=d.customers.find(c=>c.email&&c.id&&c.ordersLifetime>0);
   if(sample){
    const searched=await call(listHandler,{q:sample.email,size:"25"});
@@ -91,6 +101,7 @@ module.exports=async(req,res)=>{
   }
   const summary=await call(summaryHandler,{});
   report.checks.rfmSummary=summary.code===200&&summary.data?.ok&&
+   summary.data.generatedAt===indexAtStart.generatedAt&&
    summary.data.masterTotal===d.masterTotal&&
    summary.data.tiers.reduce((n,g)=>n+g.count,0)===d.masterTotal;
   report.metrics.rfmKnown=summary.data?.historical?.m180?.coverage||null;
@@ -105,13 +116,21 @@ module.exports=async(req,res)=>{
   const rfm=await call(rfmCubeHandler,{tier:"",aov:"all",r:"90",f:"2",m:"800"});
   const breakdown=rfm.data?.segments||[];
   report.checks.rfmEight=rfm.code===200&&rfm.data?.ok&&
+   rfm.data.asOf===indexAtStart.generatedAt&&
+   rfm.data.indexTotal===indexAtStart.total&&
    breakdown.length===8&&breakdown.every(x=>Number.isInteger(x.count)&&x.count>=0)&&
    breakdown.reduce((v,x)=>v+x.count,0)===rfm.data.classified&&
    rfm.data.classified+rfm.data.unknown?.count===d.masterTotal;
   report.metrics.rfmEightCoverage=rfm.data?.classified||0;
   report.metrics.rfmEightUnknown=rfm.data?.unknown?.count||0;
   report.metrics.rfmRecentRate=rfm.data?.health?.rate??null;
-  report.ready=Object.values(report.checks).every(Boolean);
+  // Future changes must not silently omit required service checks.
+  // Cron can rebuild the index concurrently; reject mixed-generation QA.
+  const [indexAtEnd,stateAtEnd]=await Promise.all([read(CURRENT),read(STATE)]);
+  if(!sameSnapshot(indexAtStart,indexAtEnd)||
+     !completedSnapshotMatchesState(indexAtEnd,stateAtEnd))
+   throw Error("customer_index_changed_during_qa");
+  report.ready=fullChecksPass(report.checks);
   await save(report);
   return res.status(200).json({ok:true,ready:report.ready,checks:report.checks,
    metrics:report.metrics,note:"Only aggregate QA results; no customer PII exposed."});
