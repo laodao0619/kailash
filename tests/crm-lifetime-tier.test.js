@@ -52,17 +52,17 @@ test("2026-11-12 lifetime USD boundaries use one recent order, independently of 
 
 test("Feishu customer snapshot remains provisional even when rule values classify",()=>{
  const examples=[
-  {spendLifetime:3000,ordersLifetime:2,f180:1,rDays:15,expected:"S+"},
-  {spendLifetime:199,ordersLifetime:4,f180:0,rDays:201,expected:"沉睡"},
-  {spendLifetime:0,ordersLifetime:0,f180:0,rDays:null,expected:"从未购买"},
+  {spendLifetime:3000,ordersLifetime:2,f180:1,rDays:15,m180:200,expected:"S+"},
+  {spendLifetime:199,ordersLifetime:4,f180:0,rDays:201,m180:0,expected:"沉睡"},
+  {spendLifetime:0,ordersLifetime:0,f180:0,rDays:null,m180:0,expected:"从未购买"},
  ];
  for(const item of examples){
-  const row=applyRow({id:"12345",tier:"B",m180:800,...item});
+  const row=applyRow({id:"12345",tier:"B",...item});
   assert.equal(row.tier,item.expected);
   assert.equal(row.tierRuleEvaluable,true,"valid arithmetic can produce a provisional tier");
   assert.equal(row.tierVerified,false,"Feishu mirror is not a reconciled financial ledger");
   assert.equal(row.tierAuditStatus,"provisional_feishu_snapshot");
-  assert.equal(row.m180,800,"rolling M must remain separate from lifetime grade");
+  assert.equal(row.m180,item.m180,"rolling M must remain separate from lifetime grade");
  }
  const pending=applyRow({spendLifetime:0,ordersLifetime:2,f180:1,rDays:12});
  assert.equal(pending.tier,"待核验");
