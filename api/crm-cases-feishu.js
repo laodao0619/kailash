@@ -65,6 +65,32 @@ module.exports = async (req, res) => {
   if (req.method !== "GET") return res.status(405).json({ ok: false });
   if (!cases.authorized(req) && !authorizedPreviewPreflight(req)) return res.status(401).json({ ok: false });
   const dryRun = req.query?.dryRun === "1";
+  // Explicit authenticated, read-only manifest audit. This runs separately
+  // from Feishu schema checks, reads no Case bodies, and cannot save a cursor.
+  // Listing completeness does NOT prove that all events have been read or
+  // that the communication table contains every archived Case.
+  if (req.query?.auditArchive === "1") {
+    if (!dryRun) return res.status(400).json({
+      ok:false, blockedReason:"case_archive_audit_requires_dry_run",
+      checkpointAdvanced:false,
+    });
+    try {
+      const {list} = require("@vercel/blob");
+      const {auditCaseArchive} = require("../lib/crm-case-archive-manifest");
+      const manifest = await auditCaseArchive({listPage:list,prefix:cases.PREFIX});
+      return res.status(200).json({
+        ok:true,dryRun:true,archiveManifest:manifest,
+        processed:0,checkpointAdvanced:false,feishuWrites:0,
+      });
+    } catch {
+      // Never emit upstream paths, customer data or provider errors.
+      console.error("[crm-cases-feishu] archive manifest incomplete");
+      return res.status(503).json({
+        ok:false,blockedReason:"case_archive_manifest_incomplete",
+        checkpointAdvanced:false,
+      });
+    }
+  }
   // Fail closed for *every* unknown runtime, including local/non-Vercel
   // environments. A valid CRON_SECRET alone must not enable Feishu writes.
   // Authenticated dryRun is read-only in all environments.
