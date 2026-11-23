@@ -91,6 +91,35 @@ module.exports = async (req, res) => {
       });
     }
   }
+  // Content audit is separate from manifest listing. Only the production
+  // cron bearer may read the original private archived events; a Preview
+  // schema-preflight token never grants message-content access. Response
+  // contains aggregate evidence, no Case IDs, emails, subjects, or excerpts.
+  if (req.query?.auditContent === "1") {
+    if (!dryRun) return res.status(400).json({
+      ok:false, blockedReason:"case_content_audit_requires_dry_run", checkpointAdvanced:false,
+    });
+    if (!cases.authorized(req)) return res.status(403).json({
+      ok:false, blockedReason:"case_content_audit_not_authorized", checkpointAdvanced:false,
+    });
+    try {
+      const {list} = require("@vercel/blob");
+      const {auditCaseContentPage} = require("../lib/crm-case-content-audit");
+      const page = await auditCaseContentPage({
+        listPage:list, readRecord:cases.read,
+        cursor:req.query?.contentCursor,
+      });
+      return res.status(200).json({
+        ok:true,dryRun:true,contentAudit:page,
+        processed:0,feishuWrites:0,checkpointAdvanced:false,
+      });
+    } catch {
+      console.error("[crm-cases-feishu] private content audit incomplete");
+      return res.status(503).json({
+        ok:false,blockedReason:"case_content_audit_incomplete",checkpointAdvanced:false,
+      });
+    }
+  }
   // Fail closed for *every* unknown runtime, including local/non-Vercel
   // environments. A valid CRON_SECRET alone must not enable Feishu writes.
   // Authenticated dryRun is read-only in all environments.
