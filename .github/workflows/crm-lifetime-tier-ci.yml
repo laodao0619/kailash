@@ -1,0 +1,28 @@
+name: CRM lifetime tier policy safety
+on:
+  pull_request:
+    paths:
+      - 'lib/crm-lifetime-tier.js'
+      - 'tests/crm-lifetime-tier.test.js'
+      - '.github/workflows/crm-lifetime-tier-ci.yml'
+  push:
+    branches: ['fix/crm-zero-net-pending-20261123']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Verify policy and test syntax
+        run: |
+          node --check lib/crm-lifetime-tier.js
+          node --check tests/crm-lifetime-tier.test.js
+      - name: Verify lifetime tiers and dependent BI behaviors
+        run: node --test tests/crm-lifetime-tier.test.js tests/kbi-rfm-cube.test.js tests/kbi-rfm.test.js
