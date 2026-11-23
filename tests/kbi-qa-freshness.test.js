@@ -75,3 +75,22 @@ test("public health validates completed checkpoint and QA together",()=>{
  assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),{...state(),records:10929}),false);
  assert.equal(qaMatchesCompletedSnapshot(qa(),snapshot(),null),false);
 });
+
+test("tier-filter QA verifies a non-empty full-index result instead of vacuous every()",()=>{
+ const {tierFilterEvidencePass}=require("../lib/kbi-qa-freshness");
+ const master={masterTotal:10935,facets:{tiers:[{value:"S+",count:65},{value:"B",count:1000}]}};
+ const page={ok:true,masterTotal:10935,total:65,page:1,pageSize:50,pageCount:2,
+  customers:Array.from({length:50},(_,i)=>({id:String(i+1),tier:"S+"}))};
+ assert.equal(tierFilterEvidencePass(master,page),true);
+ assert.equal(tierFilterEvidencePass(master,{...page,customers:[]}),false,
+  "empty rows must not satisfy Array.every");
+ assert.equal(tierFilterEvidencePass(master,{...page,total:0,customers:[],pageCount:0}),false,
+  "a silently ignored tier parameter must not be green");
+ assert.equal(tierFilterEvidencePass(master,{...page,total:64,pageCount:2}),false,
+  "filtered count must match the whole-source facet");
+ assert.equal(tierFilterEvidencePass(master,{...page,masterTotal:10930}),false,
+  "mixed index generations must not be green");
+ assert.equal(tierFilterEvidencePass(master,{...page,customers:[...page.customers.slice(1),{tier:"B"}]}),false);
+ assert.equal(tierFilterEvidencePass({masterTotal:10935,facets:{tiers:[]}},page),false,
+  "unknown expected tier count is not proof of filtering");
+});
