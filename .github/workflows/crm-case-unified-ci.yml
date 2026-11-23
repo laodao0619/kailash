@@ -25,6 +25,7 @@ jobs:
         run: |
           node --check api/crm-cases-feishu.js
           node --check lib/crm-case-feishu-writeback.js
+          node --check lib/crm-case-archive-manifest.js
           node --check lib/crm-case-field-adapter.js
           node --check lib/crm-feishu.js
           node --check lib/crm-cases.js
