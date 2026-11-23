@@ -925,10 +925,10 @@ test("guest or deleted-customer settled orders never disappear from full-history
  const guestPaid=order({id:"gid://shopify/Order/5501",customer:null,
   displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(200),
   totalRefundedSet:usd(0),transactions:[
-   {kind:"SALE",status:"SUCCESS",amountSet:usd(200)}]});
+   {id:"gid://shopify/OrderTransaction/55011",kind:"SALE",status:"SUCCESS",amountSet:usd(200)}]});
  const guestRefund=order({id:"gid://shopify/Order/5502",customer:{},
   displayFinancialStatus:"PENDING",totalRefundedSet:usd(20),transactions:[
-   {kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]});
+   {id:"gid://shopify/OrderTransaction/55021",kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}]});
  for(const guest of [guestPaid,guestRefund])
   assert.equal(classifyOrder(guest).reason,"unassigned_customer_financial_evidence");
  const audit=await auditJsonl(Readable.from([
