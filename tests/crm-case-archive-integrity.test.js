@@ -61,3 +61,18 @@ test("wrong archive paths and invalid limits fail closed",async()=>{
   readRecord:async()=>record("a")
  }),/path invalid/);
 });
+
+test("duplicate private Blob path across pages fails closed before Case checkpoint",async()=>{
+ await assert.rejects(allEvents(3,{
+  listPage:async({cursor})=>cursor
+    ?{blobs:[blob("a")],hasMore:false}
+    :{blobs:[blob("a"),blob("b")],hasMore:true,cursor:"next"},
+  readRecord:async path=>record(path.split("/").at(-1).slice(0,-5))
+ }),/Case archive duplicate path/);
+});
+test("duplicate Gmail event evidence at distinct Blob paths fails closed",async()=>{
+ await assert.rejects(allEvents(2,{
+  listPage:async()=>({blobs:[blob("a"),blob("b")],hasMore:false}),
+  readRecord:async()=>record("same-id")
+ }),/Case archive duplicate event/);
+});
