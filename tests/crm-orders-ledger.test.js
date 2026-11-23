@@ -950,3 +950,30 @@ test("genuinely unpaid guest orders remain excluded without inventing a customer
   displayFinancialStatus:"PENDING",totalRefundedSet:null,transactions:[]})).reason,
   "unassigned_customer_financial_evidence");
 });
+
+test("PARTIALLY_REFUNDED zero-merchandise order with residual settled cash blocks signoff",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const row=order({id:"gid://shopify/Order/9901",displayFinancialStatus:"PARTIALLY_REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(20),transactions:[
+   {id:"gid://shopify/OrderTransaction/99011",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/99012",kind:"REFUND",status:"SUCCESS",amountSet:usd(20)}
+  ]});
+ assert.deepEqual(classifyOrder(row),{eligible:false,
+  reason:"zero_merchandise_residual_settlement_unreconciled"});
+ const audit=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{
+  asOf:"2026-11-23T00:00:00Z"});
+ assert.equal(audit.totals.excluded.zero_merchandise_residual_settlement_unreconciled,1);
+ assert.equal(audit.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(verifyArchiveIntegrity(audit,{status:"COMPLETED",downloaded:true,
+  archivedAt:"2026-11-23T00:00:00Z",rootObjectCount:"1",objectCount:"1"
+ }).status,"BLOCKED_REFUND_RECONCILIATION");
+});
+
+test("fully returned settled payment on zero-merchandise order remains excluded normally",()=>{
+ const row=order({id:"gid://shopify/Order/9902",displayFinancialStatus:"REFUNDED",
+  currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(100),transactions:[
+   {id:"gid://shopify/OrderTransaction/99021",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/99022",kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}
+  ]});
+ assert.deepEqual(classifyOrder(row),{eligible:false,reason:"fully_refunded_or_zero"});
+});
