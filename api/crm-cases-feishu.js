@@ -74,6 +74,13 @@ module.exports = async (req, res) => {
       ok:false, blockedReason:"case_archive_audit_requires_dry_run",
       checkpointAdvanced:false,
     });
+    // A Preview-only schema preflight credential must never authorize private
+    // archive inspection, even for a metadata-only read. Keep least privilege
+    // identical to the private content audit below.
+    if (!cases.authorized(req)) return res.status(403).json({
+      ok:false, blockedReason:"case_archive_audit_not_authorized",
+      checkpointAdvanced:false,
+    });
     try {
       const {list} = require("@vercel/blob");
       const {auditCaseArchive} = require("../lib/crm-case-archive-manifest");
