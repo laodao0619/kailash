@@ -6,6 +6,8 @@ on:
       - 'lib/kbi-rfm.js'
       - 'lib/kbi-ledger-adapter.js'
       - 'lib/crm-dashboard-metrics.js'
+      - 'api/bi-customers-export.js'
+      - 'tests/kbi-csv-export.test.js'
       - 'tests/crm-dashboard-metrics.test.js'
       - 'tests/kbi-ledger-adapter.test.js'
       - 'tests/crm-lifetime-tier.test.js'
@@ -32,8 +34,10 @@ jobs:
           node --check lib/crm-lifetime-tier.js
           node --check lib/kbi-rfm.js
           node --check lib/kbi-ledger-adapter.js
+          node --check api/bi-customers-export.js
+          node --check tests/kbi-csv-export.test.js
           node --check tests/kbi-ledger-adapter.test.js
           node --check tests/crm-lifetime-tier.test.js
           node --check tests/kbi-rfm.test.js
       - name: Verify lifetime tiers and dependent BI behaviors
-        run: node --test tests/crm-lifetime-tier.test.js tests/kbi-rfm-cube.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js tests/crm-dashboard-metrics.test.js
+        run: node --test tests/crm-lifetime-tier.test.js tests/kbi-rfm-cube.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js tests/crm-dashboard-metrics.test.js tests/kbi-csv-export.test.js
