@@ -175,7 +175,8 @@ test("handler replays committed Feishu message after checkpoint save failure wit
  spy(feishu,"tenantToken",async()=>"feishu-test");
  spy(gmail,"listMessages",async()=>{listCalls++;return {messages:ids.map(id=>({id}))};});
  spy(gmail,"message",async(_t,id)=>{attempts.push(id);return {id,threadId:"thread-"+id,labelIds:["INBOX"],internalDate:"1794120000000",
-  payload:{headers:[{name:"From",value:"buyer@example.test"},{name:"Subject",value:"Package enquiry"}]}};});
+  payload:{headers:[{name:"From",value:"buyer@example.test"},{name:"Date",value:"Sun, 8 Nov 2026 11:00:00 +0000"},{name:"Subject",value:"Package enquiry"}]}};
+ });
  spy(feishu,"findBy",async(_t,_table,field,value)=>field==="邮箱"?[{record_id:"owner",fields:{}}]:records.has(value)?[{record_id:"existing"}]:[]);
  const write=spy(feishu,"upsertGmail",async(_t,m)=>{
   const key="gmail:"+m.id;assert.equal(records.has(key),false);records.add(key);return "created";
@@ -184,7 +185,7 @@ test("handler replays committed Feishu message after checkpoint save failure wit
   const first=res();await handler(req,first);
   assert.equal(first.code,502);assert.equal(first.value.retryable,true);
   assert.equal(saved.pendingPage.offset,0);assert.equal(saved.completed,false);
-  assert.deepEqual([...records],["gmail:msg-a"]);
+  assert.deepEqual([...records],["gmail:msg-a"]);assert.equal(failOnce,false);
   const second=res();await handler(req,second);
   assert.equal(second.code,200);assert.equal(saved.completed,true);
   assert.deepEqual(attempts,["msg-a","msg-a","msg-b"]);
