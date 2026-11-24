@@ -1,8 +1,10 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const ROOT="kbi-customer-notes/v1";
 function authorized(req){
+ if(hasSession(req))return true;
  const expected=String(process.env.KBI_ACCESS_TOKEN||"");
  const actual=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  if(expected.length<24||!actual)return false;

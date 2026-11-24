@@ -6,7 +6,7 @@ function initialize(ctx){
  async function mutate(action,item){
   if(busy)return;busy=true;document.querySelectorAll('.command-item input,.command-item button,#board-save').forEach(el=>el.disabled=true);$('board-status').textContent='正在保存…';
   try{
-   const r=await fetch('/api/bi-ops-board',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+state.token},body:JSON.stringify({action,expectedVersion:board.version,...(action==='save'?{item}:{id:item.id})})});
+   const r=await fetch('/api/bi-ops-board',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,expectedVersion:board.version,...(action==='save'?{item}:{id:item.id})})});
    const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error);
    board=d;editing=null;$('board-title').value='';$('board-notes').value='';render();if(latest)suggestions(latest);$('board-status').textContent='已保存到云端';
   }catch(e){$('board-status').textContent=e.message==='board_version_changed'?'其他人已更新，请重新读取后再保存。当前输入仍保留。':'保存失败，请重试';}
@@ -26,7 +26,7 @@ function initialize(ctx){
   });
  }
  async function load(){
-  if(!state.token)return;
+  if(!state.authenticated)return;
   try{board=await request('/api/bi-ops-board');render();if(latest)suggestions(latest);$('board-status').textContent='已读取云端目标与事项';}
   catch(_){$('board-status').textContent='目标与事项暂不可用，请重新读取';}
  }

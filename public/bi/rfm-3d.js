@@ -138,7 +138,7 @@ function initialize({$,request,state,esc,n}){
   render();if(selected)detail(selected);
  }
  async function refresh(){
-  if(!state.token)return;
+  if(!state.authenticated)return;
   const version=++latestVersion;
   $("rfm-snapshot-status").textContent="正在读取当前RFM聚合…";
   try{
@@ -161,7 +161,7 @@ function initialize({$,request,state,esc,n}){
   const id="rfm-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,10);
   try{
    const response=await fetch("/api/bi-rfm-snapshots",{method:"POST",
-    headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
+    headers:{"Content-Type":"application/json"},
     body:JSON.stringify({id,label,scope:current.scope,sourceAsOf:current.asOf})});
    const data=await response.json();
    if(!response.ok||!data.ok)throw Error(data.error||"保存失败");

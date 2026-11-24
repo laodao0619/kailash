@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession,loginReady}=require("../lib/kbi-session");
 // KBI internal diagnostics only. Never exposes Shopify secrets, customer records,
 // Gmail message metadata, bulk export download URLs or raw private storage paths.
 const crypto=require("node:crypto");
@@ -10,6 +11,7 @@ const BULK_QUERY=`query KbiBulkMonitor {
  }
 }`;
 function authorized(req){
+ if(hasSession(req))return true;
  const expected=process.env.KBI_ACCESS_TOKEN||"";
  const token=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  if(expected.length<24||!token)return false;
@@ -21,7 +23,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
+ if(!process.env.KBI_ACCESS_TOKEN&&!loginReady())return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  const sourceReady=!!(process.env.SHOPIFY_SHOP_DOMAIN&&(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||
   (process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));

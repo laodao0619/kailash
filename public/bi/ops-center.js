@@ -112,7 +112,7 @@ function initialize(ctx){
  }
  let analyticsRun=0;
  async function analytics(){
-  if(!state.token)return;
+  if(!state.authenticated)return;
   $("ops-data-state").textContent="正在读取Shopify指标…";
   const run=++analyticsRun;
   $("ops-range-apply").disabled=true;
@@ -164,7 +164,7 @@ function initialize(ctx){
  }
  async function post(path,body){
   const response=await fetch(path,{method:"POST",cache:"no-store",headers:{
-   "Content-Type":"application/json",Authorization:"Bearer "+state.token},
+   "Content-Type":"application/json"},
    body:JSON.stringify(body)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data.ok)throw Error(data.error||"request_failed");

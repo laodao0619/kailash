@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const {queryShopify}=require("../lib/crm-shopify");
@@ -27,7 +28,7 @@ module.exports=async(req,res)=>{
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
  const access=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  const isCron=secretMatch(access,process.env.CRON_SECRET);
- const isUser=secretMatch(access,process.env.KBI_ACCESS_TOKEN);
+ const isUser=hasSession(req)||secretMatch(access,process.env.KBI_ACCESS_TOKEN);
  if(!isCron&&!isUser)return res.status(401).json({ok:false,error:"unauthorized"});
  let range,path=PATH;
  try{

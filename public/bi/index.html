@@ -266,8 +266,8 @@ aside{background:#173247;color:#d4e2ec;border-right-color:#173247}.brand{color:#
 <main>
 <div class="top" id="overview"><div><div class="eyebrow">KAILASH BUSINESS INTELLIGENCE</div><h1>经营与客户智能工作台</h1><div class="muted">客户价值、历史沟通与订单生命周期。所有指标均显示来源及数据覆盖范围。</div></div><span class="pill" id="top-status">正在检查系统连接</span></div>
 <section id="login" class="panel"><div class="body">
-<h2 id="login-title">内部身份验证</h2><p id="login-msg" class="muted">请输入专用KBI访问凭证。不要输入Shopify或Gmail密钥。</p>
-<div class="toolbar" id="login-control"><input id="secret" type="password" autocomplete="off" aria-label="访问凭证" placeholder="内部访问凭证"><button id="connect" class="primary">进入工作台</button></div>
+<h2 id="login-title">内部身份验证</h2><p id="login-msg" class="muted">请输入工作台共享密码。</p>
+<div class="toolbar" id="login-control"><input id="secret" type="password" autocomplete="current-password" aria-label="共享密码" placeholder="共享密码"><button id="connect" class="primary">进入工作台</button></div>
 </div></section>
 
 <section class="panel command-panel" id="command-center"><div class="head"><div><div class="eyebrow">FOCUS · TARGETS & ACTIONS</div><h2>经营目标与重点跟进</h2><p class="muted">文字目标可自由增删；机会与异常可勾选完成、重点标注、添加备注。</p></div><button id="board-reload">重新读取</button></div><div class="body"><div class="command-columns"><div><h3>公司目标</h3><div id="board-goal"></div></div><div><h3>机会点</h3><div id="board-opportunity"></div></div><div><h3>异常与待排查</h3><div id="board-anomaly"></div></div></div><details id="board-editor"><summary>新增 / 编辑目标和事项</summary><div class="command-form"><label>类型<select id="board-kind"><option value="goal">公司目标</option><option value="opportunity">机会点</option><option value="anomaly">异常点</option></select></label><label>目标 / 事项文本<input id="board-title" maxlength="300" placeholder="例如：当前月 GMV 目标：$100,000"></label><label class="wide">备注<textarea id="board-notes" maxlength="3000" placeholder="执行动作、责任人、进展或结论"></textarea></label></div><div class="toolbar"><button id="board-save" class="primary">保存到云端</button><button id="board-new">新建 / 清空</button><span id="board-status" role="status" class="muted">等待连接</span></div></details><details open><summary>近期数据建议 · 可加入跟进</summary><div id="board-suggestions"></div></details></div></section>
@@ -528,12 +528,16 @@ const fmt=v=>v&&Number.isFinite(new Date(v).getTime())?new Date(v).toLocaleDateS
 const money=(v,currency="USD")=>typeof v==="number"&&Number.isFinite(v)?(currency==="USD"?"$":currency+" ")+v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
 const n=v=>Number.isFinite(v)?v.toLocaleString("zh-CN"):"—";
 const qs=["q","tier","country","subscription","quality","minM","minLifetime","minF","maxR","minOrders","sort","dir","size"];
-const state={token:"",page:1,busy:false,rows:[],total:0};
+const state={authenticated:false,page:1,busy:false,rows:[],total:0};
 let modules=null;
 async function request(path,params={},authenticated=true){
  const search=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
  const url=path+(search.size?"?"+search:"");
- const response=await fetch(url,{cache:"no-store",headers:authenticated?{Authorization:"Bearer "+state.token}:{}});
+ const response=await fetch(url,{cache:"no-store"});
+ if(authenticated&&response.status===401&&state.authenticated){
+  const session=await request("/api/bi-session",{},false);
+  if(!session.authenticated)location.reload();
+ }
  let data={};try{data=await response.json()}catch(_){}
  if(!response.ok||!data.ok)throw Error(data.error||"http_"+response.status);
  return data;
@@ -570,7 +574,7 @@ function fillOptions(id,values){
  el.value=previous;
 }
 async function load(){
- if(!state.token||state.busy)return;
+ if(!state.authenticated||state.busy)return;
  state.busy=true;$("customer-rows").innerHTML='<tr><td colspan="11" class="muted" style="padding:30px;text-align:center">正在查询完整客户数据…</td></tr>';
  try{
   const data=await request("/api/bi-customers-v2",filterParams());
@@ -603,7 +607,7 @@ async function load(){
     (pending?"客户索引正在从已有云端CRM数据建立，暂未完成。无需重新抓取Shopify历史。":"客户数据读取失败："+esc(e.message))+'</td></tr>';
   $("top-status").textContent=pending?"索引初始化中":"客户数据异常";
   $("refresh").disabled=false;
-  if(pending&&state.token)setTimeout(()=>{if(!state.busy)load()},30000);
+  if(pending&&state.authenticated)setTimeout(()=>{if(!state.busy)load()},30000);
  }finally{state.busy=false;}
 }
 
@@ -830,7 +834,7 @@ async function saveCustomerNote(){
  try{
   const r=await fetch("/api/bi-customer-note?id="+encodeURIComponent(customerView.id),{
    method:"PUT",cache:"no-store",
-   headers:{"Content-Type":"application/json",Authorization:"Bearer "+state.token},
+   headers:{"Content-Type":"application/json"},
    body:JSON.stringify({text:$("customer-note-text").value,version:customerView.noteVersion})
   });
   const d=await r.json();
@@ -894,7 +898,27 @@ async function profile(c){
  }
 }
 
-$("connect").onclick=()=>{const v=$("secret").value.trim();$("secret").value="";if(!v)return;state.token=v;state.page=1;$("refresh").disabled=false;load()};
+function enterWorkbench(){
+ state.authenticated=true;
+ $("login").hidden=true;
+ $("refresh").disabled=false;
+ load();
+}
+$("connect").onclick=async()=>{
+ const password=$("secret").value;
+ $("secret").value="";
+ if(!password)return;
+ $("connect").disabled=true;
+ try{
+  const response=await fetch("/api/bi-session",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password})});
+  if(response.ok){enterWorkbench();return;}
+  $("login-msg").textContent=response.status===429?"尝试次数过多，请稍后重试。":response.status===401?"密码错误，请重试。":"暂时无法登录，请稍后重试。";
+ }catch{
+  $("login-msg").textContent="暂时无法登录，请稍后重试。";
+ }finally{
+  $("connect").disabled=false;
+ }
+};
 $("secret").onkeydown=e=>{if(e.key==="Enter")$("connect").click()};
 $("apply").onclick=()=>{state.page=1;load()};
 $("reset").onclick=()=>{for(const id of ["q","minM","minLifetime","minF","maxR","minOrders"])$(id).value="";
@@ -903,12 +927,12 @@ $("reset").onclick=()=>{for(const id of ["q","minM","minLifetime","minF","maxR",
 $("q").onkeydown=e=>{if(e.key==="Enter"){$("apply").click()}};
 $("refresh").onclick=()=>load();
 $("export").onclick=async()=>{
- if(!state.token)return;
+ if(!state.authenticated)return;
  $("export").disabled=true;$("export").textContent="正在导出…";
  try{
   const params=filterParams();delete params.page;delete params.size;
   const q=new URLSearchParams(Object.entries(params).filter(([,v])=>v!==null&&v!==undefined&&v!==""));
-  const r=await fetch("/api/bi-customers-export?"+q,{cache:"no-store",headers:{Authorization:"Bearer "+state.token}});
+  const r=await fetch("/api/bi-customers-export?"+q,{cache:"no-store"});
   if(!r.ok)throw Error("导出接口暂不可用");
   const file=await r.blob(),url=URL.createObjectURL(file),link=document.createElement("a");
   link.href=url;link.download="Kailash-CRM-筛选客户-"+new Date().toISOString().slice(0,10)+".csv";
@@ -980,6 +1004,10 @@ $("product-hide-services").onchange=()=>showProducts();
 $("customer-product-cols").onchange=()=>{$("profile-products").style.setProperty("--customer-cols",$("customer-product-cols").value)};
 $("customer-dialog").addEventListener("close",()=>{$("note-drawer").hidden=true});
 document.querySelectorAll("nav a").forEach(a=>a.onclick=()=>{document.querySelectorAll("nav a").forEach(n=>n.classList.remove("active"));a.classList.add("active")});
-readiness();baseline();
+request("/api/bi-session",{},false).then(session=>{
+ if(session.authenticated)enterWorkbench();
+ else return readiness();
+}).catch(readiness);
+baseline();
 })();
 </script></body></html>

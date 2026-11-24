@@ -11,7 +11,7 @@
    return '<div class="module-stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><em>'+esc(note)+'</em></div>';
   }
   async function summary(){
-   if(!state.token)return;
+   if(!state.authenticated)return;
    $("rfm-summary-cards").textContent="正在计算既有CRM历史汇总…";
    try{
     const d=await request("/api/bi-workbench-summary");
@@ -55,7 +55,7 @@
    }
   }
   async function cases(){
-   if(!state.token||mod.caseBusy)return;
+   if(!state.authenticated||mod.caseBusy)return;
    mod.caseBusy=true;
    $("case-rows").innerHTML='<tr><td colspan="6" class="empty-state">正在读取已归档Case…</td></tr>';
    try{
@@ -87,7 +87,7 @@
    }finally{mod.caseBusy=false;}
   }
   async function products(){
-   if(!state.token)return;
+   if(!state.authenticated)return;
    $("catalog-status").textContent="正在读取Shopify商品目录…";
    try{
     const d=await request("/api/bi-workbench-products",{q:$("product-search").value.trim()});
@@ -136,15 +136,15 @@
   let lastSummary=0;
   const originalSummary=summary;
   const scheduledSummary=async()=>{await originalSummary();lastSummary=Date.now()};
-  setInterval(()=>{if(document.visibilityState==="visible"&&state.token)scheduledSummary()},5*60*1000);
+  setInterval(()=>{if(document.visibilityState==="visible"&&state.authenticated)scheduledSummary()},5*60*1000);
   document.addEventListener("visibilitychange",()=>{
-   if(document.visibilityState==="visible"&&state.token&&Date.now()-lastSummary>5*60*1000)scheduledSummary();
+   if(document.visibilityState==="visible"&&state.authenticated&&Date.now()-lastSummary>5*60*1000)scheduledSummary();
   });
   $("report-rfm").onclick=()=>go("rfm");
   $("report-cases").onclick=()=>go("case-center");
   const start=()=>Promise.allSettled([scheduledSummary(),cases(),products(),health(),
     cube?.refresh?.(),cube?.savedList?.(),ops?.start?.(),crmReport?.refresh?.()]);
-  setInterval(()=>{if(state.token&&document.visibilityState==="visible")cube?.refresh?.()},5*60*1000);
+  setInterval(()=>{if(state.authenticated&&document.visibilityState==="visible")cube?.refresh?.()},5*60*1000);
   return {start,summary:scheduledSummary,cases,products,health,rfm:cube,ops};
  }
  root.KBIWorkbenchModules={initialize};

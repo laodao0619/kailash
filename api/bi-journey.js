@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession,loginReady}=require("../lib/kbi-session");
 // Read-only, source-grounded customer journey. This route never sends email or writes orders.
 const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
@@ -83,6 +84,7 @@ async function uniqueEmailOwner(email,id){
  return exact.length===1&&exact[0].id===id;
 }
 function authorized(req){
+ if(hasSession(req))return true;
  const expected=process.env.KBI_ACCESS_TOKEN||"";
  const given=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
  if(expected.length<24||!given)return false;
@@ -185,7 +187,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method_not_allowed"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
+ if(!process.env.KBI_ACCESS_TOKEN&&!loginReady())return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  const customerId=String(req.query?.id||"");
  if(!/^\d{5,25}$/.test(customerId))return res.status(400).json({ok:false,error:"invalid_customer_id"});

@@ -30,7 +30,7 @@
    detail();
   }
   async function refresh(force=false){
-   if(!state.token)return;
+   if(!state.authenticated)return;
    $('crm-report-status').textContent=force?'正在核验7天邮件访问与成交，新老客按订单判断…':'正在读取CRM / EDM报表…';
    $('crm-report-refresh').disabled=true;
    try{const r=await request('/api/bi-crm-report',force?{refresh:'1'}:{});data=r.data;render();if(r.stale)$('crm-report-status').textContent+=' · 更新失败或数据过期';}
@@ -41,7 +41,7 @@
   $('crm-breakdown-period').onchange=detail;
   $('crm-report-refresh').onclick=()=>refresh(true);
   $('crm-report-download').onclick=async()=>{
-   try{const r=await fetch('/api/bi-crm-report?format=csv&kind='+kind,{headers:{Authorization:'Bearer '+state.token},cache:'no-store'});if(!r.ok||!r.headers.get('content-type')?.includes('text/csv'))throw Error('导出失败');const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download='Kailash_CRM_EDM_'+kind+'.csv';a.click();URL.revokeObjectURL(u);}
+   try{const r=await fetch('/api/bi-crm-report?format=csv&kind='+kind,{headers:{},cache:'no-store'});if(!r.ok||!r.headers.get('content-type')?.includes('text/csv'))throw Error('导出失败');const u=URL.createObjectURL(await r.blob());const a=document.createElement('a');a.href=u;a.download='Kailash_CRM_EDM_'+kind+'.csv';a.click();URL.revokeObjectURL(u);}
    catch(e){$('crm-report-status').textContent=e.message;}
   };
   return {refresh};

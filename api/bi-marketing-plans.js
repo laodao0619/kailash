@@ -1,8 +1,10 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {get,put}=require("@vercel/blob");
 const PATH="kbi-operations/v1/email-calendar.json";
 function auth(req){
+ if(hasSession(req))return true;
  const x=String(process.env.KBI_ACCESS_TOKEN||""),y=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  return x.length>=24&&!!y&&crypto.timingSafeEqual(crypto.createHash("sha256").update(x).digest(),crypto.createHash("sha256").update(y).digest());
 }
