@@ -48,3 +48,19 @@ test("failed post-write checkpoint retries same source ID",async()=>{
  await runPages({...f.args,checkpoint:f.disk,process:async id=>id==="a"?"duplicates":"created"});
  assert.equal(f.disk.counters.duplicates,1);assert.equal(f.disk.completed,true);
 });
+
+test("malformed successful list never advances the durable cursor",async()=>{
+ for(const page of [{},{error:{code:502}},{messages:null},{messages:[],nextPageToken:" "},
+  {resultSizeEstimate:0,nextPageToken:"next"},{resultSizeEstimate:2},[]]){
+  const f=fixture();
+  await assert.rejects(runPages({...f.args,list:async()=>page}),/Invalid Gmail delta list/);
+  assert.equal(f.cp.cursor,"legacy");assert.equal(f.cp.completed,false);
+  assert.equal(f.disk,null);assert.equal(f.writes.length,0);
+ }
+});
+test("Gmail explicit zero estimate without messages is a valid empty result",async()=>{
+ const f=fixture();
+ await runPages({...f.args,list:async()=>({resultSizeEstimate:0})});
+ assert.equal(f.disk.completed,true);assert.equal(f.disk.counters.pages,1);
+ assert.equal(f.writes.length,0);
+});
