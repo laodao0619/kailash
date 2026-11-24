@@ -38,6 +38,14 @@ module.exports=async(req,res)=>{
    }),
    process:async id=>{
     const m=await gmail.message(mailToken,id);
+    // A malformed successful response is retryable, not an excluded message.
+    // Do not advance the durable item offset until the requested ID is verified.
+    if(!m||m.error||m.id!==id||typeof m.threadId!=="string"||!m.threadId.trim()||
+       !Array.isArray(m.payload?.headers)||
+       (m.labelIds!==undefined&&!Array.isArray(m.labelIds))||
+       typeof m.internalDate!=="string"||!/^\d+$/.test(m.internalDate)||
+       !Number.isFinite(new Date(Number(m.internalDate)).getTime()))
+      throw Error("Invalid Gmail delta message");
     if(gmail.classifyMessage(m)!=="candidate")return "excluded";
     const c=gmail.compactMessage(m);
     const email=c.from?.trim().toLowerCase();
