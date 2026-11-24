@@ -52,3 +52,23 @@ test("Beijing calendar date is used even before UTC midnight",()=>{
  const local=beijingSlot(new Date("2026-11-08T17:00:00Z")); // Beijing Nov 9 01:00
  assert.equal(local.day,"2026-11-09");
 });
+
+test("Gmail multi-slot catch-up replays from the previous start, not delayed completion",()=>{
+ const morning=cycle(null,new Date("2026-11-24T01:00:00Z"));
+ const oldCursor=morning.cursor="pending-page";
+ assert.strictEqual(cycle(morning,new Date("2026-11-24T05:25:00Z"),{useStartWatermark:true}),morning);
+ assert.equal(morning.cursor,oldCursor);
+ done(morning,new Date("2026-11-24T05:27:00Z"));
+ const now=new Date("2026-11-24T07:55:00Z");
+ const gmail=cycle(morning,now,{useStartWatermark:true});
+ assert.equal(gmail.windowStart,"2026-11-24T00:00:00.000Z");
+ assert.equal(gmail.slot,"before_close");
+ assert.equal(cycle(morning,now).windowStart,"2026-11-24T04:27:00.000Z");
+});
+test("Gmail rejects invalid completed watermark instead of silently skipping an interval",()=>{
+ const now=new Date("2026-11-24T07:55:00Z");
+ const prior=done(cycle(null,new Date("2026-11-24T01:00:00Z")),new Date("2026-11-24T05:27:00Z"));
+ for(const startedAt of [undefined,"invalid","2026-11-24T05:28:00Z"]){
+  assert.throws(()=>cycle({...prior,startedAt},now,{useStartWatermark:true}),/Invalid completed Gmail delta watermark/);
+ }
+});
