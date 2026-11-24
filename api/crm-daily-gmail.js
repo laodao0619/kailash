@@ -28,7 +28,7 @@ module.exports=async(req,res)=>{
   // are keyed by message ID; legacy records are keyed by thread ID. The two
   // streams never reset each other's checkpoints.
   const historicalGmailComplete=initial?.finished===true;
-  const checkpoint=state.cycle(await state.read(SOURCE));
+  const checkpoint=state.cycle(await state.read(SOURCE),new Date(),{useStartWatermark:true});
   if(checkpoint.completed)return res.status(200).json({ok:true,completed:true,day:checkpoint.day,counters:checkpoint.counters});
   const [mailToken,feishuToken]=await Promise.all([gmail.token(),feishu.tenantToken()]);
   const progress=await runPages({
