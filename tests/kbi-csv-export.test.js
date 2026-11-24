@@ -20,7 +20,21 @@ test("export preserves whole matched set, not one 40-row page",()=>{
  const csv=toCSV(matched);
  assert(csv.startsWith("\ufeff"));
  assert.equal(csv.split("\r\n").length,57);
- assert(csv.includes("客户等级(历史消费及180天购买)"));
+ assert(csv.includes("客户等级(暂算 历史消费及180天购买)"));
  assert(csv.includes("Client 111"));
  assert(!csv.includes("Client 110"));
+});
+
+test("export recalculates stale grades and always marks financial status provisional",()=>{
+ const csv=toCSV([
+  {id:"1",tier:"S+",spendLifetime:0,ordersLifetime:3,f180:1,rDays:20,tierVerified:true,tierAuditStatus:"verified"},
+  {id:"2",tier:"S+",spendLifetime:900,ordersLifetime:2,f180:1,rDays:20,tierVerified:true},
+  {id:"3",tier:"B",spendLifetime:0,ordersLifetime:0,f180:0}
+ ],{asOf:"2026-11-24T01:20:25.901Z"});
+ const lines=csv.split("\r\n");
+ assert(lines[0].includes("财务审计状态"));
+ assert(lines[0].includes("数据快照时间UTC"));
+ assert(lines[1].includes('"待核验","2026-11-12","provisional_feishu_snapshot","false","2026-11-24T01:20:25.901Z"'));
+ assert(lines[2].includes('"A","2026-11-12","provisional_feishu_snapshot","false"'));
+ assert(lines[3].includes('"从未购买","2026-11-12","provisional_feishu_snapshot","false"'));
 });
