@@ -25,3 +25,47 @@ test("incomplete lifetime or activity metrics stay pending and contradictory sna
  assert.equal(classify({lifetimeSpend:5000,lifetimeOrders:10,f:0,r:181}).grade,"沉睡");
  assert.equal(classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null}).grade,"从未购买");
 });
+
+// Regression: historical order exists, but net lifetime spend is exactly zero.
+// This must never create a separately graded "基础客户" or "沉睡" account.
+test("zero lifetime net spend with purchases always requires review",()=>{
+ for(const activity of [{f:1,r:10},{f:0,r:200},{f:1,r:null}]){
+  const result=classify({lifetimeSpend:0,lifetimeOrders:3,...activity});
+  assert.equal(result.grade,"待核验");
+  assert.equal(result.verified,false);
+  assert.equal(result.reason,"zero_net_spend_with_orders");
+ }
+ const row=applyRow({id:"12345",tier:"B",spendLifetime:0,ordersLifetime:3,f180:1,rDays:10,m180:0});
+ assert.equal(row.tier,"待核验");
+ assert.equal(row.tierVerified,false);
+});
+test("2026-11-12 lifetime USD boundaries use one recent order, independently of M180",()=>{
+ const examples=[[0.01,"B"],[799.99,"B"],[800,"A"],[1499.99,"A"],[1500,"S"],[2999.99,"S"],[3000,"S+"]];
+ for(const [lifetimeSpend,tier] of examples){
+  assert.equal(classify({lifetimeSpend,lifetimeOrders:10,f:1,r:170}).grade,tier);
+  assert.equal(classify({lifetimeSpend,lifetimeOrders:10,f:0,r:181}).grade,"沉睡");
+ }
+ assert.equal(classify({lifetimeSpend:0,lifetimeOrders:0,f:0,r:null}).grade,"从未购买");
+ const {POLICY_VERSION}=require("../lib/crm-lifetime-tier");
+ assert.equal(POLICY_VERSION,"2026-11-12");
+});
+
+test("Feishu customer snapshot remains provisional even when rule values classify",()=>{
+ const examples=[
+  {spendLifetime:3000,ordersLifetime:2,f180:1,rDays:15,m180:200,expected:"S+"},
+  {spendLifetime:199,ordersLifetime:4,f180:0,rDays:201,m180:0,expected:"沉睡"},
+  {spendLifetime:0,ordersLifetime:0,f180:0,rDays:null,m180:0,expected:"从未购买"},
+ ];
+ for(const item of examples){
+  const row=applyRow({id:"12345",tier:"B",...item});
+  assert.equal(row.tier,item.expected);
+  assert.equal(row.tierRuleEvaluable,true,"valid arithmetic can produce a provisional tier");
+  assert.equal(row.tierVerified,false,"Feishu mirror is not a reconciled financial ledger");
+  assert.equal(row.tierAuditStatus,"provisional_feishu_snapshot");
+  assert.equal(row.m180,item.m180,"rolling M must remain separate from lifetime grade");
+ }
+ const pending=applyRow({spendLifetime:0,ordersLifetime:2,f180:1,rDays:12});
+ assert.equal(pending.tier,"待核验");
+ assert.equal(pending.tierRuleEvaluable,false);
+ assert.equal(pending.tierVerified,false);
+});
