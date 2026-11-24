@@ -4,6 +4,8 @@ on:
     paths:
       - 'lib/crm-lifetime-tier.js'
       - 'lib/kbi-rfm.js'
+      - 'lib/kbi-ledger-adapter.js'
+      - 'tests/kbi-ledger-adapter.test.js'
       - 'tests/crm-lifetime-tier.test.js'
       - 'tests/kbi-rfm.test.js'
       - 'tests/kbi-rfm-cube.test.js'
@@ -27,7 +29,9 @@ jobs:
         run: |
           node --check lib/crm-lifetime-tier.js
           node --check lib/kbi-rfm.js
+          node --check lib/kbi-ledger-adapter.js
+          node --check tests/kbi-ledger-adapter.test.js
           node --check tests/crm-lifetime-tier.test.js
           node --check tests/kbi-rfm.test.js
       - name: Verify lifetime tiers and dependent BI behaviors
-        run: node --test tests/crm-lifetime-tier.test.js tests/kbi-rfm-cube.test.js tests/kbi-rfm.test.js
+        run: node --test tests/crm-lifetime-tier.test.js tests/kbi-rfm-cube.test.js tests/kbi-rfm.test.js tests/kbi-ledger-adapter.test.js
