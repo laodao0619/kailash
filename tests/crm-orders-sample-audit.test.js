@@ -291,3 +291,23 @@ test("sample blocks when paid-status evidence is missing, even for test orders",
  assert.equal(result.sampleAudit.status,"BLOCKED_SAMPLE_FINANCIAL_EVIDENCE");
  assert.equal(result.sampleAudit.verified,false);
 });
+
+test("seven matched source counts cannot override contradictory refund balances",async()=>{
+ const scenarios=[
+  [{displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(20),
+    totalRefundedSet:usd(120),transactions:[
+     {kind:"SALE",status:"SUCCESS",amountSet:usd(120)},
+     {kind:"REFUND",status:"SUCCESS",amountSet:usd(120)}]},
+    "refunded_merchandise_balance_unreconciled"],
+  [{displayFinancialStatus:"PARTIALLY_REFUNDED",totalRefundedSet:usd(0)},
+    "partial_refund_without_refund_evidence"]
+ ];
+ for(const [overrides,reason] of scenarios){
+  const out=await run([order(1,overrides),...Array.from({length:6},(_,i)=>order(i+2))]);
+  assert.equal(out.sampleAudit.matched,7);
+  assert.equal(out.sampleAudit.customers[0].excluded[reason],1);
+  assert.equal(out.sampleAudit.customers[0].effectiveOrders,0);
+  assert.equal(out.sampleAudit.status,"BLOCKED_SAMPLE_REFUND_RECONCILIATION");
+  assert.equal(out.sampleAudit.verified,false);
+ }
+});
