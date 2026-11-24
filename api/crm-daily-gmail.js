@@ -17,6 +17,11 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  if(req.method!=="GET")return res.status(405).json({ok:false});
  if(!state.authorized(req))return res.status(401).json({ok:false});
+ // Preview currently shares the private Blob credential with production.
+ // Fail closed before reading any checkpoint or calling Gmail/Feishu.
+ if((process.env.VERCEL_ENV&&process.env.VERCEL_ENV!=="production")||
+    (process.env.VERCEL==="1"&&process.env.VERCEL_ENV!=="production"))
+  return res.status(409).json({ok:false,error:"preview_write_blocked"});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:"private_state_not_configured"});
  const deadline=Date.now()+75000;
  return withRequestDeadline(deadline,async()=>{
