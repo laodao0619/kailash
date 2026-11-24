@@ -6,6 +6,7 @@
  */
 const state=require("../lib/crm-daily-state");
 const {runPages}=require("../lib/crm-gmail-delta-page");
+const {withRequestDeadline}=require("../lib/crm-daily-request-budget");
 const gmail=require("../lib/crm-gmail");
 const feishu=require("../lib/crm-feishu");
 const BASELINE="crm-execution/gmail-filtered-cursor.json";
@@ -18,6 +19,7 @@ module.exports=async(req,res)=>{
  if(!state.authorized(req))return res.status(401).json({ok:false});
  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:"private_state_not_configured"});
  const deadline=Date.now()+75000;
+ return withRequestDeadline(deadline,async()=>{
  try{
   const [initial,customers]=await Promise.all([state.read(BASELINE),state.read(CUSTOMER_BASELINE)]);
   if(customers?.shopifyCycleComplete!==true)
@@ -56,4 +58,5 @@ module.exports=async(req,res)=>{
    historicalGmailComplete,
    note:"Historical Gmail cursor preserved; new messages idempotent by Gmail message ID."});
  }catch(_){return res.status(502).json({ok:false,retryable:true,error:"daily_gmail_delta_failed"});}
+ });
 };

@@ -57,3 +57,25 @@ test("daily mail sync matches unique identity, deduplicates, saves only incremen
   assert.equal(lookups.some(x=>x.field==="数据来源ID"&&x.value==="gmail:msg-new-1"),true);
  }finally{for(const r of restores)r.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
+
+const {withRequestDeadline,requestOptions}=require("../lib/crm-daily-request-budget");
+test("daily Gmail adapter propagates a bounded signal and rejects failed body parsing",async()=>{
+ const fetcher=mock.method(globalThis,"fetch",async(_url,options)=>{
+  assert.ok(options.signal instanceof AbortSignal);
+  return {ok:true,json:async()=>{throw Error("truncated body");}};
+ });
+ try{
+  await assert.rejects(withRequestDeadline(Date.now()+10000,()=>gmail.listMessages("test")),/truncated body/);
+  await assert.rejects(withRequestDeadline(Date.now()+10000,()=>feishu.findBy("test","table","field","value")),/truncated body/);
+  assert.equal(fetcher.mock.callCount(),2);
+ }finally{fetcher.mock.restore();}
+});
+test("expired request budget blocks network access; unrelated requests are unaffected",async()=>{
+ const fetcher=mock.method(globalThis,"fetch",async()=>{throw Error("unexpected network");});
+ try{
+  assert.deepEqual(requestOptions(),{});
+  await assert.rejects(withRequestDeadline(Date.now()-1,()=>gmail.message("test","msg")),/deadline exhausted/);
+  assert.equal(fetcher.mock.callCount(),0);
+  assert.deepEqual(requestOptions(),{});
+ }finally{fetcher.mock.restore();}
+});
