@@ -156,3 +156,42 @@ test("nonproduction Vercel Gmail worker fails closed before reading shared priva
   }
  }
 });
+
+
+test("handler replays committed Feishu message after checkpoint save failure without duplicate creation",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="synthetic-blob";
+ const restores=[];
+ function spy(obj,key,fn){const m=mock.method(obj,key,fn);restores.push(m);return m;}
+ let saved=null,failOnce=true,listCalls=0;
+ const records=new Set(),attempts=[];
+ const ids=["msg-a","msg-b"];
+ spy(state,"read",async p=>p.includes("gmail-filtered-cursor")?{finished:true}:p.includes("import-cursor")?{shopifyCycleComplete:true}:structuredClone(saved));
+ spy(state,"save",async(p,v)=>{
+  assert.equal(p,state.ROOT+"/gmail-state.json");
+  if(failOnce&&v.pendingPage?.offset===1){failOnce=false;throw Error("synthetic checkpoint write failure");}
+  saved=structuredClone(v);
+ });
+ spy(gmail,"token",async()=>"gmail-test");
+ spy(feishu,"tenantToken",async()=>"feishu-test");
+ spy(gmail,"listMessages",async()=>{listCalls++;return {messages:ids.map(id=>({id}))};});
+ spy(gmail,"message",async(_t,id)=>{attempts.push(id);return {id,threadId:"thread-"+id,labelIds:["INBOX"],internalDate:"1794120000000",
+  payload:{headers:[{name:"From",value:"buyer@example.test"},{name:"Subject",value:"Package enquiry"}]}};});
+ spy(feishu,"findBy",async(_t,_table,field,value)=>field==="邮箱"?[{record_id:"owner",fields:{}}]:records.has(value)?[{record_id:"existing"}]:[]);
+ const write=spy(feishu,"upsertGmail",async(_t,m)=>{
+  const key="gmail:"+m.id;assert.equal(records.has(key),false);records.add(key);return "created";
+ });
+ try{
+  const first=res();await handler(req,first);
+  assert.equal(first.code,502);assert.equal(first.value.retryable,true);
+  assert.equal(saved.pendingPage.offset,0);assert.equal(saved.completed,false);
+  assert.deepEqual([...records],["gmail:msg-a"]);
+  const second=res();await handler(req,second);
+  assert.equal(second.code,200);assert.equal(saved.completed,true);
+  assert.deepEqual(attempts,["msg-a","msg-a","msg-b"]);
+  assert.equal(listCalls,1);assert.equal(write.mock.callCount(),2);
+  assert.deepEqual([...records],["gmail:msg-a","gmail:msg-b"]);
+  assert.equal(saved.counters.duplicates,1);assert.equal(saved.counters.scanned,2);
+  // The original remote creation may be counted as a replay duplicate, not a new write.
+  assert.equal(saved.counters.created,1);
+ }finally{for(const r of restores)r.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
+});
