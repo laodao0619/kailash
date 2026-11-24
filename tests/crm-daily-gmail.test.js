@@ -98,3 +98,38 @@ test("private checkpoint SDK receives scoped abort signal and write reserve",asy
  });
  assert.deepEqual(blobRequestOptions(),{});
 });
+
+test("malformed or mismatched Gmail message keeps durable item offset for retry",async()=>{
+ const old=process.env.BLOB_READ_WRITE_TOKEN;process.env.BLOB_READ_WRITE_TOKEN="test-blob";
+ const restores=[];
+ function spy(obj,key,fn){const m=mock.method(obj,key,fn);restores.push(m);return m;}
+ let saved=null,detail={},listCalls=0;
+ const valid={id:"msg-retry",threadId:"thread-retry",labelIds:["INBOX"],internalDate:"1794120000000",
+  payload:{headers:[{name:"From",value:"buyer@example.test"},{name:"Date",value:"Sun, 8 Nov 2026 11:00:00 +0000"}]}};
+ spy(state,"read",async p=>p.includes("gmail-filtered-cursor")?{finished:true}:p.includes("import-cursor")?{shopifyCycleComplete:true}:structuredClone(saved));
+ spy(state,"save",async(_p,v)=>{saved=structuredClone(v);});
+ spy(gmail,"token",async()=>"gmail-test");
+ spy(feishu,"tenantToken",async()=>"feishu-test");
+ spy(gmail,"listMessages",async()=>{listCalls++;return {messages:[{id:valid.id}]};});
+ spy(gmail,"message",async()=>detail);
+ const lookup=spy(feishu,"findBy",async(_t,_table,field)=>field==="邮箱"?[{record_id:"owner",fields:{}}]:[]);
+ const write=spy(feishu,"upsertGmail",async()=>"created");
+ try{
+  for(const malformed of [{},{...valid,id:"wrong-id"},{...valid,payload:{}},{...valid,internalDate:"invalid"}]){
+   detail=malformed;
+   const out=res();await handler(req,out);
+   assert.equal(out.code,502);
+   assert.equal(out.value.retryable,true);
+   assert.equal(saved.pendingPage.offset,0);
+   assert.equal(saved.completed,false);
+   assert.equal(saved.counters.scanned,0);
+  }
+  assert.equal(lookup.mock.callCount(),0);
+  assert.equal(write.mock.callCount(),0);
+  detail=valid;
+  const out=res();await handler(req,out);
+  assert.equal(out.code,200);assert.equal(saved.completed,true);
+  assert.equal(saved.counters.created,1);assert.equal(listCalls,1);
+  assert.equal(write.mock.callCount(),1);
+ }finally{for(const r of restores)r.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
+});
