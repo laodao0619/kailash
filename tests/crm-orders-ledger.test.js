@@ -631,3 +631,32 @@ test("empty full-history archive must not enter manual reconciliation", () => {
   totals:{...zeroAudit.totals,orders:1}},archived);
  assert.equal(inconsistent.status,"BLOCKED_EXPORT_COUNTS_MISMATCH");
 });
+
+test("contradictory refund status cannot pass full archive financial reconciliation",async()=>{
+ const {verifyArchiveIntegrity}=require("../lib/crm-orders-ledger");
+ const cases=[
+  [order({id:"gid://shopify/Order/9901",displayFinancialStatus:"REFUNDED",
+   currentSubtotalPriceSet:usd(20),totalRefundedSet:usd(100),transactions:[
+    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+    {kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}]}),"refunded_merchandise_balance_unreconciled"],
+  [order({id:"gid://shopify/Order/9902",displayFinancialStatus:"REFUNDED",
+   currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(80),transactions:[
+    {kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+    {kind:"REFUND",status:"SUCCESS",amountSet:usd(80)}]}),"refunded_merchandise_balance_unreconciled"],
+  ...[0,80].map((net,i)=>[order({id:"gid://shopify/Order/"+(9903+i),
+   displayFinancialStatus:"PARTIALLY_REFUNDED",currentSubtotalPriceSet:usd(net),
+   totalRefundedSet:usd(0),transactions:[{kind:"SALE",status:"SUCCESS",amountSet:usd(100)}]}),
+   "partial_refund_without_refund_evidence"])
+ ];
+ for(const [row,reason] of cases){
+  assert.deepEqual(classifyOrder(row),{eligible:false,reason});
+  const out=await auditJsonl(Readable.from([JSON.stringify(row)+"\n"]),{asOf:"2026-11-24T00:00:00Z"});
+  assert.equal(out.totals.excluded[reason],1);
+  assert.equal(out.totals.eligible,0);
+  assert.equal(out.aggregates.lifetimeMerchandiseCents,0);
+  const result=verifyArchiveIntegrity(out,{status:"COMPLETED",downloaded:true,
+   archivedAt:"2026-11-24T00:00:00Z",rootObjectCount:"1",objectCount:"1"});
+  assert.equal(result.status,"BLOCKED_REFUND_RECONCILIATION");
+  assert.equal(result.verified,false);
+ }
+});
