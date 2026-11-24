@@ -660,3 +660,31 @@ test("contradictory refund status cannot pass full archive financial reconciliat
   assert.equal(result.verified,false);
  }
 });
+
+test("internal grading input retains customer aggregates without exposing them in the audit report",async()=>{
+ const {auditJsonlForGrading}=require("../lib/crm-orders-ledger");
+ const id="gid://shopify/Customer/987654321";
+ const rows=[
+  order({id:"gid://shopify/Order/123",customer:{id},createdAt:"2025-01-01T00:00:00Z",
+   displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(2500),totalRefundedSet:usd(0),
+   transactions:[{id:"gid://shopify/OrderTransaction/123",kind:"SALE",status:"SUCCESS",amountSet:usd(2500)}]}),
+  order({id:"gid://shopify/Order/124",customer:{id},createdAt:"2026-10-01T00:00:00Z",
+   displayFinancialStatus:"PAID",currentSubtotalPriceSet:usd(800),totalRefundedSet:usd(0),
+   transactions:[{id:"gid://shopify/OrderTransaction/124",kind:"SALE",status:"SUCCESS",amountSet:usd(800)}]})
+ ];
+ const input=()=>Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]);
+ const opts={asOf:"2026-11-24T00:00:00Z"};
+ const normal=await auditJsonl(input(),opts);
+ const internal=await auditJsonlForGrading(input(),opts);
+ assert.equal(normal.customers,undefined);
+ assert.ok(internal.customers instanceof Map);
+ const row=internal.customers.get(id);
+ assert.equal(row.orders,2);
+ assert.equal(row.merchandiseCents,330000);
+ assert.equal(row.windowOrders,1);
+ assert.equal(row.windowMerchandiseCents,80000);
+ assert.equal(JSON.stringify(internal),JSON.stringify(normal));
+ assert.equal(JSON.stringify(internal).includes(id),false);
+ assert.equal(Object.hasOwn({...internal},"customers"),false);
+ assert.equal(internal.sampleAudit.verified,false);
+});
