@@ -133,3 +133,26 @@ test("malformed or mismatched Gmail message keeps durable item offset for retry"
   assert.equal(write.mock.callCount(),1);
  }finally{for(const r of restores)r.mock.restore();if(old===undefined)delete process.env.BLOB_READ_WRITE_TOKEN;else process.env.BLOB_READ_WRITE_TOKEN=old;}
 });
+
+test("nonproduction Vercel Gmail worker fails closed before reading shared private data",async()=>{
+ const old={env:process.env.VERCEL_ENV,vercel:process.env.VERCEL,blob:process.env.BLOB_READ_WRITE_TOKEN};
+ const spies=[mock.method(state,"read",async()=>{throw Error("unexpected read");}),
+  mock.method(state,"save",async()=>{throw Error("unexpected write");}),
+  mock.method(gmail,"token",async()=>{throw Error("unexpected Gmail");}),
+  mock.method(feishu,"tenantToken",async()=>{throw Error("unexpected Feishu");})];
+ process.env.VERCEL="1";process.env.BLOB_READ_WRITE_TOKEN="synthetic-shared";
+ try{
+  for(const env of ["preview","development",undefined]){
+   if(env===undefined)delete process.env.VERCEL_ENV;else process.env.VERCEL_ENV=env;
+   const out=res();await handler(req,out);
+   assert.equal(out.code,409);assert.equal(out.value.error,"preview_write_blocked");
+  }
+  const denied=res();await handler({method:"GET",headers:{}},denied);assert.equal(denied.code,401);
+  for(const spy of spies)assert.equal(spy.mock.callCount(),0);
+ }finally{
+  for(const spy of spies)spy.mock.restore();
+  for(const [key,value] of [["VERCEL_ENV",old.env],["VERCEL",old.vercel],["BLOB_READ_WRITE_TOKEN",old.blob]]){
+   if(value===undefined)delete process.env[key];else process.env[key]=value;
+  }
+ }
+});
