@@ -1,8 +1,10 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {snapshot}=require("./bi-customers-v2");
 const {group}=require("../lib/kbi-rfm-cube");
 function auth(req){
+ if(hasSession(req))return true;
  const k=String(process.env.KBI_ACCESS_TOKEN||"");
  const g=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  return k.length>=24&&!!g&&crypto.timingSafeEqual(crypto.createHash("sha256").update(k).digest(),crypto.createHash("sha256").update(g).digest());

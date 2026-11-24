@@ -4,7 +4,7 @@ module.exports=(req,res)=>{
  res.setHeader("Cache-Control","no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false});
- const auth=typeof process.env.KBI_ACCESS_TOKEN==="string"&&process.env.KBI_ACCESS_TOKEN.length>=24;
+ const auth=require("../lib/kbi-session").loginReady();
  const shopify=!!(process.env.SHOPIFY_SHOP_DOMAIN&&
   (process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||
    (process.env.SHOPIFY_CLIENT_ID&&process.env.SHOPIFY_CLIENT_SECRET)));

@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession,loginReady}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {tenantToken}=require("../lib/crm-feishu");
 async function request(t,path){
@@ -11,6 +12,7 @@ const APP="Y7VvbgreAasoLtsYdhrcmmDUn5d";
 const CUSTOMER="tblbk7Ju6fcM1BXF", CONTACTS="tblNi7C5q5FYlG06";
 const SIZE=50;
 function auth(req){
+ if(hasSession(req))return true;
  const secret=process.env.KBI_ACCESS_TOKEN||"";
  const given=(req.headers.authorization||"").replace(/^Bearer\s+/i,"");
  if(secret.length<24||!given)return false;
@@ -89,7 +91,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
+ if(!process.env.KBI_ACCESS_TOKEN&&!loginReady())return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
  if(!auth(req))return res.status(401).json({ok:false,error:"unauthorized"});
  try{
   const mode=String(req.query?.mode||"customers");

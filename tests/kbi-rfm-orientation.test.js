@@ -9,7 +9,7 @@ function model(){
  const fixture={segments:codes.map((code,i)=>({code,count:100+i*20,pct:12.5,label:code,m180:1000})),health:{rate:50},unknown:{count:0},totalSelected:1360,classified:1360,asOf:'2026-11-09T00:00:00Z'};
  const sandbox={window:{},document:{querySelectorAll:()=>[]},setTimeout,clearTimeout,navigator:{}};
  vm.runInNewContext(fs.readFileSync('public/bi/rfm-3d.js','utf8'),sandbox);
- const app=sandbox.window.KBIRFM3D.initialize({$:node,request:async()=>fixture,state:{token:'test'},esc:String,n:String});
+ const app=sandbox.window.KBIRFM3D.initialize({$:node,request:async()=>fixture,state:{authenticated:true},esc:String,n:String});
  return {app,node,text,fills,events};
 }
 test('origin and axis direction labels remain explicit in primary and reverse views; every cube face is opaque',async()=>{

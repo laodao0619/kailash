@@ -1,7 +1,9 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const cases=require("../lib/crm-cases");
 function authorized(req){
+ if(hasSession(req))return true;
  const s=String(process.env.KBI_ACCESS_TOKEN||""),v=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  return s.length>=24&&!!v&&crypto.timingSafeEqual(crypto.createHash("sha256").update(s).digest(),crypto.createHash("sha256").update(v).digest());
 }

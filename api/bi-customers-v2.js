@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession,loginReady}=require("../lib/kbi-session");
 const crypto=require("node:crypto");
 const {CURRENT,read,normalize}=require("./bi-index-build");
 const {tenantToken}=require("../lib/crm-feishu");
@@ -6,6 +7,7 @@ const {applyRow,POLICY_VERSION,BASIS}=require("../lib/crm-lifetime-tier");
 const SORT_KEYS=new Set(["name","country","tier","spendLifetime","ordersLifetime","m180","f180","rDays","lastOrderAt","aov","syncedAt","firstOrderAt"]);
 let cache=null,inflight=null;
 function auth(req){
+ if(hasSession(req))return true;
  const expected=String(process.env.KBI_ACCESS_TOKEN||"");
  const actual=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  if(expected.length<24||!actual)return false;
@@ -110,7 +112,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
+ if(!process.env.KBI_ACCESS_TOKEN&&!loginReady())return res.status(503).json({ok:false,error:"kbi_auth_not_configured"});
  if(!auth(req))return res.status(401).json({ok:false,error:"unauthorized"});
  try{
   const data=await snapshot();

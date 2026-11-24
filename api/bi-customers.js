@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession,loginReady}=require("../lib/kbi-session");
 // Live, read-only Shopify customer search. This endpoint does not grade RFM.
 const crypto=require("node:crypto");
 const shopify=require("../lib/crm-shopify");
@@ -15,6 +16,7 @@ const QUERY=`query KbiCustomers($cursor:String,$filter:String){
  }
 }`;
 function authorized(req){
+ if(hasSession(req))return true;
  const expected=String(process.env.KBI_ACCESS_TOKEN||"");
  const supplied=String(req.headers?.authorization||"").replace(/^Bearer\s+/i,"");
  if(expected.length<24||!supplied)return false;
@@ -42,7 +44,7 @@ module.exports=async(req,res)=>{
  res.setHeader("Cache-Control","private, no-store");
  res.setHeader("X-Content-Type-Options","nosniff");
  if(req.method!=="GET")return res.status(405).json({ok:false,error:"method_not_allowed"});
- if(!process.env.KBI_ACCESS_TOKEN)return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
+ if(!process.env.KBI_ACCESS_TOKEN&&!loginReady())return res.status(503).json({ok:false,error:"kbi_access_not_configured"});
  if(!authorized(req))return res.status(401).json({ok:false,error:"unauthorized"});
  if(!process.env.SHOPIFY_SHOP_DOMAIN||
     !(process.env.SHOPIFY_ADMIN_ACCESS_TOKEN||

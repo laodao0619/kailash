@@ -1,4 +1,5 @@
 "use strict";
+const {hasSession}=require("../lib/kbi-session");
 const crypto=require('node:crypto');
 const {get,put}=require('@vercel/blob');
 const source=require('../lib/crm-report-sources');
@@ -12,7 +13,7 @@ async function update(){if(!inflight)inflight=(async()=>{const d=await source.re
 module.exports=async(req,res)=>{
  res.setHeader('Cache-Control','private, no-store');res.setHeader('X-Content-Type-Options','nosniff');
  const a=String(req.headers?.authorization||'').replace(/^Bearer\s+/i,'');
- const cron=match(a,process.env.CRON_SECRET),user=match(a,process.env.KBI_ACCESS_TOKEN);
+ const cron=match(a,process.env.CRON_SECRET),user=hasSession(req)||match(a,process.env.KBI_ACCESS_TOKEN);
  if(!cron&&!user)return res.status(401).json({ok:false,error:'unauthorized'});
  if(req.method!=='GET')return res.status(405).json({ok:false,error:'method'});
  try{
