@@ -79,3 +79,22 @@ test("expired request budget blocks network access; unrelated requests are unaff
   assert.deepEqual(requestOptions(),{});
  }finally{fetcher.mock.restore();}
 });
+
+const {blobRequestOptions}=require("../lib/crm-daily-request-budget");
+test("private checkpoint SDK receives scoped abort signal and write reserve",async()=>{
+ assert.deepEqual(blobRequestOptions(),{});
+ assert.deepEqual(blobRequestOptions(true),{});
+ await withRequestDeadline(Date.now()+10000,async()=>{
+  assert.ok(blobRequestOptions().abortSignal instanceof AbortSignal);
+  assert.ok(blobRequestOptions(true).abortSignal instanceof AbortSignal);
+ });
+ await withRequestDeadline(Date.now()-1,async()=>{
+  assert.throws(()=>blobRequestOptions(),/deadline exhausted/);
+  assert.throws(()=>requestOptions(),/deadline exhausted/);
+  assert.ok(blobRequestOptions(true).abortSignal instanceof AbortSignal);
+ });
+ await withRequestDeadline(Date.now()-16000,async()=>{
+  assert.throws(()=>blobRequestOptions(true),/deadline exhausted/);
+ });
+ assert.deepEqual(blobRequestOptions(),{});
+});
