@@ -688,3 +688,29 @@ test("internal grading input retains customer aggregates without exposing them i
  assert.equal(Object.hasOwn({...internal},"customers"),false);
  assert.equal(internal.sampleAudit.verified,false);
 });
+
+
+test("private raw order counts distinguish excluded history from absent customer evidence",async()=>{
+ const {auditJsonlForGrading}=require("../lib/crm-orders-ledger");
+ const id="gid://shopify/Customer/987654322", absent="gid://shopify/Customer/987654323";
+ const refunded=order({id:"gid://shopify/Order/125",customer:{id},
+  displayFinancialStatus:"REFUNDED",currentSubtotalPriceSet:usd(0),totalRefundedSet:usd(100),
+  transactions:[{id:"gid://shopify/OrderTransaction/1251",kind:"SALE",status:"SUCCESS",amountSet:usd(100)},
+   {id:"gid://shopify/OrderTransaction/1252",kind:"REFUND",status:"SUCCESS",amountSet:usd(100)}]});
+ const cancelled=order({id:"gid://shopify/Order/126",customer:{id},cancelledAt:"2026-11-01T00:00:00Z",transactions:[]});
+ const rows=[refunded,cancelled,refunded];
+ const input=()=>Readable.from([rows.map(JSON.stringify).join("\n")+"\n"]);
+ const opts={asOf:"2026-11-24T00:00:00Z"};
+ const normal=await auditJsonl(input(),opts);
+ const internal=await auditJsonlForGrading(input(),opts);
+ assert.equal(internal.customers.has(id),false);
+ assert.equal(internal.sourceOrderCounts.get(id),2);
+ assert.equal(internal.sourceOrderCounts.has(absent),false);
+ assert.equal(internal.totals.eligible,0);
+ assert.equal(internal.totals.duplicateOrderIds,1);
+ assert.equal(internal.aggregates.lifetimeMerchandiseCents,0);
+ assert.equal(normal.sourceOrderCounts,undefined);
+ assert.equal(Object.hasOwn({...internal},"sourceOrderCounts"),false);
+ assert.equal(JSON.stringify(internal),JSON.stringify(normal));
+ assert.equal(internal.sampleAudit.verified,false);
+});
