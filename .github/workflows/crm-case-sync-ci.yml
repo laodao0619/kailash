@@ -1,0 +1,32 @@
+name: CRM Case sync fail-closed CI
+on:
+  pull_request:
+    paths:
+      - 'api/crm-cases-sync.js'
+      - 'api/crm-status.js'
+      - 'lib/crm-cases.js'
+      - 'lib/crm-gmail.js'
+      - 'lib/crm-case-enrichment.js'
+      - 'tests/crm-cases-sync-checkpoint.test.js'
+      - '.github/workflows/crm-case-sync-ci.yml'
+permissions:
+  contents: read
+jobs:
+  case-checkpoint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Syntax checks
+        run: |
+          node --check api/crm-cases-sync.js
+          node --check lib/crm-gmail.js
+          node --check api/crm-status.js
+          node --check tests/crm-cases-sync-checkpoint.test.js
+      - name: Verify fail-closed checkpoint and Case enrichment
+        run: node --test tests/crm-cases-sync-checkpoint.test.js tests/crm-case-enrichment.test.js
